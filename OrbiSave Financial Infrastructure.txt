@@ -1,0 +1,85 @@
+OrbiSave Financial Infrastructure & 
+Payment Integration 
+Focus: Financial Infrastructure, Payment Integration, and Security 
+Audience: Product Team, Finance Team, System Architects, Regulatory Compliance Team 
+1. Overview of Financial Infrastructure 
+OrbiSave operates as a hybrid financial platform. While it orchestrates all contributions, 
+payouts, and loan disbursements, actual funds are held in trust accounts with partner banks 
+in each 
+country. This separation ensures regulatory compliance and protects user funds while 
+allowing 
+automated digital management of transactions. 
+The financial infrastructure layer ensures: - Secure custody of funds - Transparency and auditability - Automation of recurring contributions and payouts - Integration with mobile money and banking systems 
+2. Trust Accounts 
+Each country will have a dedicated OrbiSave Trust Account held by a licensed bank. These 
+accounts 
+will serve as the primary custody layer for user contributions and group wallets. - Kenya Trust Account – holds KES - Rwanda Trust Account – holds RWF - Ghana Trust Account – holds GHS 
+Functions of the trust accounts: - Receive all member contributions - Execute payouts to members based on rotation schedules - Disburse loans approved by group governance and platform verification - Facilitate reconciliations and reporting to regulators 
+Partner banks will be selected based on stability, reliability, mobile integration support, and 
+compliance with local financial regulations. 
+3. Payment Integration 
+To automate contributions and disbursements, OrbiSave will integrate directly with the 
+leading 
+mobile money providers in each country. 
+Kenya: - M-Pesa via Safaricom Daraja API - Airtel Money via Airtel API - Optional: Bank Paybill integration with KCB, Equity Bank 
+Rwanda: - MTN MoMo via MTN API - Airtel Money (subject to feasibility) 
+Ghana: - MTN MoMo via MTN API - Additional integrations to be evaluated based on local research 
+The integration layer will handle: - Initiating STK Push requests for scheduled contributions - Confirming payment completion via API callbacks - Recording successful payments in the digital ledger - Reconciling payment records with the bank trust accounts - Triggering automatic payouts and loan disbursements 
+This layer ensures seamless, automated transactions with minimal manual intervention. 
+4. Contribution and Payout Workflow 
+1. Member contribution is scheduled via the platform. 
+2. Platform triggers a mobile money STK Push or bank API transaction. 
+3. Payment is deposited into the country-specific trust account. 
+4. The contribution is recorded in the group wallet ledger. 
+5. Rotation savings pool and loan pool allocations are automatically computed. 
+6. When it is a member's turn, the payout is automatically calculated, including OrbiSave 
+service 
+fees, and disbursed through mobile money or bank transfer. 
+Service fees are charged only on completed payouts, separate from mobile money charges. 
+For example, in Kenya, KES 0.03 per shilling contributed is deducted from the payout. 
+5. Loan Disbursement and Repayment Flow 
+The loan engine manages all internal group lending processes. Loans are funded solely from 
+group loan pools and are not injected with external capital. 
+Loan request workflow: 
+1. Member submits a loan request via the platform. 
+2. Platform verifies contribution history and loan pool availability. 
+3. Chairperson and Treasurer approve the request based on group governance rules. 
+4. Platform administrators perform a second verification for compliance and fraud 
+prevention. 
+5. Approved loans are disbursed via the trust account through mobile money or bank 
+transfer. 
+6. Repayments are tracked in the ledger and credited back to the group loan pool. 
+Optional: Once sufficient financial history is established, groups may access external bank 
+loans 
+using aggregated contribution data as proof of financial reliability. 
+6. Digital Ledger and Reconciliation 
+The OrbiSave digital ledger records every financial transaction: - Contributions - Payouts - Loan disbursements - Loan repayments - Service fees - Governance approvals 
+Each ledger entry includes timestamp, member ID, group ID, transaction type, and 
+associated 
+metadata. Automated reconciliation compares ledger entries with bank trust account 
+statements 
+and mobile money confirmations to detect discrepancies. 
+This system ensures accuracy, transparency, and audit readiness for both internal and 
+regulatory 
+reporting. 
+7. Security Architecture 
+Security is a core requirement for OrbiSave due to the sensitive financial data handled. 
+1. Authentication and Identity Verification: - Password and optional biometric login - Two-factor authentication (2FA) - KYC verification via secure API providers (e.g., Smile Identity, Prembly) - Mobile SIM registration verification for additional identity assurance 
+2. Transaction Security: - Transaction PIN for each financial action - Dual authorization for loan disbursements (Chairperson + Treasurer + Platform admin) - Audit logs for all financial transactions - Fraud detection algorithms for anomalous transactions 
+3. Data Protection: - Encryption at rest and in transit - Role-based access control - Regular penetration testing and security reviews 
+8. Multi-Country and Regulatory Compliance 
+Each country operates independently to comply with local regulations: - Group activities are country-restricted to prevent cross-border contribution issues. - Trust accounts comply with banking regulations in each country. - Platform only provides software infrastructure and governance; it does not operate as a 
+bank or 
+microfinance institution. - Automated service fees are documented in platform T&Cs for legal transparency. - Regulatory compliance includes reporting to authorities where necessary and maintaining 
+full audit 
+trails of contributions, payouts, and loans. 
+9. Offline and Low Connectivity Support 
+In low-network regions, the platform allows offline recording of group activities, including: - Attendance at meetings - Governance decisions and votes - Loan approvals 
+Once connectivity is restored, offline records synchronize automatically with the central 
+ledger. 
+Financial transactions (contributions, payouts, loans) require network access but are 
+queued for 
+automatic execution once connectivity is available. 
+10. Scaling and Future Expansion 
+The platform is designed to support: - Millions of users and hundreds of thousands of groups - High transaction volumes - Integration with additional mobile money providers and banks - Advanced analytics for contributions, loan performance, and member behavior 
+Future features may include: - Group-based credit scoring - Insurance or savings investment options for groups - Integration with formal banking and microfinance products - Enhanced digital meeting features (recordings, minutes, voting analytics) 

@@ -1,0 +1,161 @@
+Orbisave Core Platform Architecture 
+Focus: Core Platform Architecture for Product and Engineering Team 
+1. Overview of the Core Platform Architecture 
+The OrbiSave platform is designed as a modular financial infrastructure system capable of 
+supporting large numbers of savings groups, transactions, and users across multiple 
+countries. 
+The architecture focuses on reliability, security, transparency, and scalability. 
+At its core, the platform connects three major layers: 
+1. User Interface Layer – mobile and web applications used by members, group leaders, and 
+administrators. 
+2. Application Services Layer – the backend services responsible for governance, financial 
+logic, 
+payment orchestration, and communications. 
+3. Financial Infrastructure Layer – integrations with mobile money providers and bank trust 
+accounts. 
+The platform is designed to be cloud‑native, API‑driven, and modular. This approach 
+ensures that 
+individual components can scale independently as usage grows across Kenya, Rwanda, and 
+Ghana. 
+2. Backend Framework Decision – Django vs Flask 
+Two major Python frameworks were considered for the OrbiSave backend infrastructure: 
+Flask and Django. 
+Flask is a lightweight micro‑framework that offers high flexibility and simplicity. It allows 
+developers 
+to build APIs quickly and customize architecture without predefined conventions. However, 
+for large 
+platforms that require extensive built‑in features such as authentication, administrative 
+dashboards, 
+ORM database management, and structured security layers, Flask requires additional 
+development time 
+because these capabilities must be implemented manually. 
+Django, on the other hand, is a full‑featured web framework designed for scalable web 
+applications. 
+It provides a mature ecosystem with built‑in authentication systems, robust ORM database 
+tools, 
+administrative panels, security protections, and strong community support. 
+For a financial platform such as OrbiSave that must manage sensitive financial records, 
+multiple user 
+roles, secure authentication systems, and structured data models, Django offers a more 
+suitable 
+foundation. 
+The recommended backend architecture therefore uses: 
+• Python 
+• Django 
+• Django REST Framework for APIs 
+• PostgreSQL as the primary relational database 
+This stack provides strong security defaults, faster development cycles, and long‑term 
+maintainability. 
+3. High‑Level System Architecture 
+The OrbiSave system will follow a layered architecture that separates user interfaces, 
+application logic, 
+and financial infrastructure integrations. 
+User Interface Layer 
+This layer includes the mobile application and the web dashboard. Users interact with the 
+system 
+through these interfaces to manage contributions, join groups, request loans, and 
+participate in 
+governance activities. 
+Application Services Layer 
+This layer contains the backend logic built using Django. It includes services responsible for 
+group 
+management, financial ledger updates, payment orchestration, governance approvals, 
+notification 
+services, and analytics. 
+Financial Infrastructure Layer 
+This layer integrates with external payment systems and banking infrastructure. It 
+communicates with 
+mobile money providers and bank APIs to trigger real financial transactions while the 
+platform records 
+and manages digital ledgers internally. 
+4. Mobile Application Architecture 
+The primary user interface for OrbiSave will be a mobile application built using Flutter. 
+Flutter allows developers to build high‑performance applications that run across Android 
+and iOS 
+devices using a single codebase. Since Android devices dominate the markets in Kenya, 
+Rwanda, 
+and Ghana, the initial focus will prioritize Android deployment while maintaining the ability 
+to 
+extend to iOS if needed. 
+The mobile application will handle the following major functions: 
+• User onboarding and identity verification 
+• Group discovery and invitations 
+• Contribution scheduling and payment approvals 
+• Viewing financial balances and transaction histories 
+• Loan requests and approvals 
+• Governance voting and group communication 
+• Participation in digital group meetings 
+• Notifications for contributions, payouts, and approvals 
+Offline capabilities will allow certain governance activities to be recorded even when 
+network 
+connectivity is limited. Once connectivity is restored, the application synchronizes with the 
+backend. 
+5. Web Platform and Administrative Dashboards 
+The OrbiSave web platform provides management dashboards for administrators, group 
+leaders, 
+and customer support teams. 
+Administrators use the platform to monitor transactions, verify loan disbursement 
+requests, 
+investigate disputes, and manage platform governance rules. 
+Group leaders such as chairpersons and treasurers can use the web dashboard to monitor 
+group 
+financial performance, review contribution histories, and manage loan approvals. 
+The web platform will likely use modern frontend technologies such as React or Next.js 
+combined 
+with Tailwind CSS for interface design. The frontend communicates with the backend 
+through 
+secure REST APIs built using Django REST Framework. 
+6. Digital Group Meeting Infrastructure 
+One unique feature planned for OrbiSave is the integration of digital group meetings within 
+the 
+platform. Traditionally, savings groups meet physically to collect contributions and discuss 
+financial matters. By embedding virtual meeting capabilities, the platform allows members 
+to conduct meetings remotely when physical gatherings are not possible. 
+The meeting infrastructure will function similarly to widely used platforms such as Zoom or 
+Google Meet but in a simplified form focused on group discussions. 
+Technically, this feature will be implemented using WebRTC (Web Real‑Time 
+Communication). 
+WebRTC enables peer‑to‑peer audio and video communication directly within web 
+browsers and 
+mobile applications. 
+The system will include: 
+• Video conferencing for group meetings 
+• Audio participation for low bandwidth users 
+• Meeting scheduling tools 
+• Meeting attendance records 
+• Screen sharing for financial reports 
+For scalability, a media server such as Jitsi or LiveKit may be integrated to handle group 
+video communication efficiently. 
+This feature ensures that governance discussions, loan approvals, and financial decisions 
+can 
+be conducted digitally without requiring physical presence. 
+7. Group Wallet Architecture 
+Every savings group within OrbiSave will have a digital group wallet. This wallet is not a 
+bank 
+account but a digital ledger representation of funds held within the platform’s trust 
+accounts. 
+Each group wallet contains two primary financial pools: 
+1. Rotation Savings Pool – funds used for the traditional merry‑go‑round payouts. 
+2. Loan Pool – funds allocated by the group to provide internal loans to members. 
+The platform ledger records contributions and automatically distributes the amounts into 
+these pools based on the group’s contribution rules. 
+This architecture allows flexible financial structures where some groups may operate 
+purely 
+as rotating savings groups while others maintain both rotation savings and internal lending 
+pools. 
+8. Loan Engine and Eligibility Logic 
+The loan engine is responsible for evaluating loan requests and ensuring that lending 
+decisions 
+follow the governance rules defined by each group. 
+When a member requests a loan, the system performs several automated checks including: 
+• The member’s contribution history 
+• Current balance of the group loan pool 
+• Maximum loan limits set by the group 
+• Outstanding loans from the member 
+If the request meets the eligibility criteria, it is forwarded to the group leadership for 
+approval. 
+Both the chairperson and treasurer must authorize the request before the platform 
+proceeds 
+to the verification stage. 
+Once platform administrators verify the transaction, the system instructs the bank trust 
+account to disburse the loan through mobile money or bank transfer. 

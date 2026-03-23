@@ -1,0 +1,127 @@
+OrbiSave Technical Master Blueprint  
+Platform OrbiSave 
+Purpose Technical and Architectural Documentation for Team Alignment 
+1. Introduction 
+OrbiSave is a digital financial infrastructure platform designed to support community 
+savings groups 
+(commonly known as chamas, VSLAs, farmer cooperatives, corporate saving groups, and 
+informal 
+community finance circles). The platform provides a secure technological environment 
+where groups 
+can manage rotating savings contributions, internal loan pools, automated payouts, and 
+financial 
+records using mobile money integrations and bank custody systems. 
+Unlike traditional fintech platforms that directly hold or manage customer deposits, 
+OrbiSave operates 
+as a financial orchestration and governance infrastructure. Funds contributed by users are 
+stored within 
+trust accounts held by partner banks in each operating country. The platform itself 
+maintains digital 
+ledgers, governance mechanisms, and payment orchestration that enable secure 
+transactions without 
+assuming direct custodianship of the funds. 
+The first markets targeted for deployment are Kenya, Rwanda, and Ghana. Each market will 
+operate 
+independently with localized payment integrations, trust accounts, regulatory alignment, 
+and currency 
+management. 
+2. Platform Vision and Strategic Role 
+OrbiSave aims to digitize and modernize the traditional savings group model which has 
+existed across 
+Africa for decades. Millions of individuals rely on rotating savings groups to pool funds, 
+provide short‑ 
+term loans, and create financial safety nets in the absence of formal banking access. 
+The goal of OrbiSave is not to replace this culture but to enhance it through automation, 
+transparency, 
+and secure digital infrastructure. 
+The platform focuses on five strategic outcomes 
+1. Eliminating manual bookkeeping and calculation errors. 
+2. Preventing financial mismanagement through automated governance. 
+3. Enabling automated contributions and payouts via mobile money. 
+4. Creating verifiable financial histories for group members. 
+5. Enabling future integration with formal banking and lending institutions. 
+Through this approach, OrbiSave becomes a bridge between informal community finance 
+and formal 
+financial institutions. 
+3. Hybrid Financial Infrastructure Model 
+OrbiSave operates using a hybrid financial infrastructure model. This means that the 
+platform does not 
+store user funds directly but instead orchestrates transactions while banks hold the funds 
+in trust 
+accounts. 
+In this architecture, every contribution made by a group member through mobile money or 
+bank 
+transfer is routed into a trust account that belongs to OrbiSave but is legally safeguarded 
+under bank 
+custody rules. 
+The platform then records the contribution within its internal ledger system and allocates 
+the funds to 
+the corresponding group wallet. 
+This model ensures that 
+• Customer funds remain protected under regulated banking institutions. 
+• The platform avoids being classified as a deposit‑taking financial institution. 
+• The system maintains full traceability and financial auditability. 
+• Transaction automation remains possible without compromising regulatory safety. 
+The hybrid model is widely used in financial infrastructure platforms where software 
+providers manage 
+the operational layer while licensed financial institutions manage the custody layer. 
+4. Trust Account Architecture 
+In each country of operation, OrbiSave will establish dedicated trust accounts within 
+partner banks. 
+These accounts act as the primary custody layer for all funds contributed by users within 
+that country. 
+For example 
+Kenya Trust Account – holds all Kenyan contributions in Kenyan Shillings. 
+Rwanda Trust Account – holds all Rwandan contributions in Rwandan Francs. 
+Ghana Trust Account – holds all Ghanaian contributions in Ghanaian Cedis. 
+When a group member contributes funds, the payment is routed into the respective trust 
+account. 
+OrbiSave then records the transaction in the digital ledger and assigns the value to the 
+appropriate 
+group wallet. 
+Trust accounts will also execute outgoing transactions including 
+• Loan disbursements 
+• Member payout rotations 
+• Refunds or dispute resolutions 
+Banks therefore act as the financial custodian while OrbiSave operates the digital 
+infrastructure and 
+governance systems that instruct the transactions. 
+5. Payment Infrastructure and Mobile Money Integration 
+Mobile money is the dominant financial transaction method across the target countries. 
+OrbiSave will 
+integrate directly with the major mobile money systems in each market to automate 
+contributions and 
+payouts. 
+In Kenya, integration will include M‑Pesa and Airtel Money. Contributions will primarily be 
+initiated 
+through automated STK Push requests triggered by the platform on scheduled contribution 
+dates. 
+In Rwanda and Ghana, MTN Mobile Money will be the primary integration partner for early 
+deployment. 
+The payment orchestration layer within OrbiSave performs the following tasks 
+• Initiating contribution payment requests. 
+• Verifying transaction completion through provider APIs. 
+• Recording payment confirmations within the internal ledger. 
+• Reconciling payments with the bank trust accounts. 
+• Triggering payouts or loan disbursements when approved. 
+This payment orchestration layer is a critical system component because it connects the 
+digital 
+platform with real financial rails. 
+6. Digital Ledger System 
+At the core of the platform lies the OrbiSave Digital Ledger System. 
+The ledger is responsible for recording every financial event within the platform including 
+• Member contributions 
+• Allocation to payout pools 
+• Allocation to loan pools 
+• Loan disbursements 
+• Loan repayments 
+• Service fee deductions 
+• Payout transactions 
+Each entry in the ledger creates a permanent financial record linked to both the member 
+and the 
+group wallet. 
+The ledger ensures that all balances can be traced, verified, and audited at any time. This 
+structure is 
+essential for maintaining transparency and trust among group members as well as external 
+financial 
+partners. 

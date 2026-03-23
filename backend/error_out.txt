@@ -1,0 +1,44 @@
+Traceback (most recent call last):
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\debug_import.py", line 10, in <module>
+    call_command('makemigrations', 'groups')
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\core\management\base.py", line 459, in execute
+    output = self.handle(*args, **options)
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\core\management\base.py", line 107, in wrapper
+    res = handle_func(*args, **kwargs)
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\core\management\commands\makemigrations.py", line 158, in handle
+    loader.check_consistent_history(connection)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\migrations\loader.py", line 313, in check_consistent_history
+    applied = recorder.applied_migrations()
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\migrations\recorder.py", line 89, in applied_migrations
+    if self.has_table():
+       ~~~~~~~~~~~~~~^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\migrations\recorder.py", line 63, in has_table
+    with self.connection.cursor() as cursor:
+         ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\utils\asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\backends\base\base.py", line 316, in cursor
+    return self._cursor()
+           ~~~~~~~~~~~~^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\backends\base\base.py", line 292, in _cursor
+    self.ensure_connection()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\utils\asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\backends\base\base.py", line 275, in ensure_connection
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\utils\asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\backends\base\base.py", line 255, in connect
+    conn_params = self.get_connection_params()
+  File "C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\django\db\backends\postgresql\base.py", line 196, in get_connection_params
+    raise ImproperlyConfigured(
+    ...<2 lines>...
+    )
+django.core.exceptions.ImproperlyConfigured: settings.DATABASES is improperly configured. Please supply the NAME or OPTIONS['service'] value.

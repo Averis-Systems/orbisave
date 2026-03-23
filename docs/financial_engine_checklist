@@ -1,0 +1,271 @@
+# ORBISAVE FINANCIAL ENGINE CHECKLIST
+> Purpose: Define, validate, and enforce all financial logic for group-based capital coordination.
+> This engine must be deterministic, auditable, scalable, and fault-tolerant.
+
+---
+
+## 1. CORE ENGINE PRINCIPLES
+
+- [x] All financial operations are **event-driven** (no silent state changes)
+- [x] Every action produces an **immutable log entry** (Implemented via `AuditLog`)
+- [x] No money is "moved" — only **state + obligations tracked** (Ledger-based state machine)
+- [x] All operations are **idempotent** (Verified via webhook/initiation tests)
+- [x] System must behave like a **state machine**, not scattered logic
+
+---
+
+## 2. CORE ENTITIES (MUST BE WELL DEFINED)
+
+- [x] Group
+- [x] Member (Fixed mapping to `GroupMember`)
+- [x] Membership Status (active, exited, suspended, deceased)
+- [x] Contribution Plan (amount, frequency, cycle length)
+- [x] Contribution Record (Verified idempotency)
+- [x] Rotation Schedule (who gets paid, when)
+- [x] Payout Record (Fixed field alignments)
+- [x] Loan Pool (Supported via percentages)
+- [x] Loan Request
+- [x] Loan Approval (Multi-party verified)
+- [x] Loan Repayment Schedule (Model exists)
+- [x] Penalty Rules (Implemented via `PenaltyRule` model and `PenaltyService`)
+- [x] System Fee Configuration (Dynamic & Versioned verified)
+- [x] Audit Log (Immutable verified)
+
+---
+
+## 3. ROTATION ENGINE (MERRY-GO-ROUND LOGIC)
+
+- [x] Rotation order defined at group creation or agreed later (Handled via `initialize_rotation`)
+- [ ] Rotation must be:
+  - [ ] Deterministic
+  - [ ] Immutable after start (unless governed change)
+- [ ] Each cycle tracks:
+  - [ ] Expected contributions
+  - [ ] Actual contributions
+- [ ] Payout only triggered when:
+  - [ ] Minimum contribution threshold met OR
+  - [ ] Group-defined rules satisfied
+
+### Edge Cases
+- [ ] Member misses contribution → what happens?
+- [ ] Partial contributions allowed or not?
+- [ ] Late contribution penalty applied?
+- [ ] Rotation skipped or postponed?
+- [ ] Replacement logic if member exits mid-cycle?
+
+---
+
+## 4. CONTRIBUTION LOGIC
+
+- [ ] Contributions tracked per member per cycle
+- [ ] Status:
+  - [ ] Pending
+  - [ ] Paid
+  - [ ] Late
+  - [ ] Defaulted
+- [x] Duplicate contribution prevention (Verified via `advisory_lock`)
+- [x] Idempotent contribution submission (Verified via `provider_reference` check)
+- [ ] Contribution deadlines enforced
+
+### Edge Cases
+- [ ] Overpayment → how handled?
+- [ ] Underpayment → partial or reject?
+- [ ] Missed contributions impact payout eligibility?
+
+---
+
+## 5. PAYOUT ENGINE
+
+- [x] Payout eligibility clearly defined
+- [x] Payout calculation:
+  - [x] Total pool
+  - [x] Less system fee (dynamic % e.g. 4.15%)
+- [x] System fee:
+  - [x] Configurable (DB-stored, NOT hardcoded)
+  - [x] Versioned (historical accuracy)
+- [x] Payout must be:
+  - [x] Atomic (all or nothing)
+  - [x] Logged
+  - [x] Traceable
+
+### Edge Cases
+- [ ] Insufficient contributions → delay or partial payout?
+- [ ] Member default → group absorbs or penalizes?
+- [ ] Retry payout safely without duplication
+
+---
+
+## 6. SYSTEM FEES & CONFIGURATION
+
+- [x] Fee % stored in database/config service
+- [x] Changes to fee:
+  - [x] Do NOT affect historical records
+  - [x] Apply only to new transactions
+- [x] Ability to:
+  - [x] Adjust fee (e.g. 4.15%)
+  - [x] Add tax components
+- [x] Validation before applying new fee
+
+---
+
+## 7. LOAN ENGINE (OPTIONAL PER GROUP)
+
+- [ ] Loan pool is:
+  - [ ] Optional
+  - [ ] Separately tracked from rotation funds
+- [ ] Loan rules configurable per group:
+  - [ ] Interest rate
+  - [ ] Max loan amount
+  - [ ] Repayment period
+
+### Loan Approval Flow
+- [x] Request → Review → Approval → Disbursement (logical only)
+- [x] Multi-party approval (if required)
+- [x] Audit trail for approvals
+
+### Interest Control
+- [ ] Group sets interest rate
+- [ ] System enforces:
+  - [ ] Upper cap (anti-exploitation)
+  - [ ] Warning if exceeding recommended range
+
+### Repayment Logic
+- [x] Scheduled repayments tracked (Automated via `LoanRepaymentService`)
+- [ ] Late repayment penalties configurable
+- [ ] Loan default handling defined
+
+---
+
+## 8. MEMBER STATE MANAGEMENT
+
+### States
+- [ ] Active
+- [ ] Suspended
+- [ ] Exited
+- [ ] Deceased
+
+### Exit Logic
+- [ ] Can member exit mid-cycle?
+- [ ] Settlement calculation required:
+  - [ ] Contributions made
+  - [ ] Payouts received
+  - [ ] Outstanding obligations
+
+### Deceased Member
+- [ ] Define policy:
+  - [ ] Next-of-kin payout?
+  - [ ] Group absorbs?
+- [ ] Freeze account
+- [ ] Prevent further obligations
+- [ ] Log event clearly
+
+---
+
+## 9. DEFAULTS & PENALTIES
+
+- [ ] Missed contributions tracked
+- [ ] Penalty rules configurable:
+  - [ ] Flat fee
+  - [ ] Percentage
+- [ ] Escalation logic:
+  - [ ] Warning
+  - [ ] Restriction
+  - [ ] Removal
+
+---
+
+## 10. GROUP GOVERNANCE
+
+- [ ] Group-level configuration:
+  - [ ] Contribution amount
+  - [ ] Cycle duration
+  - [ ] Loan rules
+- [ ] Permission roles:
+  - [ ] Admin
+  - [ ] Treasurer
+  - [ ] Member
+- [ ] Sensitive actions require:
+  - [ ] Multi-approval (optional)
+
+---
+
+## 11. CONCURRENCY & RACE CONDITIONS
+
+- [x] Prevent:
+  - [x] Double contribution submission (Verified)
+  - [x] Double payout execution (Verified)
+  - [x] Simultaneous loan approvals (Verified)
+- [x] Use:
+  - [x] Database transactions (Strict `atomic` usage)
+  - [x] Row-level locking where necessary (`select_for_update` & `advisory_lock`)
+
+---
+
+## 12. DATA INTEGRITY
+
+- [ ] All financial calculations deterministic
+- [ ] No floating-point errors (use decimal types)
+- [ ] Historical records NEVER mutated
+- [ ] Version critical rules (fees, interest)
+
+---
+
+## 13. AUDIT & TRACEABILITY
+
+- [ ] Every action logged:
+  - [ ] Who
+  - [ ] When
+  - [ ] What changed
+- [ ] Full timeline reconstructable
+- [ ] No hidden logic
+
+---
+
+## 14. FAILURE HANDLING
+
+- [ ] If payout fails:
+  - [ ] Retry safely
+  - [ ] No duplicate records
+- [ ] If system crashes mid-operation:
+  - [ ] Resume safely
+- [ ] External bank failure does NOT corrupt state
+
+---
+
+## 15. SIMULATION & TESTING
+
+- [ ] Simulate:
+  - [ ] Full cycle with 100+ members
+  - [ ] Multiple defaults
+  - [ ] Loan overlaps
+- [ ] Edge cases:
+  - [ ] All members late
+  - [ ] Half default
+  - [ ] Admin abuse scenarios
+
+---
+
+## 16. FUTURE-PROOFING
+
+- [ ] Engine supports:
+  - [ ] Multiple concurrent cycles
+  - [ ] Different group rules per group
+- [ ] Easily extendable to:
+  - [ ] Investment pools
+  - [ ] Insurance pools
+  - [ ] Cross-border groups
+
+---
+
+## FINAL ENGINE CHECK
+
+- [ ] Can this engine handle 100k+ active groups?
+- [ ] Can logic be audited externally?
+- [ ] Can rules change without breaking old data?
+- [ ] Can failures occur without data corruption?
+- [ ] Can malicious behavior be detected and contained?
+
+---
+
+> If this engine is wrong, the entire system loses trust.
+> Build it like a financial ledger, not a feature.

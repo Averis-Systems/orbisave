@@ -1,0 +1,263 @@
+# ORBISAVE SYSTEM DESIGN CHECKLIST
+> Purpose: Ensure scalability, reliability, security, and production readiness for a large-scale collective finance coordination platform.
+
+---
+
+## 1. SYSTEM OVERVIEW
+
+- [ ] What problem does the system solve?
+- [ ] What are the core user roles? (e.g. Admin, Group Admin, Member)
+- [ ] What are the core flows?
+  - [ ] Group creation
+  - [ ] Member onboarding
+  - [ ] Contribution tracking
+  - [ ] Rotation/payout scheduling
+  - [ ] Loan pool management
+- [ ] What is NOT handled by the system? (e.g. money custody handled by banks)
+
+---
+
+## 2. ARCHITECTURE DESIGN
+
+- [ ] Monolith vs Microservices vs Modular Monolith decision documented
+- [ ] Backend framework defined (e.g. Django)
+- [ ] Frontend architecture defined (e.g. Next.js)
+- [ ] API design style:
+  - [ ] REST
+  - [ ] GraphQL (if applicable)
+- [ ] Clear separation of concerns:
+  - [ ] Auth
+  - [ ] Business logic
+  - [ ] Data layer
+- [ ] System diagram exists (high-level + detailed)
+
+---
+
+## 3. DATABASE DESIGN
+
+- [ ] Database type selected (PostgreSQL recommended)
+- [ ] Core entities defined:
+  - [ ] Users
+  - [ ] Groups
+  - [ ] Memberships
+  - [ ] Contributions
+  - [ ] Payout cycles
+  - [ ] Loan pools
+  - [ ] Transactions (logs, NOT money movement)
+- [ ] Relationships normalized properly
+- [ ] Indexing strategy defined
+- [ ] Read vs write optimization considered
+- [ ] Data consistency model defined
+- [ ] Migration strategy exists
+
+---
+
+## 4. SCALABILITY (CRITICAL)
+
+### Traffic Handling
+- [ ] What happens if 10k users log in simultaneously?
+- [ ] What happens if 100k users perform actions concurrently?
+- [ ] What happens if 500k users click at once?
+
+### Backend
+- [ ] Horizontal scaling supported (stateless services)
+- [ ] Load balancer configured
+- [ ] API rate limiting in place
+- [ ] Background job queues used (e.g. Celery, Redis)
+
+### Database
+- [ ] Read replicas configured
+- [ ] Connection pooling implemented
+- [ ] Query optimization tested
+- [ ] Slow query logging enabled
+
+### Caching
+- [ ] Redis/memory caching used for:
+  - [ ] Sessions
+  - [ ] Frequently accessed data
+- [ ] Cache invalidation strategy defined
+
+---
+
+## 5. PERFORMANCE
+
+- [ ] API response times under load tested
+- [ ] Frontend optimized:
+  - [ ] Code splitting
+  - [ ] Lazy loading
+- [ ] Pagination implemented for large datasets
+- [ ] Debouncing/throttling used in UI
+- [ ] N+1 query problems eliminated
+
+---
+
+## 6. SECURITY (NON-NEGOTIABLE)
+
+### Authentication & Authorization
+- [ ] Secure authentication (JWT / OAuth)
+- [ ] Role-based access control (RBAC)
+- [ ] Multi-tenant isolation (groups cannot access each other)
+
+### Data Protection
+- [ ] HTTPS enforced everywhere
+- [ ] Sensitive data encrypted at rest
+- [ ] Secrets stored securely (no hardcoding)
+
+### API Security
+- [ ] Rate limiting
+- [ ] Input validation & sanitization
+- [ ] Protection against:
+  - [ ] SQL Injection
+  - [ ] XSS
+  - [ ] CSRF
+
+### Audit & Monitoring
+- [ ] All critical actions logged
+- [ ] Admin actions traceable
+- [ ] Suspicious activity detection
+
+---
+
+## 7. RELIABILITY & FAULT TOLERANCE
+
+- [ ] What happens if:
+  - [ ] Database goes down?
+  - [ ] API server crashes?
+  - [ ] External bank API fails?
+- [ ] Retry mechanisms implemented
+- [ ] Circuit breakers used for external services
+- [ ] Graceful degradation strategy defined
+- [ ] No single point of failure
+
+---
+
+## 8. DATA INTEGRITY
+
+- [ ] Transactional consistency enforced (ACID where needed)
+- [ ] Idempotency for critical operations (e.g. contributions)
+- [ ] Duplicate request handling
+- [ ] Conflict resolution strategy
+
+---
+
+## 9. EVENT & JOB PROCESSING
+
+- [ ] Background workers implemented for:
+  - [ ] Notifications
+  - [ ] Reports
+  - [ ] Scheduled payouts logic
+- [ ] Queue system selected (Redis, RabbitMQ, etc.)
+- [ ] Retry + dead-letter queue strategy defined
+
+---
+
+## 10. INTEGRATIONS (BANKS / EXTERNAL SYSTEMS)
+
+- [ ] API contracts clearly defined
+- [ ] Timeout handling implemented
+- [ ] Fallback mechanisms exist
+- [ ] Logging of all external interactions
+- [ ] No dependency blocking core system operations
+
+---
+
+## 11. MULTI-TENANCY (VERY IMPORTANT)
+
+- [ ] Groups are fully isolated logically
+- [ ] Data access scoped per group
+- [ ] No cross-group leakage possible
+- [ ] Tenant-aware queries enforced everywhere
+
+---
+
+## 12. LOGGING & MONITORING
+
+- [ ] Centralized logging system
+- [ ] Error tracking (e.g. Sentry)
+- [ ] Metrics tracking:
+  - [ ] API latency
+  - [ ] Error rates
+  - [ ] Active users
+- [ ] Alerts configured for:
+  - [ ] Downtime
+  - [ ] High error rates
+  - [ ] Performance degradation
+
+---
+
+## 13. DEVOPS & DEPLOYMENT
+
+- [ ] CI/CD pipeline configured
+- [ ] Environment separation:
+  - [ ] Dev
+  - [ ] Staging
+  - [ ] Production
+- [ ] Dockerized services
+- [ ] Infrastructure defined (VPS / Cloud)
+- [ ] Rollback strategy exists
+
+---
+
+## 14. TESTING
+
+- [ ] Unit tests
+- [ ] Integration tests
+- [ ] Load testing (simulate 100k+ users)
+- [ ] Security testing
+- [ ] Edge case testing:
+  - [ ] Simultaneous contributions
+  - [ ] Double payout attempts
+
+---
+
+## 15. UX & FAILURE SCENARIOS
+
+- [ ] Clear error messages for users
+- [ ] Retry options in UI
+- [ ] Offline/slow network handling
+- [ ] No silent failures
+
+---
+
+## 16. FUTURE SCALABILITY
+
+- [ ] Can this system support:
+  - [ ] 1M users?
+  - [ ] 10M users?
+- [ ] Can new features be added without breaking core logic?
+- [ ] Modular architecture for:
+  - [ ] Loans
+  - [ ] Investments
+  - [ ] Analytics
+
+---
+
+## 17. COST OPTIMIZATION
+
+- [ ] Efficient database queries
+- [ ] Controlled API usage
+- [ ] Scalable infrastructure costs
+- [ ] Avoid over-provisioning early
+
+---
+
+## 18. DOCUMENTATION
+
+- [ ] API documentation complete
+- [ ] System architecture documented
+- [ ] Developer onboarding guide exists
+- [ ] Decision logs recorded (why choices were made)
+
+---
+
+# FINAL CHECK
+
+- [ ] Can the system survive 500k concurrent actions?
+- [ ] Can it recover from failure without data loss?
+- [ ] Is user data secure?
+- [ ] Is the system observable and debuggable?
+- [ ] Can a new engineer understand and extend it quickly?
+
+---
+
+> If ANY of the above is unclear → system is NOT production ready.
