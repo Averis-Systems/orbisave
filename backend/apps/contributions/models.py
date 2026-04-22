@@ -6,7 +6,8 @@ class Contribution(BaseModel):
     STATUS  = [('scheduled','Scheduled'), ('initiated','Initiated'), ('pending','Pending'), ('confirmed','Confirmed'), ('failed','Failed')]
 
     group              = models.ForeignKey('groups.Group', on_delete=models.PROTECT, related_name='contributions')
-    member             = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='contributions')
+    # db_constraint=False: User is on 'default' DB; contributions live on country DB.
+    member             = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='contributions', db_constraint=False)
     amount             = models.DecimalField(max_digits=14, decimal_places=2)
     actual_amount      = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     currency           = models.CharField(max_length=5)
@@ -27,12 +28,12 @@ class Contribution(BaseModel):
         db_table = 'contributions_contribution'
 
     def __str__(self):
-        return f"{self.member.phone} -> {self.group.name} : {self.amount}"
+        return f"Contribution {self.platform_reference} | {self.amount} {self.currency} [{self.status}]"
 
 class Penalty(BaseModel):
     STATUS = [('pending', 'Pending'), ('paid', 'Paid'), ('waived', 'Waived')]
     contribution       = models.ForeignKey(Contribution, on_delete=models.SET_NULL, null=True, blank=True, related_name='penalties')
-    member             = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='penalties')
+    member             = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='penalties', db_constraint=False)
     rule               = models.ForeignKey('groups.PenaltyRule', on_delete=models.PROTECT)
     amount             = models.DecimalField(max_digits=14, decimal_places=2)
     status             = models.CharField(max_length=20, choices=STATUS, default='pending')

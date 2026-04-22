@@ -139,6 +139,44 @@ class GroupViewSet(viewsets.ModelViewSet):
         )
         return success_response(data={"cycle_number": cycle.cycle_number}, message="Group transitioned to next financial cycle.")
 
+    @action(detail=True, methods=['post'], permission_classes=[IsGroupChairperson])
+    def activate(self, request, pk=None):
+        """
+        Activates a newly created group after verifying:
+          1. Chairperson KYC is 'verified'.
+          2. At least one confirmed contribution exists (first-deposit gate).
+        Satisfies Financial Engine Checklist: first-deposit gate before group activation.
+        """
+        group = self.get_object()
+
+        if group.status == 'active':
+            return Response({"error": "Group is already active."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.user.kyc_status != 'verified':
+            return Response(
+                {"error": "KYC verification required before activating a group."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from apps.contributions.models import Contribution
+        has_deposit = Contribution.objects.filter(group=group, status='confirmed').exists()
+        if not has_deposit:
+            return Response(
+                {"error": "At least one confirmed contribution is required to activate this group."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        group.status = 'active'
+        group.save(update_fields=['status'])
+
+        log_audit(
+            action='group_activated',
+            actor=request.user,
+            target_group=group,
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
+        return success_response(data=None, message="Group is now active. Financial engine is running.")
+
 
 class GroupMemberActionViewSet(viewsets.GenericViewSet):
     """
@@ -158,18 +196,18 @@ class GroupMemberActionViewSet(viewsets.GenericViewSet):
         if membership.role == 'chairperson':
             return Response({"error": "Cannot forcefully remove the group chairperson."}, status=status.HTTP_400_BAD_REQUEST)
 
-        membership.status = 'removed'
-        membership.left_at = timezone.now()
-        membership.save(update_fields=['status', 'left_at'])
-        
+        membership.status = 'exited'  # 'removed' was invalid — 'exited' is the correct state
+        membership.exited_at = timezone.now()  # field renamed from left_at
+        membership.save(update_fields=['status', 'exited_at'])
+
         log_audit(
-            action='member_suspended', # Map 'removed' to suspended conceptually in audit
-            actor=request.user, 
+            action='member_exited',
+            actor=request.user,
             target_user=membership.member,
             target_group=membership.group,
             ip_address=request.META.get('REMOTE_ADDR')
         )
-        return success_response(data=None, message="Member successfully excised from collective.")
+        return success_response(data=None, message="Member exited from collective.")
 
     @action(detail=True, methods=['post'])
     def suspend(self, request, group_pk=None, pk=None):
@@ -192,16 +230,77 @@ class GroupMemberActionViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=['post'])
     def reinstate(self, request, group_pk=None, pk=None):
         membership = self.get_object()
-        
+
         membership.status = 'active'
-        membership.left_at = None
-        membership.save(update_fields=['status', 'left_at'])
-        
+        membership.exited_at = None  # field renamed from left_at
+        membership.save(update_fields=['status', 'exited_at'])
+
         log_audit(
             action='member_reinstated',
-            actor=request.user, 
+            actor=request.user,
             target_user=membership.member,
             target_group=membership.group,
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return success_response(data=None, message="Member actively reinstated into all active pools.")
+
+    @action(detail=True, methods=['post'])
+    def exit(self, request, group_pk=None, pk=None):
+        """
+        Voluntary member exit with full settlement calculation.
+        Satisfies Financial Engine Checklist §8: Settlement calculation required on exit.
+        """
+        membership = self.get_object()
+
+        if membership.role == 'chairperson':
+            return Response(
+                {"error": "Chairperson cannot exit without first transferring the role."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if membership.status != 'active':
+            return Response(
+                {"error": f"Member is already '{membership.status}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        group = membership.group
+        member = membership.member
+        from decimal import Decimal
+        from django.db.models import Sum
+        from apps.contributions.models import Contribution
+        from apps.payouts.models import Payout
+        from apps.loans.models import Loan
+
+        total_contributed = Contribution.objects.filter(
+            group=group, member=member, status='confirmed'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        total_received = Payout.objects.filter(
+            group=group, recipient=member, status='completed'
+        ).aggregate(total=Sum('net_amount'))['total'] or Decimal('0')
+
+        outstanding_loans = Loan.objects.filter(
+            group=group, borrower=member, status__in=['approved', 'disbursed', 'active']
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        settlement = {
+            'total_contributed': str(total_contributed),
+            'total_payouts_received': str(total_received),
+            'outstanding_loan_obligations': str(outstanding_loans),
+            'net_settlement': str(total_contributed - total_received - outstanding_loans),
+            'currency': group.currency,
+        }
+
+        membership.status = 'exited'
+        membership.exited_at = timezone.now()
+        membership.save(update_fields=['status', 'exited_at'])
+
+        log_audit(
+            action='member_exited',
+            actor=request.user,
+            target_user=member,
+            target_group=group,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            metadata=settlement,
+        )
+        return success_response(data=settlement, message="Member exited. Settlement summary generated.")

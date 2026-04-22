@@ -12,7 +12,7 @@ class LedgerEntry(BaseModel):
     DIRECTIONS = [('credit','Credit'), ('debit','Debit')]
 
     group               = models.ForeignKey('groups.Group', on_delete=models.PROTECT, related_name='ledger_entries')
-    member              = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True)
+    member              = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, db_constraint=False)
     entry_type          = models.CharField(max_length=40, choices=ENTRY_TYPES)
     direction           = models.CharField(max_length=10, choices=DIRECTIONS)
     amount              = models.DecimalField(max_digits=14, decimal_places=2)
@@ -23,7 +23,8 @@ class LedgerEntry(BaseModel):
     related_contribution = models.ForeignKey('contributions.Contribution', on_delete=models.PROTECT, null=True, blank=True)
     related_loan        = models.ForeignKey('loans.Loan', on_delete=models.PROTECT, null=True, blank=True)
     related_payout      = models.ForeignKey('payouts.Payout', on_delete=models.PROTECT, null=True, blank=True)
-    recorded_by         = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, related_name='ledger_entries_recorded')
+    recorded_by         = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, related_name='ledger_entries_recorded', db_constraint=False)
+    previous_hash       = models.CharField(max_length=64, default='0' * 64)
     hash                = models.CharField(max_length=64)
 
     class Meta:

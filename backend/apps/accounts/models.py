@@ -42,14 +42,15 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     kyc_provider_ref       = models.CharField(max_length=255, null=True, blank=True)
     phone_verified         = models.BooleanField(default=False)
     two_factor_enabled     = models.BooleanField(default=False)
-    transaction_pin_hash   = models.CharField(max_length=255, null=True, blank=True)
     mobile_money_provider  = models.CharField(max_length=50, null=True, blank=True)
     mobile_money_number    = models.CharField(max_length=20, null=True, blank=True)
     is_active              = models.BooleanField(default=True)
     is_staff               = models.BooleanField(default=False)
     last_login_ip          = models.GenericIPAddressField(null=True, blank=True)
+    next_of_kin_name       = models.CharField(max_length=255, blank=True)
     next_of_kin_phone      = models.CharField(max_length=20, blank=True)
-    transaction_pin        = models.CharField(max_length=255, blank=True, help_text="Argon2id universally hashed 4-digit verification code")
+    # Argon2id-hashed 4-digit PIN — SOLE transaction PIN field (transaction_pin_hash removed).
+    transaction_pin        = models.CharField(max_length=255, blank=True, help_text="Argon2id hashed 4-digit transaction verification code")
 
     USERNAME_FIELD  = 'email'
     REQUIRED_FIELDS = ['phone', 'full_name']
@@ -74,10 +75,20 @@ class KYCDocument(BaseModel):
 
 class PhoneOTP(BaseModel):
     """One-time codes for phone number verification."""
-    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='phone_otps')
-    code       = models.CharField(max_length=6)
-    expires_at = models.DateTimeField()
-    used       = models.BooleanField(default=False)
+    user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='phone_otps')
+    code           = models.CharField(max_length=6)
+    expires_at     = models.DateTimeField()
+    used           = models.BooleanField(default=False)
+    attempt_count  = models.PositiveSmallIntegerField(default=0)
+    max_attempts   = models.PositiveSmallIntegerField(default=5)
 
     class Meta:
         db_table = 'accounts_phone_otp'
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    def is_exhausted(self):
+        return self.attempt_count >= self.max_attempts
+

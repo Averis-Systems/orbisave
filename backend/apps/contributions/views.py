@@ -1,7 +1,7 @@
 import hashlib
 import uuid
-import datetime
 import structlog
+from django.utils import timezone as tz
 from rest_framework import views, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -12,10 +12,12 @@ from decimal import Decimal
 from contextlib import contextmanager
 from threading import Lock
 from .models import Contribution
+from .serializers import ContributionInitiateSerializer, ContributionStatusSerializer
 from apps.groups.models import GroupMember, Group, RotationCycle
 from apps.ledger.models import LedgerEntry
 from apps.payments.selector import get_payment_provider
 from common.exceptions import success_response
+from common.db_utils import get_db_for_group, get_db_for_country
 
 _sqlite_lock = Lock()
 
@@ -42,37 +44,39 @@ class InitiateContributionView(views.APIView):
 
     def post(self, request, group_pk):
         """
-        Idempotent Endpoint. Initiates a state machine transition to 'pending'.
+        Idempotent endpoint. Validates input via serializer then initiates a
+        state machine transition to 'initiated'.
+        Satisfies System Checklist Section 6 (Input Validation) + Financial Engine Checklist 1 & 4.
         """
-        amount = request.data.get('amount')
-        phone = request.data.get('phone')
-        
-        if not amount or not phone:
-            return Response({"error": "amount and phone strictly required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            amount_dec = Decimal(str(amount))
-            if amount_dec <= Decimal('0.00'):
-                raise ValueError
-        except (ValueError, TypeError):
-             return Response({"error": "Invalid decimal amount structure."}, status=status.HTTP_400_BAD_REQUEST)
+        # ── Serializer Validation ──────────────────────────────────────────
+        serializer = ContributionInitiateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate Membership silently protecting multi-tenancy boundaries
+        amount_dec = serializer.validated_data['amount']
+        phone      = serializer.validated_data['phone']
+        method     = serializer.validated_data['method']
+
         try:
             membership = GroupMember.objects.select_related('group').get(
-                group_id=group_pk, 
-                member=request.user, 
+                group_id=group_pk,
+                member=request.user,
                 status='active'
             )
         except GroupMember.DoesNotExist:
-            return Response({"error": "User holds zero active privileges to contribute here."}, status=status.HTTP_403_FORBIDDEN)
-        
+            return Response(
+                {"error": "You do not have an active membership in this group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         group = membership.group
-        
-        # Advisory lock id generated via hashing user + group
-        lock_seed = int(hashlib.md5(f"init_contrib_{request.user.id}_{group.id}".encode()).hexdigest(), 16) % (2**63 - 1)
-        
-        with transaction.atomic(using=group.country):
+        db_alias = get_db_for_group(group)
+
+        lock_seed = int(hashlib.md5(
+            f"init_contrib_{request.user.id}_{group.id}".encode()
+        ).hexdigest(), 16) % (2**63 - 1)
+
+        with transaction.atomic(using=db_alias):
             with advisory_lock(lock_seed):
                 # Anti-Spam: Check if a highly identical pending contribution already explicitly exists
                 existing_pending = Contribution.objects.filter(
@@ -106,13 +110,13 @@ class InitiateContributionView(views.APIView):
                     member=request.user,
                     amount=amount_dec,
                     currency=group.currency,
-                    method='mpesa',
+                    method=method,
                     mobile_number=phone,
                     status='initiated',
-                    initiated_at=datetime.datetime.now(),
+                    initiated_at=tz.now(),
                     provider_reference=prov_ref,
                     platform_reference=f"PLT-{uuid.uuid4().hex[:12].upper()}",
-                    scheduled_date=datetime.date.today(),
+                    scheduled_date=tz.now().date(),
                     cycle=current_cycle
                 )
 
@@ -144,7 +148,7 @@ class ContributionWebhookView(views.APIView):
         prov_ref = parsed.get("transaction_id")
         cb_status = parsed.get("status")
         
-        with transaction.atomic(using=country): # Strict multi-db scoping!
+        with transaction.atomic(using=get_db_for_country(country)):  # Safe multi-DB routing
             # Select FOR UPDATE mechanically freezes the row locking out thousands of concurrent pings immediately.
             try:
                 contrib = Contribution.objects.select_for_update().select_related('group', 'member').get(provider_reference=prov_ref)
@@ -164,7 +168,7 @@ class ContributionWebhookView(views.APIView):
                 
             # Success Track! Shift to double-entry ledger instantiation.
             contrib.status = 'confirmed'
-            contrib.confirmed_at = datetime.datetime.now()
+            contrib.confirmed_at = tz.now()
             contrib.actual_amount = Decimal(parsed.get('amount', contrib.amount))
             contrib.save(update_fields=['status', 'confirmed_at', 'actual_amount'])
             

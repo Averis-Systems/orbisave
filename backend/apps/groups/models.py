@@ -52,32 +52,51 @@ class Group(BaseModel):
         return self.name
 
 class GroupMember(BaseModel):
-    STATUS = [('active','Active'), ('suspended','Suspended'), ('left','Left')]
+    # 'exited' replaces old 'left' for consistency with the financial engine checklist.
+    # 'deceased' added as required by Section 8 (Member State Management).
+    STATUS = [
+        ('active','Active'),
+        ('suspended','Suspended'),
+        ('exited','Exited'),
+        ('deceased','Deceased'),
+    ]
     ROLE_CHOICES = [('member', 'Member'), ('chairperson', 'Chairperson'), ('treasurer', 'Treasurer')]
+
+    # Cross-DB FK: accounts.User lives in 'default' DB; financial data in country DBs.
+    # db_constraint=False prevents IntegrityError on country-specific DB migrations.
     group             = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='memberships')
-    member            = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='group_memberships')
+    member            = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE,
+        related_name='group_memberships', db_constraint=False
+    )
     role              = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
     rotation_position = models.PositiveIntegerField(null=True, blank=True)
     status            = models.CharField(max_length=20, choices=STATUS, default='active')
     joined_at         = models.DateTimeField(auto_now_add=True)
-    left_at           = models.DateTimeField(null=True, blank=True)
+    exited_at         = models.DateTimeField(null=True, blank=True)  # Renamed from left_at
+    suspension_reason = models.TextField(blank=True)
 
     class Meta:
         db_table = 'groups_member'
-        unique_together = [('group','member')]
+        unique_together = [('group', 'member')]
 
     def __str__(self):
-        return f"{self.member.email} in {self.group.name}"
+        return f"{self.member_id} in {self.group.name} [{self.role}]"
 
 class GroupInvite(BaseModel):
     STATUS = [('pending','Pending'), ('accepted','Accepted'), ('expired','Expired'), ('cancelled','Cancelled')]
     group        = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='invites')
-    invited_by   = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True)
+    invited_by   = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
     contact      = models.CharField(max_length=255)
     contact_type = models.CharField(max_length=10)  # email | phone
     token        = models.CharField(max_length=255, unique=True)
     status       = models.CharField(max_length=20, choices=STATUS, default='pending')
-    accepted_by  = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='accepted_invites')
+    accepted_by  = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='accepted_invites', db_constraint=False
+    )
     expires_at   = models.DateTimeField()
     accepted_at  = models.DateTimeField(null=True, blank=True)
 
@@ -103,17 +122,22 @@ class RotationCycle(BaseModel):
         return f"Cycle {self.cycle_number} for {self.group.name}"
 
 class RotationSchedule(BaseModel):
-    group              = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='payout_schedules')
-    member             = models.ForeignKey('accounts.User', on_delete=models.CASCADE)
-    cycle_number       = models.PositiveIntegerField()
+    group                 = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='payout_schedules')
+    # db_constraint=False: member lives in default DB; rotation records in country DB.
+    member                = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE, db_constraint=False
+    )
+    cycle_number          = models.PositiveIntegerField()
     scheduled_payout_date = models.DateField()
+    is_paid_out           = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'groups_rotation_schedule'
-        unique_together = [('group', 'cycle_number'), ('group', 'member')]
+        # One slot per member per group cycle — each member receives exactly once per cycle.
+        unique_together = [('group', 'cycle_number', 'member')]
 
     def __str__(self):
-        return f"{self.member.email} scheduled for cycle {self.cycle_number}"
+        return f"Member {self.member_id} — Cycle {self.cycle_number} ({self.group.name})"
 
 class PenaltyRule(BaseModel):
     RULE_TYPES = [('late_contribution', 'Late Contribution'), ('missed_meeting', 'Missed Meeting'), ('loan_default', 'Loan Default')]

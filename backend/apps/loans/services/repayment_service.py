@@ -1,7 +1,9 @@
 import datetime
 from decimal import Decimal
 from django.db import transaction
+from django.utils import timezone
 from apps.loans.models import LoanRepayment
+from common.db_utils import get_db_for_group
 
 class LoanRepaymentService:
     @staticmethod
@@ -20,11 +22,12 @@ class LoanRepaymentService:
         monthly_interest = (total_interest / Decimal(str(months))).quantize(Decimal('0.01'))
         monthly_total = (repayment_amount_total / Decimal(str(months))).quantize(Decimal('0.01'))
         
-        with transaction.atomic(using=loan.group.country):
+        db_alias = get_db_for_group(loan.group)
+        with transaction.atomic(using=db_alias):
             repayments = []
             for i in range(1, months + 1):
                 # Simple 30-day schedule
-                due_date = datetime.date.today() + datetime.timedelta(days=30 * i)
+                due_date = timezone.now().date() + datetime.timedelta(days=30 * i)
                 repayments.append(LoanRepayment(
                     loan=loan,
                     due_date=due_date,

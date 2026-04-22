@@ -1,0 +1,298 @@
+# ORBISAVE FRONTEND SYSTEM DESIGN CHECKLIST
+> Purpose: Guide AI agents to build a high-quality, scalable, secure, and visually engaging frontend system.
+> This is NOT a generic UI. It must reflect Orbisave’s identity as a collective capital coordination platform.
+
+---
+
+## 1. CORE FRONTEND PRINCIPLES
+
+- [ ] UI must feel **premium, alive, and intentional** (NOT template-like)
+- [ ] Animations must **communicate meaning**, not decoration
+- [ ] UX must support:
+  - [ ] Low-tech users (farmers)
+  - [ ] High-level users (corporates)
+- [ ] Mobile-first design
+- [ ] Accessibility considered (contrast, readability)
+
+---
+
+## 2. TECH STACK
+
+- [ ] Framework: Next.js (App Router)
+- [ ] Styling: Tailwind CSS
+- [ ] Animations: GSAP (primary)
+- [ ] State/Data:
+  - [ ] TanStack Query (server state)
+  - [ ] Zustand (local state if needed)
+- [ ] Auth:
+  - [ ] Better Auth integrated with DRF backend
+- [ ] Forms:
+  - [ ] React Hook Form + Zod validation
+
+---
+
+## 3. LANDING PAGE (HIGH IMPACT – NON-NEGOTIABLE)
+
+### Goal
+- [ ] Clearly communicate:
+  - [ ] What Orbisave is
+  - [ ] Who it is for
+  - [ ] Why it matters
+- [ ] Visually demonstrate:
+  - [ ] Rotational savings
+  - [ ] Loan pools
+  - [ ] Group collaboration
+
+---
+
+### Sections (WITH GSAP ANIMATIONS)
+
+#### Hero Section
+- [ ] Strong headline (non-generic)
+- [ ] Subtext explaining value
+- [ ] CTA (Join / Get Started)
+- [ ] Animated visual:
+  - [ ] Rotating pool (circle animation)
+  - [ ] Members contributing
+
+---
+
+#### How It Works (MotionPath)
+- [ ] Step-by-step flow:
+  1. Create or join group
+  2. Contribute
+  3. Rotate payouts
+  4. Access loan pool
+- [ ] Use GSAP MotionPath:
+  - [ ] Moving tokens along a circular path
+  - [ ] Waypoints explaining each step
+
+---
+
+#### Rotational Pool Visualization
+- [ ] Animated circular pool
+- [ ] Highlight current payout member
+- [ ] Show contributions flowing in
+- [ ] Show payout flowing out
+
+---
+
+#### Loan Pool Section
+- [ ] Visual separation from rotation pool
+- [ ] Show:
+  - [ ] Borrowing
+  - [ ] Repayment
+  - [ ] Interest growth (subtle animation)
+
+---
+
+#### Social Proof / Trust
+- [ ] Testimonials (future-ready)
+- [ ] Trust messaging:
+  - [ ] Bank-backed custody
+  - [ ] Transparency
+
+---
+
+#### CTA Section
+- [ ] “Start or Join a Group”
+- [ ] “Have an invite code?”
+
+---
+
+#### Footer
+- [ ] Clean, structured:
+  - [ ] About
+  - [ ] Product
+  - [ ] Legal
+  - [ ] Contact
+- [ ] Social links
+- [ ] Terms & Privacy
+
+---
+
+## 4. AUTHENTICATION FLOW
+
+### Signup
+- [ ] Email + password OR phone-based
+- [ ] Input validation (strict)
+- [ ] Cloudflare bot protection (Turnstile or similar)
+
+---
+
+### Login
+- [ ] Secure session handling
+- [ ] Rate limiting (frontend + backend awareness)
+
+---
+
+### KYC FLOW
+
+#### Chairman (Group Creator)
+- [ ] Mandatory KYC before:
+  - [ ] Group activation
+  - [ ] Inviting members
+
+#### Treasurer
+- [ ] KYC required when role assigned
+
+---
+
+## 5. ONBOARDING LOGIC
+
+### New User (No Group)
+- [ ] Lands on empty dashboard
+- [ ] Options:
+  - [ ] Enter invite link/code
+  - [ ] Create group
+
+---
+
+### Group Creation Flow
+- [ ] Step-by-step wizard:
+  - [ ] Define contribution rules
+  - [ ] Define rotation cycle
+- [ ] MUST:
+  - [ ] Require first deposit before activation
+- [ ] After activation:
+  - [ ] Enable invite system
+
+---
+
+### Invite Flow
+- [ ] Invite link/code system
+- [ ] On join:
+  - [ ] User linked to group
+  - [ ] Assigned as member
+
+---
+
+## 6. ROLE-BASED DASHBOARD (SINGLE SYSTEM)
+
+### Core Rule
+- [ ] One dashboard
+- [ ] Features unlocked based on role
+
+---
+
+### Member
+- [ ] View contributions
+- [ ] View schedule
+- [ ] View payouts
+
+---
+
+### Treasurer (extra permissions)
+- [ ] Manage contributions tracking
+- [ ] Monitor loan repayments
+
+---
+
+### Chairman (extra permissions)
+- [ ] Manage group settings
+- [ ] Assign roles
+- [ ] Approve major actions
+
+---
+
+## 7. DASHBOARD UI DESIGN
+
+- [ ] Clean, data-focused layout
+- [ ] Components:
+  - [ ] Contribution tracker
+  - [ ] Rotation timeline
+  - [ ] Loan pool panel
+- [ ] Use charts carefully (not overkill)
+
+---
+
+## 8. RESPONSIVENESS
+
+- [ ] Mobile-first
+- [ ] Tablet optimized
+- [ ] Desktop enhanced layout
+- [ ] Touch-friendly interactions
+
+---
+
+## 9. SECURITY (FRONTEND LAYER)
+
+### Input Safety
+- [ ] All inputs validated (Zod)
+- [ ] Sanitization enforced
+
+---
+
+### Cloudflare Protection
+- [ ] IP verification (Turnstile)
+- [ ] Bot detection
+- [ ] Rate limiting awareness
+
+---
+
+### Auth Security
+- [ ] Secure token storage (httpOnly cookies preferred)
+- [ ] No sensitive data in localStorage
+
+---
+
+## 10. PERFORMANCE
+
+- [ ] Lazy loading for heavy components
+- [ ] Code splitting
+- [ ] Optimized GSAP animations (no jank)
+- [ ] Avoid unnecessary re-renders
+
+---
+
+## 11. ERROR HANDLING
+
+- [ ] User-friendly error messages
+- [ ] Network failure states
+- [ ] Retry mechanisms
+- [ ] No silent failures
+
+---
+
+## 12. ACCESS CONTROL
+
+- [ ] Route protection
+- [ ] Role-based page access
+- [ ] Unauthorized access blocked
+
+---
+
+## 13. API INTEGRATION
+
+- [ ] DRF endpoints integrated cleanly
+- [ ] TanStack Query for:
+  - [ ] Fetching
+  - [ ] Caching
+  - [ ] Refetching
+- [ ] Error states handled properly
+
+---
+
+## 14. UX EDGE CASES
+
+- [ ] User joins multiple groups
+- [ ] User has no activity
+- [ ] Slow network users
+- [ ] Partial onboarding
+
+---
+
+## 15. FINAL CHECK
+
+- [ ] Landing page feels unique (NOT template)
+- [ ] Animations explain the system clearly
+- [ ] Onboarding prevents empty groups
+- [ ] Roles enforced correctly
+- [ ] Security is solid
+- [ ] Works smoothly on mobile
+
+---
+
+> If the frontend looks generic → it fails.
+> If users don’t understand the system visually → it fails.
+> If onboarding is weak → system adoption fails.

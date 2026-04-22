@@ -185,6 +185,42 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+# ─── Celery Beat Schedule ─────────────────────────────────────────────────────
+# All financial enforcement tasks. Intervals are production-defaults and can be
+# overridden via django_celery_beat admin UI without code changes.
+CELERY_BEAT_SCHEDULE = {
+    # Scans all groups for overdue contributions daily at 00:05 UTC
+    'enforce-contribution-deadlines': {
+        'task': 'apps.contributions.tasks.enforce_contribution_deadlines',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 3600},
+    },
+    # Reconciles pending penalties into ledger every 6 hours
+    'apply-pending-penalties': {
+        'task': 'apps.contributions.tasks.apply_pending_penalties',
+        'schedule': timedelta(hours=6),
+        'options': {'expires': 1800},
+    },
+    # Checks if all rotation cycle slots are paid out — closes cycle + starts next
+    'check-cycle-completion': {
+        'task': 'apps.groups.tasks.check_cycle_completion',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 3600},
+    },
+    # Flags loan repayments past due date
+    'flag-overdue-loan-repayments': {
+        'task': 'apps.loans.tasks.flag_overdue_loan_repayments',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 3600},
+    },
+    # Escalates loans with 2+ overdue repayments to 'defaulted'
+    'check-loan-defaults': {
+        'task': 'apps.loans.tasks.check_loan_defaults',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 3600},
+    },
+}
+
 # ─── Django Channels (WebSockets) ────────────────────────────────────────────
 CHANNEL_LAYERS = {
     'default': {
