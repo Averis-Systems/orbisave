@@ -39,7 +39,7 @@ export function LoginForm() {
         password: data.password,
       })
       const { access } = response.data
-      const profileRes = await api.get("/auth/users/me/", {
+      const profileRes = await api.get("/auth/me/", {
         headers: { Authorization: `Bearer ${access}` },
       })
       setAuth(profileRes.data, access)
@@ -66,12 +66,12 @@ export function LoginForm() {
         {error && <div className="mb-6 p-4 rounded bg-[#ffdad6] text-[#93000a] text-sm font-medium flex gap-2 items-center"><AlertTriangle className="w-4 h-4" /> {error}</div>}
 
         <div className="mb-5">
-          <label className="block text-[10px] font-bold text-[#717973] tracking-widest uppercase mb-2">Professional Email</label>
+          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Email Address</label>
           <input
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
-            className={`w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#1a1c1a] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#012d1d] focus:outline-none transition-all ${errors.email ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+            className={`w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.email ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
             {...register("email")}
           />
           {errors.email && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.email.message}</p>}
@@ -79,8 +79,8 @@ export function LoginForm() {
 
         <div className="mb-8 relative">
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-[10px] font-bold text-[#717973] tracking-widest uppercase">Secure Password</label>
-            <Link href="/forgot-password" className="text-xs font-bold text-[#012d1d] hover:text-black">Forgot password?</Link>
+            <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight">Password</label>
+            <Link href="/forgot-password" className="text-xs font-bold text-[#00ab00] hover:text-[#008a00]">Forgot password?</Link>
           </div>
           <div className="relative">
             <input
@@ -97,24 +97,11 @@ export function LoginForm() {
           {errors.password && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.password.message}</p>}
         </div>
 
-        <button type="submit" className="w-full h-11 bg-[#012d1d] hover:bg-black text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm" disabled={isSubmitting}>
-          {isSubmitting ? "Authenticating…" : "Access My Vault"}
+        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm" disabled={isSubmitting}>
+          {isSubmitting ? "Authenticating…" : "Sign In to My Account"}
           {!isSubmitting && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>}
         </button>
       </form>
-
-      {/* Security badges */}
-      <div className="flex justify-center gap-8 mt-12 border-t border-black/5 pt-8">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-[#717973] tracking-widest uppercase">
-          <Shield className="w-4 h-4" /> SSL Secured
-        </div>
-        <div className="flex items-center gap-2 text-[10px] font-bold text-[#717973] tracking-widest uppercase">
-          <CheckCircle className="w-4 h-4" /> FDIC Member
-        </div>
-        <div className="flex items-center gap-2 text-[10px] font-bold text-[#717973] tracking-widest uppercase">
-          <Key className="w-4 h-4" /> 2FA Ready
-        </div>
-      </div>
     </div>
   )
 }

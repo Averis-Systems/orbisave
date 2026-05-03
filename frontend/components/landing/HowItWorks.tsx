@@ -1,65 +1,60 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { Users, Smartphone, RotateCcw, Landmark, ArrowRight } from "lucide-react"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
+import { TRUST_PILLARS } from "@/lib/demo-data"
 
 const STEPS = [
   {
     number: "01",
     icon: Users,
     iconCls: "step-icon-users",
-    title: "Create or Join a Collective",
+    title: "Start Your Group",
     description:
-      "A chairperson launches the group and defines the rules: contribution amount, frequency, rotation order, and the loan pool interest cap. Members join via secure 7-day invite codes.",
+      "Create your group, define the savings terms, and set the payout sequence. Members join via secure invites, establishing a closed, trusted network.",
     detail: "KES 5,000 · Weekly · 10 Members",
     bg: "#e9f3ed",
     accent: "#00ab00",
+    image: "/images/step1.jpg"
   },
   {
     number: "02",
     icon: Smartphone,
     iconCls: "step-icon-phone",
-    title: "Members Contribute on Schedule",
+    title: "Save Every Week",
     description:
-      "Each member funds via M-Pesa STK Push, MTN MoMo, or bank transfer. The platform reconciles every deposit with an idempotent payment lock — eliminating duplicates and manual ledgers.",
+      "Members contribute via mobile money (M-Pesa, MTN) or bank transfer. The platform automatically reconciles payments, eliminating manual bookkeeping and disputes.",
     detail: "9/10 Confirmed · 1 Pending",
     bg: "#e8edf3",
     accent: "#0a2540",
+    image: "/images/step2.jpg"
   },
   {
     number: "03",
     icon: RotateCcw,
     iconCls: "step-icon-rotate",
-    title: "Rotation Payout Fires Automatically",
+    title: "Get Your Big Payout",
     description:
-      "When the cycle closes, the financial engine calculates the net payout, routes funds to the scheduled member's connected wallet, and records an immutable ledger entry.",
+      "When a member's turn arrives, the aggregated pool is disbursed directly to their wallet. Smart contracts enforce the queue, ensuring zero delays.",
     detail: "Payout → Amara K. · KES 48,500 Net",
     bg: "#e9f3ed",
     accent: "#00ab00",
+    image: "/images/step3.jpg"
   },
   {
     number: "04",
     icon: Landmark,
     iconCls: "step-icon-landmark",
-    title: "Access the Group Loan Pool",
+    title: "Emergency Loans",
     description:
-      "30% of pooled capital is set aside as a loan reserve. Members request loans which require both the chairperson and treasurer to provide their PINs — enforcing two-key cryptographic governance.",
+      "A portion of the pool forms a reserve fund. Members can request instant, low-interest micro-loans, approved digitally by group administrators.",
     detail: "Reserve: KES 18,000 · Rate: 3% / month",
     bg: "#e8edf3",
     accent: "#0a2540",
+    image: "/images/step4.jpg"
   },
-]
-
-/* The screenshot trust pillars from existing TrustBelt — shown as additional info panel */
-const TRUST_PILLARS = [
-  "Funds held in licensed bank trust accounts. OrbiSave never holds your money independently.",
-  "SHA-256 hash-chained ledger. Every transaction is auditable and cryptographically tamper-evident.",
-  "Strict multi-party loan authorizations governed by required administrative PIN approvals.",
 ]
 
 export function HowItWorks() {
@@ -134,16 +129,16 @@ export function HowItWorks() {
             className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.15em] uppercase mb-5 px-3 py-1.5"
             style={{ color: "#00ab00", background: "#e9f3ed", borderRadius: "4px", border: "1px solid #d6e4df" }}
           >
-            Core Mechanism
+            How Orbisave Works
           </div>
           <h2
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight mb-5"
             style={{ color: "#0a2540" }}
           >
-            Four phases. One continuous cycle of wealth.
+            A secure, transparent wealth-building engine.
           </h2>
           <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-            We replace volatile cash hand-offs with automated digital governance — the collective model trusted for decades, now fortified with the reliability of a modern bank.
+            We take the group savings you know and trust, and move them to your phone. It's the same chama you love, but much safer and easier to manage for everyone.
           </p>
         </div>
 
@@ -171,7 +166,7 @@ export function HowItWorks() {
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 grid md:grid-cols-[1fr_280px] gap-6 items-start">
+                  <div className="flex-1 grid md:grid-cols-[1fr_280px] gap-6 items-center">
 
                     {/* Text block */}
                     <div
@@ -224,19 +219,20 @@ export function HowItWorks() {
                       </div>
                     </div>
 
-                    {/* Visual icon panel */}
                     <div
-                      className="min-h-[140px] md:min-h-full flex items-center justify-center p-8"
+                      className="w-full md:w-[280px] aspect-[4/3] md:aspect-square flex items-center justify-center overflow-hidden relative flex-shrink-0 group-hover:scale-[1.02] transition-transform duration-700"
                       style={{
                         background: step.bg,
                         border: "1px solid #d6e4df",
-                        borderRadius: "8px",
+                        borderRadius: "12px",
                       }}
                     >
-                      <Icon
-                        className={`w-16 h-16 ${step.iconCls}`}
-                        style={{ color: step.accent, opacity: 0.25 }}
+                      <img 
+                        src={step.image} 
+                        alt={step.title} 
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
+                      <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
                     </div>
                   </div>
                 </div>

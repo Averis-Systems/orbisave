@@ -18,12 +18,17 @@ class CountryMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Determine country from header or query param. Default to 'default' database.
-        country = request.headers.get('X-Country', 'default').lower()
-        if country in ['kenya', 'rwanda', 'ghana']:
-            set_current_country(country)
-        else:
-            set_current_country('default')
+        # Determine country from header or user profile.
+        header_country = request.headers.get('X-Country', '').lower()
+        
+        country = 'default'
+        if header_country in ['kenya', 'rwanda', 'ghana']:
+            country = header_country
+        elif request.user.is_authenticated and hasattr(request.user, 'country'):
+            if request.user.country in ['kenya', 'rwanda', 'ghana']:
+                country = request.user.country
+
+        set_current_country(country)
             
         response = self.get_response(request)
         

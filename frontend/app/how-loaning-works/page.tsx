@@ -1,9 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import Link from "next/link"
 import {
   Users, Vote, Unlock, Smartphone, CheckCircle2,
@@ -12,8 +10,7 @@ import {
 } from "lucide-react"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
@@ -22,9 +19,9 @@ const LOAN_STEPS = [
     number: "01",
     icon: Users,
     iconCls: "ls-icon-1",
-    title: "Your group votes to open loaning",
-    body: "The chairperson asks the group: \"Should we open a loan pool?\" Every member votes on the app. If the group agrees, the loan module is switched on. No single person can decide alone.",
-    detail: "Group vote · All members participate",
+    title: "Your group votes to start",
+    body: "The leader asks the group: \"Should we start lending money?\" Every member votes on the app. If the group agrees, the loaning starts. No single person can decide alone.",
+    detail: "Group vote · Everyone decides together",
     bg: "#e9f3ed",
     accent: "#00ab00",
   },
@@ -32,9 +29,9 @@ const LOAN_STEPS = [
     number: "02",
     icon: Unlock,
     iconCls: "ls-icon-2",
-    title: "The chairperson opens the pool",
-    body: "The chairperson confirms with their personal PIN. This is their private number — separate from their login password. The system records this action permanently.",
-    detail: "Chairperson PIN · Recorded in audit log",
+    title: "The leader opens the pool",
+    body: "The leader uses their own secret PIN to agree. This is a private number that only they know. The app records this so everyone knows the leader agreed.",
+    detail: "Leader PIN · Recorded forever",
     bg: "#e8edf3",
     accent: "#0a2540",
   },
@@ -42,9 +39,9 @@ const LOAN_STEPS = [
     number: "03",
     icon: Lock,
     iconCls: "ls-icon-3",
-    title: "The treasurer activates it",
-    body: "The treasurer also enters their PIN. Two different people must approve before any money moves. This protects every member — including the leaders themselves.",
-    detail: "Treasurer PIN · Two-key security",
+    title: "The treasurer agrees too",
+    body: "The treasurer also uses their secret PIN. Two different leaders must agree before any money is moved. This keeps the group's money safe for everyone.",
+    detail: "Treasurer PIN · Two leaders must agree",
     bg: "#e9f3ed",
     accent: "#00ab00",
   },
@@ -52,36 +49,36 @@ const LOAN_STEPS = [
     number: "04",
     icon: Banknote,
     iconCls: "ls-icon-4",
-    title: "30% of pooled money becomes the loan fund",
-    body: "OrbiSave sets aside 30 out of every 100 shillings collected as a loan reserve. The other 70 goes to the rotation payout. The loan fund grows every cycle.",
-    detail: "70% rotation · 30% loan reserve",
+    title: "Money is set aside for loans",
+    body: "We set aside 30 out of every 100 shillings you save for loans. The other 70 shillings go to the person getting paid this week. This way, there's always money for emergencies.",
+    detail: "70% for payouts · 30% for loans",
     bg: "#e8edf3",
     accent: "#0a2540",
   },
 ]
 
 const REQUEST_STEPS = [
-  { icon: Smartphone,   label: "Member requests a loan on the app",          detail: "Sets amount, reason, and repayment period" },
-  { icon: Users,        label: "Chairperson reviews and approves with PIN",  detail: "Checks the member's contribution history" },
-  { icon: Lock,         label: "Treasurer confirms with their PIN",           detail: "Verifies the pool has enough money" },
-  { icon: ShieldCheck,  label: "Platform checks the rules are met",           detail: "Max loan = 3× what you have contributed" },
-  { icon: Smartphone,   label: "Money sent directly to mobile wallet",        detail: "M-Pesa, MTN MoMo, or Airtel Money" },
+  { icon: Smartphone,   label: "Ask for a loan on the app",          detail: "Set how much you need and when to pay back" },
+  { icon: Users,        label: "Leader checks and agrees with PIN",  detail: "Checks if you have been saving regularly" },
+  { icon: Lock,         label: "Treasurer checks and confirms with PIN", detail: "Makes sure the group has enough money" },
+  { icon: ShieldCheck,  label: "The app checks the rules",           detail: "Max loan is 3× your total savings" },
+  { icon: Smartphone,   label: "Money is sent to your phone",        detail: "M-Pesa, MTN, or bank account" },
 ]
 
 const CREDIT_TIMELINE = [
-  { period: "Month 1–3",   icon: Star,      color: "#4a5c6a", label: "You start contributing",       desc: "Every payment is recorded. Your financial record begins." },
-  { period: "Month 4–6",   icon: TrendingUp, color: "#00ab00", label: "You can borrow internally",   desc: "Your group can now loan to members who need it." },
-  { period: "Month 7–12",  icon: FileText,   color: "#00ab00", label: "Financial statement is ready", desc: "The treasurer files your group's official statement." },
-  { period: "Month 13+",   icon: Banknote,   color: "#0a2540", label: "Apply for a bank loan as a group", desc: "Present your verified record to a partner bank." },
+  { period: "Month 1–3",   icon: Star,      color: "#4a5c6a", label: "Start Saving",           desc: "Every payment is recorded. Your good name starts growing." },
+  { period: "Month 4–6",   icon: TrendingUp, color: "#00ab00", label: "Borrow from the Group",  desc: "Your group can now lend money to members who need it." },
+  { period: "Month 7–12",  icon: FileText,   color: "#00ab00", label: "Get Your Group Report",  desc: "The treasurer creates your group's official report." },
+  { period: "Month 13+",   icon: Banknote,   color: "#0a2540", label: "Talk to a Bank",         desc: "Show your group's report to a bank for bigger loans." },
 ]
 
 const STATEMENT_FIELDS = [
-  "Total amount contributed — all cycles",
-  "Total amount paid out — all cycles",
-  "Loans given out and repaid",
-  "Interest earned and returned to pool",
-  "Current balance in the loan fund",
-  "Names and contribution history of all members",
+  "Total money saved by the group",
+  "Total money paid out to members",
+  "Loans taken and paid back on time",
+  "Extra money made from interest",
+  "Money available for loans now",
+  "List of members and their savings history",
 ]
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
@@ -133,11 +130,11 @@ export default function HowLoaningWorks() {
             How Group Loans Work
           </div>
           <h1 className="hlw-hero-text text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6" style={{ color: "#ffffff" }}>
-            Your group lends to itself.{" "}
+            Borrow Money from Your Group<br />
             <span style={{ color: "#00ab00" }}>Safely.</span>
           </h1>
           <p className="hlw-hero-text text-lg sm:text-xl font-medium leading-relaxed max-w-2xl" style={{ color: "rgba(255,255,255,0.65)" }}>
-            No bank needed to borrow. Your group pools money, and members who need help can borrow from that pool. Two leaders must approve every loan. Every shilling is tracked.
+            You don't need a bank to get a loan. Your group saves money together, and any member can borrow from that savings when they need it. Your leaders work together to approve every loan, and every shilling is tracked.
           </p>
           <div className="hlw-hero-text flex flex-wrap gap-4 mt-10">
             <Link href="/onboarding">
@@ -162,10 +159,10 @@ export default function HowLoaningWorks() {
               Step by Step
             </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4" style={{ color: "#0a2540" }}>
-              How does the loan pool open?
+              How do we start loaning?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Before anyone can borrow, the group must agree together. Then two different leaders unlock the pool — one key is not enough.
+              Before anyone can borrow, the whole group must agree together. Then two different leaders unlock the money — one person cannot do it alone.
             </p>
           </div>
 
@@ -239,9 +236,9 @@ export default function HowLoaningWorks() {
             <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>Simple Rules — Everyone Agrees to These</p>
             <div className="grid sm:grid-cols-3 gap-4">
               {[
-                { label: "Maximum you can borrow", value: "3× your total contributions" },
-                { label: "Maximum interest rate", value: "5% per month — capped by platform" },
-                { label: "Who sets the interest?", value: "Your group decides — within the cap" },
+                { label: "Maximum you can borrow", value: "3× your total savings" },
+                { label: "Maximum interest rate", value: "Low and fair for everyone" },
+                { label: "Who sets the interest?", value: "Your group decides together" },
               ].map((r, i) => (
                 <div key={i} className="flex flex-col gap-1.5">
                   <div className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>{r.label}</div>
@@ -262,13 +259,13 @@ export default function HowLoaningWorks() {
                 Group Financial Statement
               </div>
               <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4" style={{ color: "#0a2540" }}>
-                Your group's proof — in writing.
+                A Good Name for Your Group.
               </h2>
               <p className="text-base font-medium leading-relaxed mb-6" style={{ color: "#4a5c6a" }}>
-                After several cycles, your treasurer fills in an official financial statement. Every member votes to confirm it is correct. Then it becomes your group's financial ID — you can show it to a bank.
+                After saving for a few months, your treasurer creates a simple report. Everyone in the group checks it to make sure it's correct. This report becomes your group's proof of hard work. You can show it to a bank to get bigger support.
               </p>
               <p className="text-base font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
-                <span className="font-bold" style={{ color: "#0a2540" }}>The more you contribute, the bigger the loan you qualify for</span> — as an individual and as a group.
+                <span className="font-bold" style={{ color: "#0a2540" }}>The more you save, the bigger the loans you can get</span> — for your farm, your business, and your group.
               </p>
               <Link href="/onboarding">
                 <button className="h-11 px-6 text-sm font-bold text-white flex items-center gap-2 group transition-opacity hover:opacity-90" style={{ background: "#00ab00", borderRadius: "6px" }}>
@@ -296,7 +293,7 @@ export default function HowLoaningWorks() {
               </div>
               <div className="px-6 py-4 flex items-center gap-2" style={{ background: "#e9f3ed", borderTop: "1px solid #d6e4df" }}>
                 <ShieldCheck className="w-4 h-4" style={{ color: "#00ab00" }} />
-                <span className="text-xs font-bold" style={{ color: "#0a2540" }}>Verified by OrbiSave · SHA-256 signed</span>
+                <span className="text-xs font-bold" style={{ color: "#0a2540" }}>Safe and Verified by OrbiSave</span>
               </div>
             </div>
           </div>
@@ -340,9 +337,9 @@ export default function HowLoaningWorks() {
               <Banknote className="w-5 h-5" style={{ color: "#00ab00" }} />
             </div>
             <div>
-              <div className="font-bold text-base mb-2" style={{ color: "#ffffff" }}>What happens when you show the statement to a bank?</div>
+              <div className="font-bold text-base mb-2" style={{ color: "#ffffff" }}>What happens when you show the report to a bank?</div>
               <p className="text-sm font-medium leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
-                A bank sees that your group has been saving together, repaying loans, and managing money responsibly. They can offer your group a loan based on that record — not just based on one person's salary. This is how small groups access big capital together.
+                A bank sees that your group has been saving together, paying back loans, and managing money responsibly. They can offer your group a bigger loan based on that good record. This is how small groups grow into big businesses together.
               </p>
             </div>
           </div>

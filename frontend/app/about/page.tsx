@@ -1,9 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import {
   HeartHandshake, Users, Globe2, ShieldCheck, ArrowRight
 } from "lucide-react"
@@ -11,8 +9,7 @@ import Link from "next/link"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
 import { AfricaMap } from "@/components/landing/AfricaMap"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 export default function AboutPage() {
   const pageRef = useRef<HTMLDivElement>(null)
@@ -42,7 +39,7 @@ export default function AboutPage() {
             <span style={{ color: "#00ab00" }}>collective trust.</span>
           </h1>
           <p className="abt-hero text-lg font-medium max-w-2xl mx-auto" style={{ color: "#4a5c6a" }}>
-            For generations, communities across Africa have pooled their money to build homes, educate children, and grow farms. OrbiSave digitises this tradition. We make it safer, faster, and infinitely more powerful.
+            For generations, people across Africa have saved together to build homes, educate children, and grow farms. OrbiSave moves this tradition to your phone. We make it safer, faster, and easier for everyone.
           </p>
         </div>
       </section>
@@ -54,10 +51,10 @@ export default function AboutPage() {
               <Globe2 className="w-3.5 h-3.5" /> Where We Operate
             </div>
             <h2 className="text-3xl font-black tracking-tight mb-4" style={{ color: "#0a2540" }}>
-              Built for 600 Million Farmers
+              Built for Farmers and Families
             </h2>
             <p className="text-base font-medium max-w-2xl mx-auto" style={{ color: "#4a5c6a" }}>
-              We are building the financial infrastructure for sub-Saharan Africa. OrbiSave is currently rolling out across Kenya, Rwanda, and Ghana.
+              We help groups across Kenya, Rwanda, and Ghana save money safely and grow together.
             </p>
           </div>
           <div className="bg-[#f7f9f8] rounded-[24px] p-8 border border-[#d6e4df]">
@@ -73,10 +70,10 @@ export default function AboutPage() {
                 The Engine: <span style={{ color: "#00ab00" }}>Averis Systems</span>
               </h2>
               <p className="text-base font-medium leading-relaxed mb-4" style={{ color: "#4a5c6a" }}>
-                OrbiSave is a digital system provided by <strong>Averis Systems</strong>. Our mission is to bridge the gap between informal savings groups and formal banks.
+                OrbiSave is made by <strong>Averis Systems</strong>. Our goal is to help your group work better with banks and get the support you deserve.
               </p>
               <p className="text-base font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
-                By providing a secure digital record, we allow traditional Chamas to build the credit history needed to access bank loans, farm inputs, and philanthropic grants.
+                By keeping clear records on your phone, we help your group build a good name. This makes it easy to get bank loans, seeds, fertilizer, and support from NGOs.
               </p>
               <a href="https://averissystems.com" target="_blank" rel="noopener noreferrer">
                 <button className="h-11 px-6 text-sm font-bold flex items-center gap-2 group transition-colors hover:bg-[#e9f3ed]" style={{ color: "#00ab00", background: "transparent", border: "1px solid #00ab00", borderRadius: "6px" }}>
@@ -89,21 +86,21 @@ export default function AboutPage() {
                 <Users className="w-6 h-6 flex-shrink-0" style={{ color: "#00ab00" }} />
                 <div>
                   <h3 className="font-bold text-base mb-1" style={{ color: "#0a2540" }}>For the Farmers</h3>
-                  <p className="text-sm font-medium" style={{ color: "#4a5c6a" }}>Ensuring no one is left behind during planting season by unlocking group credit.</p>
+                  <p className="text-sm font-medium" style={{ color: "#4a5c6a" }}>Making sure every farmer has what they need for planting by helping the group get credit.</p>
                 </div>
               </div>
               <div className="abt-card p-6 flex items-start gap-4" style={{ background: "#f7f9f8", borderRadius: "8px", border: "1px solid #d6e4df" }}>
                 <ShieldCheck className="w-6 h-6 flex-shrink-0" style={{ color: "#0a2540" }} />
                 <div>
                   <h3 className="font-bold text-base mb-1" style={{ color: "#0a2540" }}>For the Treasurers</h3>
-                  <p className="text-sm font-medium" style={{ color: "#4a5c6a" }}>Removing the burden of manual bookkeeping and eliminating human error.</p>
+                  <p className="text-sm font-medium" style={{ color: "#4a5c6a" }}>Taking away the stress of writing in notebooks and stopping money mistakes.</p>
                 </div>
               </div>
               <div className="abt-card p-6 flex items-start gap-4" style={{ background: "#f7f9f8", borderRadius: "8px", border: "1px solid #d6e4df" }}>
                 <Globe2 className="w-6 h-6 flex-shrink-0" style={{ color: "#00ab00" }} />
                 <div>
                   <h3 className="font-bold text-base mb-1" style={{ color: "#0a2540" }}>For the Future</h3>
-                  <p className="text-sm font-medium" style={{ color: "#4a5c6a" }}>Building a borderless, transparent financial ecosystem across East & West Africa.</p>
+                  <p className="text-sm font-medium" style={{ color: "#4a5c6a" }}>Building a clear and safe way for everyone to save across Africa.</p>
                 </div>
               </div>
             </div>

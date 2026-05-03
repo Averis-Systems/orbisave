@@ -1,38 +1,34 @@
 "use client"
 
-import { ShieldCheck, Zap, Lock, CheckCircle2 } from "lucide-react"
+import { Landmark, FileText, Users2, Fingerprint } from "lucide-react"
 
 const NETWORKS = [
-  { label: "M-Pesa",        detail: "Kenya",          dot: "#00a651" },
-  { label: "MTN MoMo",      detail: "Rwanda · Ghana", dot: "#ffc000" },
-  { label: "Airtel Money",  detail: "Kenya · Rwanda", dot: "#e40000" },
-  { label: "Bank Transfer", detail: "All markets",    dot: "#00ab00" },
+  { label: "M-Pesa",        logo: "/logos/mpesa.png" },
+  { label: "MTN MoMo",      logo: "/logos/mtn-momo.png" },
+  { label: "Airtel Money",  logo: "/logos/airtel-money.png" },
+  { label: "Bank Transfer", logo: "/logos/bank-transfer.png" },
 ]
 
 const TRUST_POINTS = [
   {
-    icon: ShieldCheck,
-    iconCls: "icon-pulse-soft",
-    title: "Bank-Backed Custody",
-    body: "Funds held in licensed bank trust accounts. OrbiSave never holds your money independently.",
+    icon: Landmark,
+    title: "Safe Bank Accounts",
+    body: "Your group's money is kept in real bank accounts, not just on the app. It is always safe and reachable.",
   },
   {
-    icon: Zap,
-    iconCls: "icon-flash",
-    title: "SHA-256 Ledger",
-    body: "Every transaction is hash-chained and cryptographically tamper-evident.",
+    icon: FileText,
+    title: "Digital Proof",
+    body: "Every single payment is recorded forever. No one can change the records or make a mistake.",
   },
   {
-    icon: Lock,
-    iconCls: "icon-pulse-soft",
-    title: "Multi-Party Governance",
-    body: "Strict multi-party loan authorizations governed by required administrative PIN approvals.",
+    icon: Users2,
+    title: "Group Control",
+    body: "The group leaders must all agree before any money is moved. No one can take money alone.",
   },
   {
-    icon: CheckCircle2,
-    iconCls: "",
-    title: "GDPR & Data Compliant",
-    body: "All personal and financial data encrypted at rest and in transit. Full data rights supported.",
+    icon: Fingerprint,
+    title: "Private and Secure",
+    body: "Your personal information is locked and safe. Only you and your group can see what you need to.",
   },
 ]
 
@@ -42,54 +38,77 @@ export function TrustBelt() {
       className="relative"
       style={{ background: "#ffffff", borderTop: "1px solid #d6e4df", borderBottom: "1px solid #d6e4df" }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
 
-        {/* Supported networks */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 mb-10">
-          <span
-            className="text-[10px] font-bold tracking-[0.18em] uppercase"
-            style={{ color: "#4a5c6a" }}
-          >
-            Supported Networks
-          </span>
-          {NETWORKS.map(n => (
-            <div key={n.label} className="flex items-center gap-2">
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ background: n.dot }}
-              />
-              <span className="text-sm font-bold" style={{ color: "#0f1924" }}>{n.label}</span>
-              <span className="text-xs font-medium" style={{ color: "#4a5c6a" }}>{n.detail}</span>
-            </div>
-          ))}
+        {/* Market Authority Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-12 mb-16">
+          
+          {/* Left: Text */}
+          <div className="max-w-md">
+            <h3 
+              className="text-xs font-black uppercase tracking-[0.2em] mb-3"
+              style={{ color: "#00ab00" }}
+            >
+              Regional Infrastructure
+            </h3>
+            <p className="text-2xl font-bold leading-tight" style={{ color: "#0a2540" }}>
+              Fully Integrated across <br />
+              <span className="text-[#00ab00]">Kenya</span>, 
+              <span className="mx-2 text-[#4a5c6a]">·</span> 
+              <span className="text-[#00ab00]">Rwanda</span>, 
+              <span className="mx-2 text-[#4a5c6a]">·</span> 
+              <span className="text-[#00ab00]">Ghana</span>
+            </p>
+          </div>
+
+          {/* Right: Logos */}
+          <div className="flex flex-wrap items-center gap-x-10 gap-y-6">
+            {NETWORKS.map(n => (
+              <div 
+                key={n.label} 
+                className="flex items-center gap-3 transition-opacity hover:opacity-100 grayscale hover:grayscale-0 opacity-70"
+              >
+                <img
+                  src={n.logo}
+                  alt={`${n.label} logo`}
+                  className="h-7 w-auto object-contain flex-shrink-0"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+                <span className="text-sm font-bold tracking-tight" style={{ color: "#0a2540" }}>{n.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Divider */}
-        <div style={{ height: "1px", background: "#d6e4df", marginBottom: "2.5rem" }} />
+        {/* Divider with a modern touch */}
+        <div className="relative h-px w-full bg-[#d6e4df] mb-16">
+          <div className="absolute top-0 left-0 h-px w-24 bg-[#00ab00]" />
+        </div>
 
-        {/* Trust points */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {TRUST_POINTS.map(({ icon: Icon, iconCls, title, body }, i) => (
+        {/* Trust points - Minimalist Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
+          {TRUST_POINTS.map(({ icon: Icon, title, body }, i) => (
             <div
               key={i}
-              className="flex flex-col gap-3 p-5"
-              style={{
-                border: "1px solid #d6e4df",
-                borderRadius: "8px",
-                background: "#f7faf8",
-              }}
+              className="flex flex-col gap-4"
             >
-              <Icon
-                className={`w-5 h-5 flex-shrink-0 ${iconCls}`}
-                style={{ color: "#00ab00" }}
-              />
+              <div 
+                className="w-10 h-10 flex items-center justify-center"
+                style={{ background: "#f0faf0", borderRadius: "6px" }}
+              >
+                <Icon
+                  className="w-5 h-5 flex-shrink-0"
+                  style={{ color: "#00ab00" }}
+                />
+              </div>
               <div>
-                <div className="text-sm font-bold mb-1" style={{ color: "#0a2540" }}>{title}</div>
-                <p className="text-xs font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>{body}</p>
+                <div className="text-base font-bold mb-2" style={{ color: "#0a2540" }}>{title}</div>
+                <p className="text-sm font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>{body}</p>
               </div>
             </div>
           ))}
         </div>
+
       </div>
     </section>
   )

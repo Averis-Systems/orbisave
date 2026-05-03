@@ -1,9 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -11,29 +9,28 @@ import {
 } from "lucide-react"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 const SECURITY_FEATURES = [
   {
     icon: Lock,
-    title: "Dual-PIN Authorization",
-    body: "No single person can move group funds. Every loan or payout requires independent PIN approval from both the Chairperson and the Treasurer.",
+    title: "Safe PIN Approvals",
+    body: "No one can move the group's money alone. Every payment needs a secret PIN from both the leader and the treasurer.",
   },
   {
     icon: Server,
-    title: "Immutable Ledger (SHA-256)",
-    body: "Every contribution and payout is recorded on a cryptographically secure ledger. It cannot be edited, deleted, or disputed by any member.",
+    title: "Clear Records",
+    body: "Every shilling saved or paid out is recorded forever. No one can change or delete the records, so there are no money fights.",
   },
   {
     icon: KeyRound,
-    title: "Bank-Backed Custody",
-    body: "OrbiSave does not hold your money. Funds rest securely in escrow accounts with regulated partner banks and mobile money providers (M-Pesa, MTN MoMo).",
+    title: "Safe Bank Storage",
+    body: "OrbiSave does not keep your money. Your money is kept safely in a real bank and is always there when you need it.",
   },
   {
     icon: FileCheck,
-    title: "Automated Dispute Resolution",
-    body: "Because every transaction is logged automatically from the mobile network, there is zero ambiguity. 'I sent the money' is mathematically verifiable.",
+    title: "No More Arguments",
+    body: "Every payment is recorded automatically from your phone. There is no confusion, and you can always prove when you saved your money.",
   }
 ]
 
@@ -66,11 +63,11 @@ export default function SecurityPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
           <ShieldCheck className="sec-hero w-10 h-10 mx-auto mb-6" style={{ color: "#00ab00" }} />
           <h1 className="sec-hero text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-6 text-white">
-            Bank-grade security for<br />
-            <span style={{ color: "#00ab00" }}>collective capital.</span>
+            Safe and Secure Savings<br />
+            <span style={{ color: "#00ab00" }}>for Your Group.</span>
           </h1>
           <p className="sec-hero text-lg font-medium max-w-2xl mx-auto mb-10" style={{ color: "rgba(255,255,255,0.7)" }}>
-            Trust is the foundation of every savings group. OrbiSave digitises that trust with multi-signature approvals, immutable audit trails, and regulated custody.
+            Trust is the most important thing for your group. OrbiSave makes that trust even stronger with safe approvals on your phone and clear records that can't be changed.
           </p>
         </div>
       </section>
@@ -134,10 +131,10 @@ export default function SecurityPage() {
       <section className="py-20" style={{ background: "#e9f3ed" }}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-5" style={{ color: "#0a2540" }}>
-            Your data is encrypted and private.
+            Your Information is Private.
           </h2>
           <p className="text-base font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
-            OrbiSave employs end-to-end encryption for all personal and financial data. We comply with Data Protection Acts in Kenya, Rwanda, and Ghana. Your group's financial record is yours — we only share it with input financiers or banks when you explicitly grant permission.
+            We keep your personal details and savings records secret and safe. We follow all the laws in Kenya, Rwanda, and Ghana to protect you. Only your group can see your records, unless you decide to share them with a bank to get a loan.
           </p>
           <Link href="/onboarding">
             <button className="h-12 px-8 text-sm font-bold text-white flex items-center gap-2 mx-auto group transition-opacity hover:opacity-90" style={{ background: "#0a2540", borderRadius: "6px" }}>

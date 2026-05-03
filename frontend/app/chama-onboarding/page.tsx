@@ -1,395 +1,616 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useForm } from "react-hook-form"
+import { useForm, FormProvider, useFormContext } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import {
-  Landmark, RotateCcw, Building2, ClipboardList, ShieldCheck,
-  Users, Wallet, Scale, UserCheck, Bell, FileText,
-  Smartphone, User, CircleDollarSign
-} from "lucide-react"
+import { LOCATION_DATA, getLevel1, getLevel2 } from "@/lib/location-data"
+import { ShieldCheck, UserCheck, AlertCircle, Building2, MapPin, Eye, EyeOff, Check, ArrowRight, Loader2 } from "lucide-react"
+import { CustomSelect } from "@/components/ui/select"
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Constants ─────────────────────────────────────────────────────────────────
+const STEP_META = [
+  { title: "Welcome to Leadership", desc: "Understand your role and responsibilities as a Group Chairperson." },
+  { title: "Create Your Account", desc: "Enter your professional details. Your phone number must match your country." },
+  { title: "Configure Your Chama", desc: "Set up the group identity, contribution requirements, and rotation schedule." },
+  { title: "Group Location", desc: "This helps us connect your group with local partners and financiers." },
+  { title: "Review & Complete", desc: "Verify your details and accept the terms of governance." }
+]
+const TOTAL_STEPS = STEP_META.length
+const GROUP_TYPES = ["Farmers", "Corporate", "Women Self Help", "Fishers", "Students", "Other"]
+
+// ─── Zod Schemas ─────────────────────────────────────────────────────────────
 const accountSchema = z.object({
+  country: z.enum(["kenya", "rwanda", "ghana"] as const, { required_error: "Country is required" }),
   full_name: z.string().min(3, "Full name is required"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().regex(/^\+?[1-9]\d{7,14}$/, "Use international format e.g. +254700000000"),
+  phone: z.string().min(1, "Phone is required"),
   password: z.string().min(8, "Minimum 8 characters"),
   confirmPassword: z.string(),
-}).refine((d) => d.password === d.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Passwords do not match", path: ["confirmPassword"] })
+  }
+  if (data.country && data.phone) {
+    const loc = LOCATION_DATA[data.country]
+    if (!loc.phonePattern.test(data.phone)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Format must match ${loc.phoneHint}`, path: ["phone"] })
+    }
+  }
 })
-type AccountValues = z.infer<typeof accountSchema>
 
-// ─── Step Data ────────────────────────────────────────────────────────────────
-const STEP_LABELS = ["Welcome", "Duties", "Terms", "Requirements", "Account"]
-const TOTAL_STEPS = STEP_LABELS.length
+const groupSchema = z.object({
+  group_name: z.string().min(3, "Group name is required"),
+  group_type: z.string().min(1, "Group type is required"),
+  group_type_other: z.string().optional(),
+  contribution_amount: z.number({ invalid_type_error: "Amount is required" }).min(1, "Amount must be > 0"),
+  contribution_frequency: z.enum(["Daily", "Every 3 Days", "Every 5 Days", "Weekly", "Every 2 Weeks", "Monthly", "Harvest"]),
+})
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
-function TermsAccordion() {
-  const [open, setOpen] = useState<number | null>(0)
-  const items = [
-    {
-      title: "1. Chairperson Responsibilities",
-      body: "As chairperson, you are the primary accountable party for your Chama. You must ensure all contributions are tracked, rotations are conducted fairly, and group rules are enforced consistently. Failure to act in good faith may result in suspension of your group.",
-    },
-    {
-      title: "2. KYC & Identity Verification",
-      body: "You must complete full KYC (Know Your Customer) verification — including uploading a valid National ID — before your group can be activated or invite new members. This is a regulatory requirement for all group leaders.",
-    },
-    {
-      title: "3. Financial Integrity",
-      body: "All financial transactions within your Chama are recorded on OrbiSave's ledger. The chairperson is responsible for ensuring no fraudulent contributions are submitted. Disputes must be escalated to OrbiSave support within 14 days.",
-    },
-    {
-      title: "4. Group Activation Requirements",
-      body: "A minimum of 3 confirmed members and a completed first contribution cycle are required before your Chama is marked as active. The chairperson must make the first contribution to unlock the group invite system.",
-    },
-    {
-      title: "5. Data & Privacy",
-      body: "Member data shared within your Chama is protected under our Privacy Policy. You may not share or export member information to third parties. OrbiSave complies with Kenya Data Protection Act 2019 and relevant financial regulations.",
-    },
-  ]
+const locationSchema = z.object({
+  level1: z.string().min(1, "Required"),
+  level2: z.string().min(1, "Required"),
+})
 
+const reviewSchema = z.object({
+  agreePrivacy: z.boolean().refine(val => val === true, "You must accept the Privacy Policy"),
+  agreeTerms: z.boolean().refine(val => val === true, "You must accept the Terms of Use"),
+})
+
+const wizardSchema = z.intersection(
+  z.intersection(accountSchema, groupSchema),
+  z.intersection(locationSchema, reviewSchema)
+)
+
+type WizardData = z.infer<typeof wizardSchema>
+
+const defaultValues: Partial<WizardData> = {
+  country: "kenya",
+  group_type: "Corporate",
+  contribution_frequency: "Monthly",
+}
+
+// ─── Components ──────────────────────────────────────────────────────────────
+
+// Step 1
+function StepRole() {
   return (
-    <div className="terms-accordion">
-      {items.map((item, i) => (
-        <div key={i} className="terms-accordion__item">
-          <button
-            type="button"
-            className="terms-accordion__trigger"
-            onClick={() => setOpen(open === i ? null : i)}
-            aria-expanded={open === i}
-          >
-            {item.title}
-            <span className={`terms-accordion__chevron ${open === i ? "terms-accordion__chevron--open" : ""}`}>▼</span>
-          </button>
-          {open === i && (
-            <div className="terms-accordion__body">{item.body}</div>
-          )}
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-primary/5 border border-primary/10 p-6 rounded-xl flex gap-4">
+        <ShieldCheck className="w-8 h-8 text-primary shrink-0" />
+        <div>
+          <h3 className="text-lg font-bold text-foreground mb-2">You are becoming a Group Chairperson.</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            As a Chairperson, you hold full governance over this Chama. You will be responsible for initiating payouts, setting rules, and ensuring members adhere to the schedule. Due to regulatory requirements, mandatory KYC identity verification will be required before you can fully activate the group.
+          </p>
         </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Steps ────────────────────────────────────────────────────────────────────
-function StepWelcome() {
-  return (
-    <div>
-      <div className="onboard-hero-card">
-        <span className="onboard-hero-card__icon"><Landmark className="w-8 h-8 text-[#012d1d]" /></span>
-        <h2 className="onboard-hero-card__title">You're starting a Chama</h2>
-        <p className="onboard-hero-card__body">
-          A <strong style={{ color: "#012d1d" }}>Chama</strong> is a rotating savings group where members pool funds, take turns receiving payouts, and support each other financially. As the founder, you'll serve as <strong style={{ color: "#012d1d" }}>Chairperson</strong> — the trusted leader who keeps everything running smoothly.
-        </p>
       </div>
-
-      <div className="onboard-cards">
-        {[
-          { icon: <RotateCcw className="w-5 h-5 text-[#012d1d]" />, title: "Rotating Payouts", body: "Each cycle, one member receives the pooled contributions. Fair, transparent, and automatic." },
-          { icon: <Building2 className="w-5 h-5 text-[#012d1d]" />, title: "Shared Loan Pool", body: "Members can access emergency loans from the group fund — with full audit trails." },
-          { icon: <ClipboardList className="w-5 h-5 text-[#012d1d]" />, title: "Group Rules You Set", body: "You define contribution amounts, frequencies, penalties, and payout order." },
-          { icon: <ShieldCheck className="w-5 h-5 text-[#012d1d]" />, title: "Secure & Auditable", body: "Every transaction is ledgered. No silent failures. No missing funds." },
-        ].map((c) => (
-          <div key={c.title} className="onboard-card">
-            <span className="onboard-card__icon">{c.icon}</span>
-            <div className="onboard-card__title">{c.title}</div>
-            <div className="onboard-card__body">{c.body}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function StepDuties() {
-  const duties = [
-    { icon: <Users className="w-5 h-5 text-[#012d1d]" />, title: "Group Leadership", body: "You represent the group and make final decisions on disputes, rule changes, and member removals. Your members trust you to be fair and consistent." },
-    { icon: <Wallet className="w-5 h-5 text-[#012d1d]" />, title: "Financial Oversight", body: "Track all contributions, monitor late payments, and enforce penalty rules. You are the primary point of contact for all financial queries." },
-    { icon: <Scale className="w-5 h-5 text-[#012d1d]" />, title: "Dispute Resolution", body: "When conflicts arise between members, you mediate and escalate to OrbiSave support if unresolved within 7 days. Document all decisions." },
-    { icon: <UserCheck className="w-5 h-5 text-[#012d1d]" />, title: "KYC & Compliance", body: "You must complete full identity verification (National ID) before activating the group. Ensure all members also complete their KYC where required." },
-    { icon: <Bell className="w-5 h-5 text-[#012d1d]" />, title: "Member Communication", body: "Inform members of upcoming payouts, contribution deadlines, and group updates via the platform's notification tools." },
-    { icon: <FileText className="w-5 h-5 text-[#012d1d]" />, title: "Recordkeeping", body: "Maintain accurate group records and review monthly reports. OrbiSave provides automated summaries but the chairperson must verify accuracy." },
-  ]
-  return (
-    <div>
-      {duties.map((d) => (
-        <div key={d.title} className="onboard-req-card">
-          <div className="onboard-req-card__icon-wrap">{d.icon}</div>
-          <div className="onboard-req-card__content">
-            <div className="onboard-req-card__title">{d.title}</div>
-            <div className="onboard-req-card__body">{d.body}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function StepTerms({ agreed, setAgreed }: { agreed: boolean; setAgreed: (v: boolean) => void }) {
-  return (
-    <div>
-      <TermsAccordion />
-      <label className="terms-agree">
-        <input
-          type="checkbox"
-          className="terms-agree__checkbox"
-          checked={agreed}
-          onChange={(e) => setAgreed(e.target.checked)}
-          id="terms-agree-checkbox"
-        />
-        <span className="terms-agree__text">
-          I have read and understood all the terms above. I accept the responsibilities of being an OrbiSave Chama Chairperson and agree to operate in good faith at all times.
-        </span>
-      </label>
-    </div>
-  )
-}
-
-function StepRequirements() {
-  const reqs = [
-    { icon: <UserCheck className="w-5 h-5 text-[#012d1d]" />, title: "Valid National ID", body: "A clear scan or photo of your Kenyan National ID, Passport, or Alien ID. Required for KYC verification before group activation.", badge: "Mandatory" },
-    { icon: <Smartphone className="w-5 h-5 text-[#012d1d]" />, title: "Active Phone Number", body: "A mobile number linked to M-Pesa or another supported mobile money service in Kenya. Used for payouts and dual-factor auth.", badge: "Mandatory" },
-    { icon: <User className="w-5 h-5 text-[#012d1d]" />, title: "Minimum 3 Members", body: "You need at least 3 confirmed members (including yourself) before your Chama can be activated and start rotations.", badge: "Required" },
-    { icon: <CircleDollarSign className="w-5 h-5 text-[#012d1d]" />, title: "Initial Contribution", body: "The chairperson must make the first contribution to unlock the group invite system. This shows commitment and builds member trust.", badge: "Required" },
-    { icon: <ClipboardList className="w-5 h-5 text-[#012d1d]" />, title: "Defined Savings Rules", body: "Before inviting members, define contribution amount, frequency (weekly/monthly), and payout schedule. These can be amended by group vote later.", badge: "Before Inviting" },
-    { icon: <Building2 className="w-5 h-5 text-[#012d1d]" />, title: "Bank or Mobile Account", body: "A verified bank account or M-Pesa number to receive payouts when it's your rotation. Payouts are processed within 24 hours of cycle close.", badge: "For Payouts" },
-  ]
-  return (
-    <div>
-      {reqs.map((r) => (
-        <div key={r.title} className="onboard-req-card">
-          <div className="onboard-req-card__icon-wrap">{r.icon}</div>
-          <div className="onboard-req-card__content">
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
-              <div className="onboard-req-card__title" style={{ margin: 0 }}>{r.title}</div>
-              <span style={{
-                fontSize: "0.65rem",
-                fontWeight: 700,
-                padding: "0.1rem 0.5rem",
-                borderRadius: "9999px",
-                background: "rgba(1, 45, 29, 0.08)",
-                border: "1px solid rgba(1, 45, 29, 0.15)",
-                color: "#012d1d",
-                letterSpacing: "0.04em",
-                whiteSpace: "nowrap",
-              }}>{r.badge}</span>
+      <div>
+        <h4 className="text-sm font-bold text-foreground mb-4">Governance Roles in OrbiSave</h4>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-4 border border-border rounded-lg bg-white shadow-sm ring-1 ring-primary/20">
+            <UserCheck className="w-5 h-5 text-primary" />
+            <div>
+              <div className="font-bold text-sm text-foreground">Chairperson (You)</div>
+              <div className="text-xs text-muted-foreground">Final approver for all activities.</div>
             </div>
-            <div className="onboard-req-card__body">{r.body}</div>
+          </div>
+          <div className="flex items-start gap-3 p-4 border border-border rounded-lg bg-muted/30">
+            <div className="w-5 h-5 border-2 border-dashed border-muted-foreground/30 rounded-full flex items-center justify-center shrink-0"></div>
+            <div>
+              <div className="font-bold text-sm text-muted-foreground">Treasurer</div>
+              <div className="text-xs text-muted-foreground">Monitors payments. (Appointed later in dashboard)</div>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-4 border border-border rounded-lg bg-muted/30">
+             <div className="w-5 h-5 border-2 border-dashed border-muted-foreground/30 rounded-full flex items-center justify-center shrink-0"></div>
+            <div>
+              <div className="font-bold text-sm text-muted-foreground">Secretary</div>
+              <div className="text-xs text-muted-foreground">Manages members. (Appointed later in dashboard)</div>
+            </div>
           </div>
         </div>
-      ))}
+      </div>
     </div>
   )
 }
 
+// Step 2
 function StepAccount() {
+  const { register, watch, setValue, formState: { errors } } = useFormContext<WizardData>()
+  const country = watch("country")
+  const password = watch("password") || ""
+  const phoneHint = country ? LOCATION_DATA[country].phoneHint : ""
+
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const calculateStrength = (pwd: string) => {
+    let score = 0;
+    if (!pwd) return score;
+    if (pwd.length >= 8) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    return score; // 0 to 4
+  }
+
+  const strength = calculateStrength(password)
+  const strengthColors = ["bg-muted", "bg-destructive", "bg-orange-500", "bg-yellow-500", "bg-primary"]
+  const strengthLabels = ["Very Weak", "Weak", "Fair", "Good", "Strong"]
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <CustomSelect
+        label="Country of Operation"
+        options={[
+          { value: "kenya", label: "Kenya" },
+          { value: "rwanda", label: "Rwanda" },
+          { value: "ghana", label: "Ghana" }
+        ]}
+        value={country}
+        onChange={(val) => setValue("country", val as any)}
+        error={errors.country?.message}
+      />
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="md:col-span-2">
+           <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Full Name (As on ID)</label>
+           <input type="text" {...register("full_name")} className="w-full h-12 px-4 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="First Last" />
+           {errors.full_name && <p className="text-xs text-destructive mt-1.5">{errors.full_name.message}</p>}
+        </div>
+        <div>
+           <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Professional Email</label>
+           <input type="email" {...register("email")} className="w-full h-12 px-4 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="name@domain.com" />
+           {errors.email && <p className="text-xs text-destructive mt-1.5">{errors.email.message}</p>}
+        </div>
+        <div>
+           <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Phone Number</label>
+           <input type="tel" {...register("phone")} className="w-full h-12 px-4 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder={phoneHint} />
+           {errors.phone && <p className="text-xs text-destructive mt-1.5">{errors.phone.message}</p>}
+        </div>
+        
+        <div>
+           <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Secure Password</label>
+           <div className="relative">
+             <input type={showPassword ? "text" : "password"} {...register("password")} className="w-full h-12 px-4 pr-10 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="••••••••" />
+             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+             </button>
+           </div>
+           {/* Strength Indicator */}
+           {password.length > 0 && (
+             <div className="mt-2 space-y-1.5">
+               <div className="flex gap-1 h-1.5 w-full">
+                 {[1, 2, 3, 4].map((level) => (
+                   <div key={level} className={`flex-1 rounded-full transition-colors duration-300 ${strength >= level ? strengthColors[strength] : 'bg-muted'}`}></div>
+                 ))}
+               </div>
+               <div className="text-[10px] text-right font-medium text-muted-foreground uppercase tracking-widest">
+                 {strengthLabels[strength]}
+               </div>
+             </div>
+           )}
+           {errors.password && <p className="text-xs text-destructive mt-1.5">{errors.password.message}</p>}
+        </div>
+        
+        <div className="self-start">
+           <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Confirm Password</label>
+           <div className="relative">
+             <input type={showConfirmPassword ? "text" : "password"} {...register("confirmPassword")} className="w-full h-12 px-4 pr-10 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="••••••••" />
+             <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+               {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+             </button>
+           </div>
+           {errors.confirmPassword && <p className="text-xs text-destructive mt-1.5">{errors.confirmPassword.message}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Step 3
+function StepGroup() {
+  const { register, watch, setValue, formState: { errors } } = useFormContext<WizardData>()
+  const country = watch("country")
+  const groupType = watch("group_type")
+  const currency = country ? LOCATION_DATA[country].currency : "KES"
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div>
+        <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Chama Name</label>
+        <div className="relative">
+          <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+          <input type="text" {...register("group_name")} className="w-full h-12 pl-12 pr-4 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="E.g. Sunrise Investment Group" />
+        </div>
+        {errors.group_name && <p className="text-xs text-destructive mt-1.5">{errors.group_name.message}</p>}
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-3">Group Type</label>
+        <div className="flex flex-wrap gap-2">
+          {GROUP_TYPES.map(type => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setValue("group_type", type)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${groupType === type ? 'bg-primary border-primary text-primary-foreground shadow-sm' : 'bg-white border-border text-muted-foreground hover:border-primary/50'}`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+        {groupType === "Other" && (
+           <input type="text" {...register("group_type_other")} className="w-full h-12 mt-4 px-4 bg-muted/50 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="Please specify..." />
+        )}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Contribution Amount</label>
+          <div className="flex items-center rounded-lg overflow-hidden border border-border focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent transition-all">
+            <span className="h-12 px-4 flex items-center bg-muted text-sm font-bold text-foreground border-r border-border">{currency}</span>
+            <input type="number" {...register("contribution_amount", { valueAsNumber: true })} className="flex-1 h-12 px-4 bg-muted/50 text-sm outline-none" placeholder="0.00" />
+          </div>
+          {errors.contribution_amount && <p className="text-xs text-destructive mt-1.5">{errors.contribution_amount.message}</p>}
+        </div>
+        <CustomSelect
+          label="Frequency"
+          options={[
+            { value: "Daily", label: "Daily" },
+            { value: "Every 3 Days", label: "Every 3 Days" },
+            { value: "Every 5 Days", label: "Every 5 Days" },
+            { value: "Weekly", label: "Weekly" },
+            { value: "Every 2 Weeks", label: "Every 2 Weeks" },
+            { value: "Monthly", label: "Monthly" },
+            { value: "Harvest", label: "Harvest (Seasonal)" }
+          ]}
+          value={watch("contribution_frequency")}
+          onChange={(val) => setValue("contribution_frequency", val as any)}
+          error={errors.contribution_frequency?.message}
+        />
+      </div>
+    </div>
+  )
+}
+
+// Step 4
+function StepLocation() {
+  const { register, watch, setValue, formState: { errors } } = useFormContext<WizardData>()
+  const country = watch("country")
+  const loc = country ? LOCATION_DATA[country] : null
+  const level1Data = country ? getLevel1(country) : []
+  const selectedLevel1 = watch("level1")
+  const level2Data = country && selectedLevel1 ? getLevel2(country, selectedLevel1) : []
+
+  // Reset level2 when level1 changes
+  useEffect(() => {
+    setValue("level2", "")
+  }, [selectedLevel1, setValue])
+
+  if (!loc) return null
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl flex gap-4 text-primary items-center">
+        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0 border border-primary/10">
+          <MapPin className="w-5 h-5" />
+        </div>
+        <p className="text-sm font-medium leading-relaxed">This helps us connect your group with affordable input financiers and partners operating in your area.</p>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-3">Country of Operation</label>
+          <div className="flex items-center gap-3 px-4 py-3 bg-white border border-border rounded-lg shadow-sm w-fit group hover:border-primary/30 transition-colors">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/5 text-lg">
+              {country === 'kenya' ? '🇰🇪' : country === 'rwanda' ? '🇷🇼' : '🇬🇭'}
+            </div>
+            <span className="text-sm font-bold text-foreground tracking-tight">{loc.label}</span>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          <CustomSelect
+            label={loc.level1Label}
+            options={level1Data.map(l1 => ({ value: l1, label: l1 }))}
+            value={selectedLevel1}
+            placeholder={`Select ${loc.level1Label}...`}
+            onChange={(val) => setValue("level1", val)}
+            error={errors.level1?.message}
+          />
+          <CustomSelect
+            label={loc.level2Label}
+            disabled={!selectedLevel1}
+            options={level2Data.map(l2 => ({ value: l2, label: l2 }))}
+            value={watch("level2")}
+            placeholder={`Select ${loc.level2Label}...`}
+            onChange={(val) => setValue("level2", val)}
+            error={errors.level2?.message}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Step 5
+function StepReview() {
+  const { register, watch, formState: { errors } } = useFormContext<WizardData>()
+  const data = watch()
+  const loc = data.country ? LOCATION_DATA[data.country] : null
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
+        <h3 className="text-lg font-bold text-foreground mb-4">Summary</h3>
+        <dl className="space-y-4 text-sm">
+          <div className="flex justify-between border-b border-border pb-3">
+            <dt className="text-muted-foreground">Chairperson</dt>
+            <dd className="font-bold text-foreground">{data.full_name || "—"}</dd>
+          </div>
+          <div className="flex justify-between border-b border-border pb-3">
+            <dt className="text-muted-foreground">Chama Name</dt>
+            <dd className="font-bold text-primary">{data.group_name || "—"}</dd>
+          </div>
+          <div className="flex justify-between border-b border-border pb-3">
+            <dt className="text-muted-foreground">Group Type</dt>
+            <dd className="font-semibold text-foreground">{data.group_type === "Other" ? data.group_type_other : data.group_type}</dd>
+          </div>
+          <div className="flex justify-between border-b border-border pb-3">
+            <dt className="text-muted-foreground">Target Contribution</dt>
+            <dd className="font-bold text-primary">{loc?.currency || ""} {data.contribution_amount?.toLocaleString() || 0} / {data.contribution_frequency}</dd>
+          </div>
+          <div className="flex justify-between pb-1">
+            <dt className="text-muted-foreground">Operating Region</dt>
+            <dd className="font-medium text-foreground">{data.level2}, {data.level1}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="space-y-4">
+        <label className="flex items-start gap-3 cursor-pointer p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
+          <input type="checkbox" {...register("agreePrivacy")} className="mt-1 w-4 h-4 text-primary rounded border-border focus:ring-primary" />
+          <span className="text-sm text-muted-foreground leading-snug">I accept the <Link href="/privacy" target="_blank" className="text-primary hover:underline font-medium">Privacy Policy</Link> and consent to the collection of my data in accordance with local regulations.</span>
+        </label>
+        {errors.agreePrivacy && <p className="text-xs text-destructive px-2">{errors.agreePrivacy.message}</p>}
+        
+        <label className="flex items-start gap-3 cursor-pointer p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
+          <input type="checkbox" {...register("agreeTerms")} className="mt-1 w-4 h-4 text-primary rounded border-border focus:ring-primary" />
+          <span className="text-sm text-muted-foreground leading-snug">I accept the <Link href="/terms" target="_blank" className="text-primary hover:underline font-medium">Terms of Use</Link> and acknowledge my responsibilities as the Group Chairperson.</span>
+        </label>
+        {errors.agreeTerms && <p className="text-xs text-destructive px-2">{errors.agreeTerms.message}</p>}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export default function ChamaOnboardingPage() {
   const router = useRouter()
   const setAuth = useAuthStore((s) => s.setAuth)
-  const [error, setError] = useState<string | null>(null)
-  const [showPw, setShowPw] = useState(false)
-  const [showCp, setShowCp] = useState(false)
+  const [step, setStep] = useState(0)
+  const [apiError, setApiError] = useState<string | null>(null)
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false)
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } =
-    useForm<AccountValues>({ resolver: zodResolver(accountSchema) })
+  const methods = useForm<WizardData>({
+    resolver: zodResolver(
+      step === 1 ? accountSchema :
+      step === 2 ? groupSchema :
+      step === 3 ? locationSchema :
+      wizardSchema
+    ),
+    defaultValues,
+    mode: "onTouched"
+  })
 
-  const onSubmit = async (data: AccountValues) => {
-    setError(null)
+  const { trigger, handleSubmit, getValues } = methods
+
+  const handleNext = async () => {
+    let isValid = true
+    if (step === 1) isValid = await trigger(["country", "full_name", "email", "phone", "password", "confirmPassword"])
+    if (step === 2) isValid = await trigger(["group_name", "group_type", "group_type_other", "contribution_amount", "contribution_frequency"])
+    if (step === 3) isValid = await trigger(["level1", "level2"])
+
+    if (isValid) {
+      setStep(s => Math.min(TOTAL_STEPS - 1, s + 1))
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const handleBack = () => {
+    setStep(s => Math.max(0, s - 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Backend Mapping Logic
+  const mapFrequencyToBackend = (uiVal: string) => {
+    if (uiVal === "Daily" || uiVal === "Every 3 Days" || uiVal === "Every 5 Days" || uiVal === "Weekly") return "weekly"
+    if (uiVal === "Every 2 Weeks") return "biweekly"
+    if (uiVal === "Monthly") return "monthly"
+    if (uiVal === "Harvest") return "harvest"
+    return "monthly"
+  }
+
+  const onSubmit = async (data: WizardData) => {
+    setApiError(null)
+    setIsSubmittingForm(true)
     try {
+      // 1. Register the Chairperson
       await api.post("/auth/register/", {
         full_name: data.full_name,
         email: data.email,
         phone: data.phone,
         password: data.password,
         role: "chairperson",
+        country: data.country
+      }, {
+        headers: { 'X-Country': data.country }
       })
-      const tokenRes = await api.post("/auth/token/", { email: data.email, password: data.password })
-      const { access } = tokenRes.data
-      const profileRes = await api.get("/auth/users/me/", { headers: { Authorization: `Bearer ${access}` } })
+
+      // 2. Authenticate to get a fresh token
+      const tokenRes = await api.post("/auth/token/", { 
+        email: data.email, 
+        password: data.password 
+      }, {
+        headers: { 'X-Country': data.country }
+      })
+      const access = tokenRes.data.access || tokenRes.data.access_token
+      
+      if (!access) {
+        throw new Error("Authentication failed: No access token received.")
+      }
+
+      // 3. Fetch Profile & Sync Auth Store
+      const profileRes = await api.get("/auth/me/", { 
+        headers: { 
+          Authorization: `Bearer ${access}`,
+          'X-Country': data.country
+        } 
+      })
       setAuth(profileRes.data, access)
+
+      // 4. Create Group with explicit headers for isolation
+      const enrichedDescription = `Type: ${data.group_type === 'Other' ? data.group_type_other : data.group_type}. Location: ${data.level2}, ${data.level1}.`
+      
+      await api.post("/groups/", {
+        name: data.group_name,
+        country: data.country,
+        contribution_amount: data.contribution_amount,
+        contribution_frequency: mapFrequencyToBackend(data.contribution_frequency),
+        contribution_day: 1,
+        rotation_savings_pct: 70,
+        loan_pool_pct: 30,
+        description: enrichedDescription
+      }, { 
+        headers: { 
+          Authorization: `Bearer ${access}`,
+          'X-Country': data.country 
+        } 
+      })
+
       router.push("/dashboard")
     } catch (err: any) {
+      console.error("Onboarding submission error:", err.response?.data || err.message)
       if (err.response?.data) {
         const d = err.response.data
-        setError(d.email?.[0] || d.phone?.[0] || d.non_field_errors?.[0] || "Registration failed.")
+        // Standardize error message extraction from the wrapped response
+        const errorMessage = d.message || d.detail || d.errors?.detail?.[0] || d.non_field_errors?.[0] || JSON.stringify(d)
+        setApiError(errorMessage)
       } else {
-        setError("Network error. Please check your connection.")
+        setApiError(err.message || "Network error. Please check your connection.")
       }
+    } finally {
+      setIsSubmittingForm(false)
     }
   }
 
-  const Eye = ({ open }: { open: boolean }) =>
-    open ? (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-    ) : (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-    )
+  const meta = STEP_META[step]
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      {error && <div className="auth-error-banner">⚠️ {error}</div>}
+    <FormProvider {...methods}>
+      <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans selection:bg-primary/20 selection:text-primary">
+        
+        {/* Left Side: Context / Branding */}
+        <div className="md:w-[40%] lg:w-[35%] bg-muted/30 border-b md:border-b-0 md:border-r border-border p-8 lg:p-12 flex flex-col justify-between">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-foreground tracking-tight mb-16 hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+                <span className="text-white text-sm font-bold tracking-normal">O</span>
+              </div>
+              OrbiSave
+            </Link>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-        <div className="auth-field" style={{ gridColumn: "1 / -1" }}>
-          <label className="auth-label" htmlFor="ch-name">Full name</label>
-          <input id="ch-name" type="text" placeholder="Alice Wanjiru" autoComplete="name" className={`auth-input ${errors.full_name ? "auth-input--error" : ""}`} {...register("full_name")} />
-          {errors.full_name && <p className="auth-field-error">{errors.full_name.message}</p>}
-        </div>
-
-        <div className="auth-field">
-          <label className="auth-label" htmlFor="ch-email">Email address</label>
-          <input id="ch-email" type="email" placeholder="alice@example.com" autoComplete="email" className={`auth-input ${errors.email ? "auth-input--error" : ""}`} {...register("email")} />
-          {errors.email && <p className="auth-field-error">{errors.email.message}</p>}
-        </div>
-
-        <div className="auth-field">
-          <label className="auth-label" htmlFor="ch-phone">Phone number</label>
-          <input id="ch-phone" type="tel" placeholder="+254700000000" autoComplete="tel" className={`auth-input ${errors.phone ? "auth-input--error" : ""}`} {...register("phone")} />
-          {errors.phone && <p className="auth-field-error">{errors.phone.message}</p>}
-        </div>
-
-        <div className="auth-field">
-          <label className="auth-label" htmlFor="ch-password">Password</label>
-          <div className="auth-input-wrap">
-            <input id="ch-password" type={showPw ? "text" : "password"} placeholder="Min. 8 characters" autoComplete="new-password" className={`auth-input auth-input--pr ${errors.password ? "auth-input--error" : ""}`} {...register("password")} />
-            <button type="button" className="auth-input-icon" onClick={() => setShowPw(v => !v)}><Eye open={showPw} /></button>
-          </div>
-          {errors.password && <p className="auth-field-error">{errors.password.message}</p>}
-        </div>
-
-        <div className="auth-field">
-          <label className="auth-label" htmlFor="ch-confirm">Confirm password</label>
-          <div className="auth-input-wrap">
-            <input id="ch-confirm" type={showCp ? "text" : "password"} placeholder="••••••••" autoComplete="new-password" className={`auth-input auth-input--pr ${errors.confirmPassword ? "auth-input--error" : ""}`} {...register("confirmPassword")} />
-            <button type="button" className="auth-input-icon" onClick={() => setShowCp(v => !v)}><Eye open={showCp} /></button>
-          </div>
-          {errors.confirmPassword && <p className="auth-field-error">{errors.confirmPassword.message}</p>}
-        </div>
-      </div>
-
-      <button type="submit" className="auth-btn" disabled={isSubmitting} id="chairperson-create-account-btn" style={{ marginTop: "0.5rem" }}>
-        {isSubmitting ? "Creating your Chama account…" : "Create Chairperson Account →"}
-      </button>
-    </form>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-export default function ChamaOnboardingPage() {
-  const [step, setStep] = useState(0)
-  const [agreed, setAgreed] = useState(false)
-
-  const canAdvance = () => {
-    if (step === 2 && !agreed) return false
-    if (step === TOTAL_STEPS - 1) return false // account step uses its own submit
-    return true
-  }
-
-  const stepDescriptions = [
-    "Learn what a Chama is and how OrbiSave powers it.",
-    "Understand what's expected of you as a chairperson.",
-    "Read and agree to the chairperson terms of service.",
-    "Know what documents and setup you'll need.",
-    "Create your chairperson account to get started.",
-  ]
-
-  return (
-    <div className="onboard-layout">
-      {/* Top bar */}
-      <div className="onboard-topbar">
-        <Link href="/" className="onboard-topbar__logo" id="onboard-home-link">
-          <div className="onboard-topbar__logo-mark">O</div>
-          OrbiSave
-        </Link>
-        <div className="onboard-topbar__step-label">
-          Step <span>{step + 1}</span> of {TOTAL_STEPS} — {STEP_LABELS[step]}
-        </div>
-      </div>
-
-      {/* Progress */}
-      <div className="onboard-progress">
-        <div className="onboard-progress__track">
-          <div
-            className="onboard-progress__fill"
-            style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
-          />
-        </div>
-        <div className="onboard-progress__steps">
-          {STEP_LABELS.map((label, i) => (
-            <div
-              key={label}
-              className={`onboard-progress__step ${
-                i === step ? "onboard-progress__step--active" : i < step ? "onboard-progress__step--done" : ""
-              }`}
-            >
-              {i < step ? "✓ " : ""}{label}
+            <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-500" key={step}>
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-widest uppercase mb-2">
+                Step {step + 1} of {TOTAL_STEPS}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                {meta.title}
+              </h1>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                {meta.desc}
+              </p>
             </div>
-          ))}
+          </div>
+          
+          <div className="hidden md:block mt-auto pt-12">
+            <div className="flex gap-2">
+              {STEP_META.map((_, i) => (
+                <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === step ? 'w-8 bg-primary' : i < step ? 'w-4 bg-primary/40' : 'w-4 bg-border'}`}></div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Form Area */}
+        <div className="flex-1 flex flex-col relative overflow-y-auto custom-scrollbar">
+          <div className="flex-1 w-full max-w-3xl mx-auto p-6 md:p-12 lg:p-20 pt-10">
+            {apiError && (
+              <div className="mb-8 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium flex gap-3 items-start animate-in slide-in-from-top-2">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" /> 
+                <span className="leading-relaxed">{apiError}</span>
+              </div>
+            )}
+
+            <form onSubmit={step === TOTAL_STEPS - 1 ? handleSubmit(onSubmit) : (e) => { e.preventDefault(); handleNext(); }} className="h-full flex flex-col">
+              <div className="flex-1 pb-12">
+                {step === 0 && <StepRole />}
+                {step === 1 && <StepAccount />}
+                {step === 2 && <StepGroup />}
+                {step === 3 && <StepLocation />}
+                {step === 4 && <StepReview />}
+              </div>
+
+              {/* Navigation Footer */}
+              <div className="mt-auto pt-6 border-t border-border flex items-center justify-between gap-4 sticky bottom-0 bg-background/95 backdrop-blur py-4 -mx-2 px-2">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={step === 0 || isSubmittingForm}
+                  className="px-6 h-12 rounded-lg text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-0 disabled:pointer-events-none"
+                >
+                  Back
+                </button>
+                {step < TOTAL_STEPS - 1 ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="px-8 h-12 bg-primary text-primary-foreground rounded-lg text-sm font-bold hover:bg-primary-hover transition-all shadow-sm flex items-center gap-2 ml-auto"
+                  >
+                    Continue <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isSubmittingForm}
+                    className="px-8 h-12 bg-primary text-primary-foreground rounded-lg text-sm font-bold hover:bg-primary-hover transition-all shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 ml-auto"
+                  >
+                    {isSubmittingForm ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Creating Group...
+                      </>
+                    ) : (
+                      <>
+                        Create My Group <Check className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
         </div>
       </div>
-
-      {/* Main content */}
-      <div className="onboard-main">
-        <div className="onboard-step__eyebrow">
-          <svg width="7" height="7" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
-          Chairperson Onboarding · Step {step + 1}
-        </div>
-        <h1 className="onboard-step__title">{STEP_LABELS[step]}</h1>
-        <p className="onboard-step__desc">{stepDescriptions[step]}</p>
-
-        {step === 0 && <StepWelcome />}
-        {step === 1 && <StepDuties />}
-        {step === 2 && <StepTerms agreed={agreed} setAgreed={setAgreed} />}
-        {step === 3 && <StepRequirements />}
-        {step === 4 && <StepAccount />}
-      </div>
-
-      {/* Footer navigation (not shown on final step — that has its own submit) */}
-      {step < TOTAL_STEPS - 1 && (
-        <div className="onboard-footer">
-          <button
-            type="button"
-            className="onboard-footer__back"
-            onClick={() => setStep(s => Math.max(0, s - 1))}
-            disabled={step === 0}
-            id="onboard-back-btn"
-          >
-            ← Back
-          </button>
-          <button
-            type="button"
-            className="onboard-footer__next"
-            onClick={() => setStep(s => Math.min(TOTAL_STEPS - 1, s + 1))}
-            disabled={!canAdvance()}
-            id={`onboard-next-step-${step + 1}`}
-          >
-            {step === TOTAL_STEPS - 2 ? "Set up account →" : "Continue →"}
-          </button>
-        </div>
-      )}
-
-      {step === TOTAL_STEPS - 1 && (
-        <div className="onboard-footer">
-          <button
-            type="button"
-            className="onboard-footer__back"
-            onClick={() => setStep(s => s - 1)}
-            id="onboard-account-back-btn"
-          >
-            ← Back
-          </button>
-          <p style={{ fontSize: "0.78rem", color: "rgba(0,0,0,0.5)" }}>
-            Fill in the form above and click Create Account
-          </p>
-        </div>
-      )}
-    </div>
+    </FormProvider>
   )
 }
+
+// Remove ArrowRightIcon and Loader2Icon definitions at the end since we are using lucide-react now
+

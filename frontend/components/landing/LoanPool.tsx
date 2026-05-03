@@ -1,35 +1,32 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { CheckCircle2, Clock, Lock, TrendingUp, ArrowRight } from "lucide-react"
 import Link from "next/link"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 const APPROVAL_STEPS = [
   {
     role: "Chairperson",
     initials: "CH",
-    action: "Reviews loan merits & member standing",
+    action: "Checks if the loan is okay for the member",
     status: "approved",
-    pin: "PIN verified",
+    pin: "Approved with PIN",
   },
   {
     role: "Treasurer",
     initials: "TR",
-    action: "Confirms pool liquidity & repayment capacity",
+    action: "Checks if the group has enough money",
     status: "approved",
-    pin: "PIN verified",
+    pin: "Approved with PIN",
   },
   {
     role: "Platform Admin",
     initials: "AD",
-    action: "Compliance check for large amounts",
+    action: "Final safety check for the group",
     status: "pending",
-    pin: "Auto-approved below KES 50K",
+    pin: "Automatic for small amounts",
   },
 ]
 
@@ -106,16 +103,16 @@ export function LoanPool() {
             className="inline-flex items-center text-xs font-bold tracking-[0.15em] uppercase mb-4 px-3 py-1.5"
             style={{ color: "#00ab00", background: "#ffffff", borderRadius: "4px", border: "1px solid #d6e4df" }}
           >
-            Group Loan Reserve
+            Emergency Money
           </div>
           <h2
             className="text-3xl sm:text-4xl font-black tracking-tight mb-4"
             style={{ color: "#0a2540" }}
           >
-            30% reserved. Available to any member. Governed by all.
+            Money Set Aside for You.
           </h2>
           <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-            Every cycle, 30% of pooled capital is ring-fenced as a loan reserve. All earned interest flows back into the ecosystem — organically growing every member's future payout.
+            We set aside 30% of the group's money for loans. If you need money for an emergency or to grow your business, you can borrow from the group easily and safely.
           </p>
         </div>
 
@@ -146,7 +143,7 @@ export function LoanPool() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: "#0a2540" }} />
-                      <span className="text-sm font-semibold" style={{ color: "#0f1924" }}>Rotation Savings</span>
+                      <span className="text-sm font-semibold" style={{ color: "#0f1924" }}>Big Payouts</span>
                     </div>
                     <div>
                       <span className="text-sm font-bold" style={{ color: "#0f1924" }}>KES 42,000</span>
@@ -163,7 +160,7 @@ export function LoanPool() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: "#00ab00" }} />
-                      <span className="text-sm font-semibold" style={{ color: "#0f1924" }}>Loan Reserve</span>
+                      <span className="text-sm font-semibold" style={{ color: "#0f1924" }}>Emergency Loans</span>
                     </div>
                     <div>
                       <span className="text-sm font-bold" style={{ color: "#0f1924" }}>KES 18,000</span>
@@ -191,10 +188,10 @@ export function LoanPool() {
               </div>
               <div>
                 <h4 className="font-bold text-sm mb-1.5" style={{ color: "#0a2540" }}>
-                  Interest Returns to the Pool
+                  Interest Helps the Group
                 </h4>
                 <p className="text-xs font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-                  When a member repays with interest (capped at 5% per month by platform rules), the interest is immediately injected back into the rotation pool — compounding the capital base.
+                  When you pay back a loan with a small interest, that extra money goes back to the group. It makes everyone's payout bigger!
                 </p>
                 <div className="flex items-center gap-1.5 mt-3 text-xs font-bold" style={{ color: "#00ab00" }}>
                   KES 900 interest → pool → +KES 150 per member
@@ -208,12 +205,12 @@ export function LoanPool() {
               style={{ background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "8px" }}
             >
               <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#4a5c6a" }}>
-                Platform Guardrails
+                Simple Rules
               </p>
               {[
-                "Max loan: 3× your total contributions to date",
-                "Interest rate capped at 5% per month by the platform",
-                "Disbursement blocked if pool drops below safety threshold",
+                "Max loan: 3× your total savings so far",
+                "Interest rate is low and fair for everyone",
+                "Safety checks ensure there is always money available",
               ].map((rule, i) => (
                 <div key={i} className="flex items-center gap-2.5 text-sm font-medium" style={{ color: "#0f1924" }}>
                   <Lock className="w-3.5 h-3.5 loan-icon-lock flex-shrink-0" style={{ color: "#00ab00" }} />
@@ -231,8 +228,8 @@ export function LoanPool() {
             >
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h3 className="font-bold text-base" style={{ color: "#0a2540" }}>Loan Approval Flow</h3>
-                  <p className="text-xs font-medium mt-0.5" style={{ color: "#4a5c6a" }}>Multi-party · PIN-verified</p>
+                  <h3 className="font-bold text-base" style={{ color: "#0a2540" }}>Safe Approvals</h3>
+                  <p className="text-xs font-medium mt-0.5" style={{ color: "#4a5c6a" }}>Leaders agree using their PINs</p>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold" style={{ color: "#0a2540" }}>KES 15,000</div>
@@ -300,7 +297,7 @@ export function LoanPool() {
                       <p className="text-xs font-medium" style={{ color: "#4a5c6a" }}>{step.action}</p>
                     </div>
                     {step.status === "approved"
-                      ? <CheckCircle2 className="w-4.5 h-4.5 flex-shrink-0 mt-0.5" style={{ color: "#00ab00" }} />
+                      ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#00ab00" }} />
                       : <Clock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#4a5c6a" }} />
                     }
                   </div>
@@ -317,8 +314,8 @@ export function LoanPool() {
                   style={{ background: "#00ab00" }}
                 />
                 <div className="flex-1">
-                  <div className="text-sm font-bold" style={{ color: "#0a2540" }}>Disbursement Ready</div>
-                  <div className="text-xs font-medium" style={{ color: "#4a5c6a" }}>KES 15,000 → Njeri's M-Pesa</div>
+                  <div className="text-sm font-bold" style={{ color: "#0a2540" }}>Ready to Send</div>
+                  <div className="text-xs font-medium" style={{ color: "#4a5c6a" }}>KES 15,000 → Njeri's Phone</div>
                 </div>
                 <span
                   className="text-xs font-bold px-2.5 py-1"
@@ -330,7 +327,7 @@ export function LoanPool() {
             </div>
 
             <p className="text-xs font-medium leading-relaxed px-1" style={{ color: "#4a5c6a" }}>
-              Each approver uses a separately-hashed transaction PIN independent from their login password. Approval events are permanently recorded in the immutable audit log.
+              Leaders use their own secret PINs to approve money. No one can move the group's money without everyone knowing.
             </p>
 
             {/* Learn more CTA */}

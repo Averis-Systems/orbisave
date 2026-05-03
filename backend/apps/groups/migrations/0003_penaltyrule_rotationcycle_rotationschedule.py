@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
                 ('cycle_number', models.PositiveIntegerField()),
                 ('scheduled_payout_date', models.DateField()),
                 ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payout_schedules', to='groups.group')),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                ('member', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'groups_rotation_schedule',

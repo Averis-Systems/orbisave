@@ -1,19 +1,16 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import Link from "next/link"
 import { Sprout, ArrowRight, Zap, Globe, TrendingUp } from "lucide-react"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 const BENEFITS = [
-  { icon: Globe,      label: "All financiers in one place",          desc: "Seeds, feed, equipment — from livestock to aquaculture." },
-  { icon: Zap,        label: "Your chama is your leverage",          desc: "A group credit record is stronger than any individual." },
-  { icon: TrendingUp, label: "Tiny repayments over time",            desc: "Spread input costs across your harvest cycle." },
-  { icon: Sprout,     label: "Grants for qualifying farmers",        desc: "Verified groups access grants routed via OrbiSave." },
+  { icon: Globe,      iconCls: "ift-icon-globe icon-spin",  label: "Everything You Need",  desc: "Get seeds, fertilizer, and tools for your farm or business." },
+  { icon: Zap,        iconCls: "ift-icon-zap icon-flash",   label: "Save as a Group",        desc: "Saving together makes your group stronger for loans." },
+  { icon: TrendingUp, iconCls: "ift-icon-trend icon-bounce", label: "Pay Slowly",             desc: "Pay for your tools slowly as you earn from your harvest." },
+  { icon: Sprout,     iconCls: "ift-icon-sprout",           label: "Get Free Help",           desc: "Good groups can get grants and free support from NGOs." },
 ]
 
 export function InputFinancingTeaser() {
@@ -75,7 +72,7 @@ export function InputFinancingTeaser() {
               className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.15em] uppercase mb-6 px-3 py-1.5"
               style={{ color: "#00ab00", background: "rgba(0,171,0,0.1)", borderRadius: "4px", border: "1px solid rgba(0,171,0,0.2)" }}
             >
-              Input Financing
+              Grow Your Farm
             </div>
             <h2
               className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight mb-6"
@@ -88,7 +85,7 @@ export function InputFinancingTeaser() {
               className="text-lg font-medium leading-relaxed mb-8"
               style={{ color: "rgba(255,255,255,0.65)" }}
             >
-              OrbiSave connects your chama directly to vetted input financiers — for seeds, fertiliser, aquaculture gear, livestock feed, and more. Your group's contribution record is your credit. No individual guarantors needed.
+              We connect your group to companies that provide seeds, fertilizer, and tools on credit. Your group's savings record is your proof. You don't need to ask anyone else to sign for you.
             </p>
             <Link
               href="/input-financing"
@@ -102,13 +99,7 @@ export function InputFinancingTeaser() {
 
           {/* Right: benefit grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {BENEFITS.map(({ icon: Icon, label, desc }, i) => {
-              const iconCls = [
-                "ift-icon-globe icon-spin",
-                "ift-icon-zap icon-flash",
-                "ift-icon-trend icon-bounce",
-                "ift-icon-sprout",
-              ]
+            {BENEFITS.map(({ icon: Icon, iconCls, label, desc }, i) => {
               return (
                 <div
                   key={i}
@@ -120,7 +111,7 @@ export function InputFinancingTeaser() {
                   }}
                 >
                   <Icon
-                    className={`w-5 h-5 ${iconCls[i]}`}
+                    className={`w-5 h-5 ${iconCls}`}
                     style={{ color: "#00ab00" }}
                   />
                   <div>

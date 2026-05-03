@@ -4,12 +4,9 @@ WORKDIR /app
 
 # Install deps first (cache layer)
 COPY package*.json ./
-COPY apps/web/package*.json ./apps/web/
-COPY packages/shared-types/package*.json ./packages/shared-types/
-COPY packages/shared-utils/package*.json ./packages/shared-utils/
-RUN npm install
+RUN npm install --legacy-peer-deps
 
-# Copy source
+# Copy entire frontend source
 COPY . .
 
 EXPOSE 3000

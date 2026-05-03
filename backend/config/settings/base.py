@@ -134,7 +134,9 @@ REST_FRAMEWORK = {
 # ─── Simple JWT (RS256) ──────────────────────────────────────────────────────
 def _read_key(path_env_var: str, default: str = '') -> str:
     key_path = os.environ.get(path_env_var, default)
-    full_path = BASE_DIR / 'backend' / key_path if not os.path.isabs(key_path) else key_path
+    # Inside Docker, BASE_DIR is /app (backend root). If run locally, it's backend.
+    # To handle both, we just check if key_path exists in BASE_DIR directly.
+    full_path = BASE_DIR / key_path if not os.path.isabs(key_path) else Path(key_path)
     try:
         return open(full_path).read()
     except FileNotFoundError:
@@ -164,8 +166,14 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
 ]
 CORS_ALLOW_CREDENTIALS = True
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-country',
+]
 
 # ─── DRF Spectacular (OpenAPI) ───────────────────────────────────────────────
 SPECTACULAR_SETTINGS = {

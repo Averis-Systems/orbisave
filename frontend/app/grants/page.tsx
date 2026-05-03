@@ -1,9 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -11,29 +9,28 @@ import {
 } from "lucide-react"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 const ELIGIBILITY_STEPS = [
   {
     icon: CheckCircle2,
-    title: "Onboard & Complete KYC",
-    body: "Register your group and ensure the Chairperson and Treasurer complete their mandatory identity verification.",
+    title: "Register Your Group",
+    body: "Sign up your group and make sure your leaders verify who they are. This helps keep everyone's money safe.",
   },
   {
     icon: Target,
-    title: "Complete 6 Full Cycles",
-    body: "Establish a baseline of financial discipline. A 'cycle' means every member has successfully contributed and received a payout without default.",
+    title: "Save Regularly",
+    body: "Keep saving together for a few months. A good group is one where everyone saves on time and everyone gets their turn to get paid.",
   },
   {
     icon: ShieldCheck,
-    title: "Maintain a 95%+ Repayment Rate",
-    body: "Ensure internal group loans are repaid on time. Your OrbiSave Trust Score is calculated mathematically from your ledger history.",
+    title: "Pay Back Loans on Time",
+    body: "Make sure everyone pays back their group loans on time. The app gives your group a 'Trust Score' based on your good habits.",
   },
   {
     icon: Trophy,
-    title: "Unlock Grant Matching",
-    body: "Once qualified, OrbiSave connects your group to participating NGOs, Government Agricultural Funds, and Philanthropic Partners for direct capital injections.",
+    title: "Receive Your Grant",
+    body: "Once your group is ready, we connect you to NGOs and funds that give grants directly to your group's account.",
   }
 ]
 
@@ -66,11 +63,11 @@ export default function GrantsPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
           <Gift className="gr-hero w-10 h-10 mx-auto mb-6" style={{ color: "#00ab00" }} />
           <h1 className="gr-hero text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-6" style={{ color: "#0a2540" }}>
-            Turn your group's discipline<br />
-            <span style={{ color: "#00ab00" }}>into direct capital.</span>
+            Get Free Grants<br />
+            <span style={{ color: "#00ab00" }}>for Your Group.</span>
           </h1>
           <p className="gr-hero text-lg font-medium max-w-2xl mx-auto mb-10" style={{ color: "#4a5c6a" }}>
-            Philanthropists and NGOs want to fund reliable farming groups. OrbiSave provides the verified financial track record that proves your group is ready for grants.
+            NGOs and support groups want to fund reliable farmers. OrbiSave keeps clear records of your group's savings, proving that your group is ready for support.
           </p>
         </div>
       </section>
@@ -137,10 +134,10 @@ export default function GrantsPage() {
       <section className="py-20" style={{ background: "#0a2540" }}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-5 text-white">
-            Are you a grant provider or NGO?
+            Are you an NGO or Support Group?
           </h2>
           <p className="text-base font-medium leading-relaxed mb-8" style={{ color: "rgba(255,255,255,0.7)" }}>
-            Deploy capital safely. OrbiSave provides the digital infrastructure to route funds directly to high-performing, verified farming collectives. No leakage, total transparency.
+            Give support safely. OrbiSave makes it easy to send money directly to verified and hardworking groups. Every shilling is tracked and accounted for.
           </p>
           <a href="mailto:info@averissystems.com">
             <button className="h-12 px-8 text-sm font-bold text-white flex items-center gap-2 mx-auto transition-opacity hover:opacity-90" style={{ background: "transparent", border: "1px solid #00ab00", borderRadius: "6px" }}>

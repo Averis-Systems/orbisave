@@ -5,7 +5,7 @@ const NAV = {
   Platform: [
     { label: "How It Works",         href: "/#how-it-works" },
     { label: "How Loaning Works",    href: "/how-loaning-works" },
-    { label: "Input Financing",      href: "/input-financing" },
+    { label: "Grow Your Farm",       href: "/input-financing" },
     { label: "Grant Eligibility",    href: "/grants" },
   ],
   Company: [
@@ -15,15 +15,15 @@ const NAV = {
     { label: "Averis Systems",       href: "https://averissystems.com" },
   ],
   Legal: [
-    { label: "OrbiSave Fees",        href: "/fees" },
-    { label: "Terms of Service",     href: "#" },
-    { label: "Privacy Policy",       href: "#" },
-    { label: "KYC Policy",           href: "#" },
+    { label: "Fees and Costs",       href: "/fees" },
+    { label: "Terms of Service",     href: "/terms" },
+    { label: "Privacy Policy",       href: "/privacy" },
+    { label: "KYC Policy",           href: "/kyc-policy" },
   ],
   Resources: [
     { label: "Help Centre & FAQs",   href: "/support" },
-    { label: "Compare OrbiSave",     href: "/#comparison" },
-    { label: "Group Templates",      href: "#" },
+    { label: "Compare OrbiSave",     href: "/#why-choose-orbisave" },
+    { label: "How Loans Work",       href: "/how-loaning-works" },
   ],
 }
 
@@ -94,8 +94,8 @@ export function Footer() {
                 <span className="text-lg font-bold text-white tracking-tight">OrbiSave</span>
               </Link>
 
-              <p className="text-sm leading-relaxed max-w-[200px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                Digital financial infrastructure for chamas, VSLAs, and co-operatives.
+              <p className="text-xs font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
+                OrbiSave is made by Averis Systems. We help groups in Kenya, Rwanda, and Ghana save money safely on their phones and grow together.
               </p>
 
               <div className="flex flex-col gap-1">

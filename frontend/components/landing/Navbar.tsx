@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 const NAV_LINKS = [
   { label: "How It Works", href: "#how-it-works" },
   { label: "Loaning", href: "/how-loaning-works" },
-  { label: "Input Financing", href: "/input-financing" },
+  { label: "Grow Your Farm", href: "/input-financing" },
 ]
 
 export function Navbar() {
@@ -67,7 +67,7 @@ export function Navbar() {
             </div>
             <span
               className="text-lg font-bold tracking-tight transition-colors duration-200"
-              style={{ color: scrolled ? "#0a2540" : "#0a2540" }}
+              style={{ color: "#0a2540" }}
             >
               OrbiSave
             </span>

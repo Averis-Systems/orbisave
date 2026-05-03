@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 ('status', models.CharField(choices=[('scheduled', 'Scheduled'), ('live', 'Live'), ('ended', 'Ended'), ('cancelled', 'Cancelled')], default='scheduled', max_length=20)),
                 ('livekit_room', models.CharField(blank=True, max_length=255, null=True)),
                 ('minutes', models.TextField(blank=True)),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
                 ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='meetings', to='groups.group')),
             ],
             options={
@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
                 ('joined_at', models.DateTimeField(auto_now_add=True)),
                 ('left_at', models.DateTimeField(blank=True, null=True)),
                 ('meeting', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendances', to='meetings.meeting')),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='meeting_attendances', to=settings.AUTH_USER_MODEL)),
+                ('member', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.CASCADE, related_name='meeting_attendances', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'meetings_attendance',

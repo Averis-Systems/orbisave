@@ -1,16 +1,13 @@
 "use client"
 
 import { useRef, useState } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import {
   LifeBuoy, Mail, Phone, Globe, ChevronDown, ChevronUp, AlertCircle
 } from "lucide-react"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 const CONTACTS = [
   { icon: Phone, title: "Kenya Support", value: "+254 105 374 738\n+254 795 581 750" },

@@ -41,8 +41,8 @@ class Migration(migrations.Migration):
                 ('invite_expires_at', models.DateTimeField(blank=True, null=True)),
                 ('currency', models.CharField(max_length=5)),
                 ('trust_account_ref', models.CharField(blank=True, max_length=255, null=True)),
-                ('chairperson', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='chaired_groups', to=settings.AUTH_USER_MODEL)),
-                ('treasurer', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='treasured_groups', to=settings.AUTH_USER_MODEL)),
+                ('chairperson', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.PROTECT, related_name='chaired_groups', to=settings.AUTH_USER_MODEL)),
+                ('treasurer', models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='treasured_groups', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'groups_group',
@@ -60,9 +60,9 @@ class Migration(migrations.Migration):
                 ('status', models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('expired', 'Expired'), ('cancelled', 'Cancelled')], default='pending', max_length=20)),
                 ('expires_at', models.DateTimeField()),
                 ('accepted_at', models.DateTimeField(blank=True, null=True)),
-                ('accepted_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='accepted_invites', to=settings.AUTH_USER_MODEL)),
+                ('accepted_by', models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='accepted_invites', to=settings.AUTH_USER_MODEL)),
                 ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='invites', to='groups.group')),
-                ('invited_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
+                ('invited_by', models.ForeignKey(db_constraint=False, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'groups_invite',
@@ -78,7 +78,7 @@ class Migration(migrations.Migration):
                 ('status', models.CharField(choices=[('active', 'Active'), ('suspended', 'Suspended'), ('left', 'Left')], default='active', max_length=20)),
                 ('joined_at', models.DateTimeField(auto_now_add=True)),
                 ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='memberships', to='groups.group')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='group_memberships', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.CASCADE, related_name='group_memberships', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'groups_member',

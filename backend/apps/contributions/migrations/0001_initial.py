@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
                 ('retry_count', models.PositiveIntegerField(default=0)),
                 ('max_retries', models.PositiveIntegerField(default=3)),
                 ('group', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='contributions', to='groups.group')),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='contributions', to=settings.AUTH_USER_MODEL)),
+                ('member', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.PROTECT, related_name='contributions', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'db_table': 'contributions_contribution',

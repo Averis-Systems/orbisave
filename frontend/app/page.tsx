@@ -1,33 +1,22 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import Link from "next/link"
-import { ArrowRight, ShieldCheck, Zap, Globe } from "lucide-react"
+import { ArrowRight, ShieldCheck, ClipboardList, Globe } from "lucide-react"
 import { Navbar }                 from "@/components/landing/Navbar"
 import { TrustBelt }              from "@/components/landing/TrustBelt"
 import { NarrativeHook }          from "@/components/landing/NarrativeHook"
+import { WhyChooseUs }            from "@/components/landing/WhyChooseUs"
 import { WhoCanJoin }             from "@/components/landing/WhoCanJoin"
 import { HowItWorks }             from "@/components/landing/HowItWorks"
 import { RotationVisualizer }     from "@/components/landing/RotationVisualizer"
 import { LoanPool }               from "@/components/landing/LoanPool"
-import { ComparisonTable }        from "@/components/landing/ComparisonTable"
 import { InputFinancingTeaser }   from "@/components/landing/InputFinancingTeaser"
 import { CtaSection }             from "@/components/landing/CtaSection"
 import { Footer }                 from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
-
-const ORBITAL_MEMBERS = [
-  { id: 0, initials: "AK", name: "Amara K.",  sx: 240, sy: 65,  isPayout: true  },
-  { id: 1, initials: "KO", name: "Kwame O.",  sx: 392, sy: 152, isPayout: false },
-  { id: 2, initials: "NW", name: "Njeri W.",  sx: 392, sy: 328, isPayout: false },
-  { id: 3, initials: "KA", name: "Kofi A.",   sx: 240, sy: 415, isPayout: false },
-  { id: 4, initials: "FM", name: "Fatima M.", sx: 88,  sy: 328, isPayout: false },
-  { id: 5, initials: "DO", name: "David O.",  sx: 88,  sy: 152, isPayout: false },
-]
+import { gsap }                   from "@/lib/gsap-init"
+import { ORBITAL_MEMBERS }        from "@/lib/demo-data"
 
 export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null)
@@ -142,15 +131,15 @@ export default function Home() {
               className="hero-text-el text-[2.8rem] sm:text-5xl lg:text-[4.5rem] font-black leading-[1.05] tracking-tighter"
               style={{ color: "#0a2540" }}
             >
-              The Digital Estate<br />
-              <span style={{ color: "#00ab00" }}>for African Collectives.</span>
+              Take Your Group<br />
+              <span style={{ color: "#00ab00" }}>Savings Online.</span>
             </h1>
 
             <p
               className="hero-text-el text-base lg:text-xl leading-relaxed font-medium max-w-[520px]"
               style={{ color: "#4a5c6a" }}
             >
-              OrbiSave automates your group savings and loans. We don't force you into fixed monthly payments. You can save according to your harvest seasons, keep track of every shilling on your phone, and build a real credit history for your group.
+              OrbiSave helps your group save and borrow money safely on your phone. No more notebooks or cash-in-a-box. Save when you have money from harvest, keep clear records, and build a good name for your group with banks.
             </p>
 
             {/* CTAs */}
@@ -178,11 +167,11 @@ export default function Home() {
             <div className="hero-text-el flex flex-wrap items-center gap-x-6 gap-y-2 pt-4 mt-1">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: "#4a5c6a" }}>
                 <ShieldCheck className="w-4 h-4 hero-shield flex-shrink-0" style={{ color: "#00ab00" }} />
-                Bank-Backed Custody
+                Safe Bank Storage
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: "#4a5c6a" }}>
-                <Zap className="w-4 h-4 hero-zap flex-shrink-0" style={{ color: "#00ab00" }} />
-                SHA-256 Auditable Ledger
+                <ClipboardList className="w-4 h-4 flex-shrink-0" style={{ color: "#00ab00" }} />
+                Clear Records
               </div>
             </div>
           </div>
@@ -242,33 +231,34 @@ export default function Home() {
               {/* Payout member ring */}
               <circle id="payout-ring-pulse" cx="240" cy="65" r="30" fill="none" stroke="rgba(0,171,0,0.25)" strokeWidth="1.5" />
 
-              {/* PAYOUT MEMBER — Amara K. (green) */}
-              <circle cx="240" cy="65" r="27" fill="#e9f3ed" stroke="#00ab00" strokeWidth="2" />
-              <text x="240" y="70" textAnchor="middle" fill="#0a2540" fontSize="12" fontFamily="sans-serif" fontWeight="800">AK</text>
+              {/* PAYOUT MEMBER */}
+              {(() => {
+                const payout = ORBITAL_MEMBERS.find(m => m.isPayout)!
+                return (
+                  <g>
+                    <circle cx={payout.sx} cy={payout.sy} r="27" fill="#e9f3ed" stroke="#00ab00" strokeWidth="2" />
+                    <text x={payout.sx} y={payout.sy + 5} textAnchor="middle" fill="#0a2540" fontSize="12" fontFamily="sans-serif" fontWeight="800">{payout.initials}</text>
+                  </g>
+                )
+              })()}
 
               {/* Payout badge */}
               <rect x="195" y="28" width="90" height="18" rx="4" fill="#00ab00" />
               <text x="240" y="40.5" textAnchor="middle" fill="#ffffff" fontSize="7.5" fontFamily="sans-serif" fontWeight="800" letterSpacing="1">NEXT PAYOUT</text>
 
               {/* CONTRIBUTOR MEMBERS */}
-              <circle cx="392" cy="152" r="24" fill="#ffffff" stroke="#d6e4df" strokeWidth="1.5" />
-              <text x="392" y="157" textAnchor="middle" fill="#0f1924" fontSize="10.5" fontFamily="sans-serif" fontWeight="700">KO</text>
-              <rect x="406" y="138" width="58" height="16" rx="4" fill="#e9f3ed" />
-              <text x="435" y="149.5" textAnchor="middle" fill="#00ab00" fontSize="7.5" fontFamily="sans-serif" fontWeight="800">+5K KES</text>
-
-              <circle cx="392" cy="328" r="24" fill="#ffffff" stroke="#d6e4df" strokeWidth="1.5" />
-              <text x="392" y="333" textAnchor="middle" fill="#0f1924" fontSize="10.5" fontFamily="sans-serif" fontWeight="700">NW</text>
-              <rect x="406" y="314" width="58" height="16" rx="4" fill="#e9f3ed" />
-              <text x="435" y="325.5" textAnchor="middle" fill="#00ab00" fontSize="7.5" fontFamily="sans-serif" fontWeight="800">+5K KES</text>
-
-              <circle cx="240" cy="415" r="24" fill="#ffffff" stroke="#d6e4df" strokeWidth="1.5" />
-              <text x="240" y="420" textAnchor="middle" fill="#0f1924" fontSize="10.5" fontFamily="sans-serif" fontWeight="700">KA</text>
-
-              <circle cx="88" cy="328" r="24" fill="#ffffff" stroke="#d6e4df" strokeWidth="1.5" />
-              <text x="88" y="333" textAnchor="middle" fill="#0f1924" fontSize="10.5" fontFamily="sans-serif" fontWeight="700">FM</text>
-
-              <circle cx="88" cy="152" r="24" fill="#ffffff" stroke="#d6e4df" strokeWidth="1.5" />
-              <text x="88" y="157" textAnchor="middle" fill="#0f1924" fontSize="10.5" fontFamily="sans-serif" fontWeight="700">DO</text>
+              {ORBITAL_MEMBERS.filter(m => !m.isPayout).map(m => (
+                <g key={`contrib-${m.id}`}>
+                  <circle cx={m.sx} cy={m.sy} r="24" fill="#ffffff" stroke="#d6e4df" strokeWidth="1.5" />
+                  <text x={m.sx} y={m.sy + 5} textAnchor="middle" fill="#0f1924" fontSize="10.5" fontFamily="sans-serif" fontWeight="700">{m.initials}</text>
+                  {(m.id === 1 || m.id === 2) && (
+                    <g>
+                      <rect x={m.sx + 14} y={m.sy - 14} width="58" height="16" rx="4" fill="#e9f3ed" />
+                      <text x={m.sx + 43} y={m.sy - 2.5} textAnchor="middle" fill="#00ab00" fontSize="7.5" fontFamily="sans-serif" fontWeight="800">+5K KES</text>
+                    </g>
+                  )}
+                </g>
+              ))}
 
               {/* Animated contribution tokens */}
               {ORBITAL_MEMBERS.filter(m => !m.isPayout).map(m => (
@@ -286,16 +276,16 @@ export default function Home() {
       <TrustBelt />
       {/* S3: Narrative Hook — emotional story */}
       <NarrativeHook />
-      {/* S4: Who Can Join */}
+      {/* S4: Why Choose Us — Authority Pillars & Comparison */}
+      <WhyChooseUs />
+      {/* S5: Who Can Join */}
       <WhoCanJoin />
-      {/* S5: How It Works */}
+      {/* S6: How It Works */}
       <HowItWorks />
-      {/* S6: Rotation Visualizer */}
+      {/* S7: Rotation Visualizer */}
       <RotationVisualizer />
-      {/* S7: Loan Pool */}
+      {/* S8: Loan Pool */}
       <LoanPool />
-      {/* S8: Comparison Table */}
-      <ComparisonTable />
       {/* S9: Input Financing Teaser */}
       <InputFinancingTeaser />
       {/* S10: Final CTA */}

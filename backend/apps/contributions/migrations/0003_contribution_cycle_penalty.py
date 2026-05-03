@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                 ('paid_at', models.DateTimeField(blank=True, null=True)),
                 ('payment_reference', models.CharField(blank=True, max_length=255, null=True)),
                 ('contribution', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='penalties', to='contributions.contribution')),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='penalties', to=settings.AUTH_USER_MODEL)),
+                ('member', models.ForeignKey(db_constraint=False, on_delete=django.db.models.deletion.PROTECT, related_name='penalties', to=settings.AUTH_USER_MODEL)),
                 ('rule', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='groups.penaltyrule')),
             ],
             options={

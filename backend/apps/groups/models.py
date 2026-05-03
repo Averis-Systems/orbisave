@@ -5,8 +5,13 @@ from common.models import BaseModel
 
 class Group(BaseModel):
     CONTRIBUTION_FREQUENCY = [
-        ('weekly','Weekly'), ('biweekly','Bi-weekly'),
-        ('monthly','Monthly'), ('harvest','Harvest Season'),
+        ('daily', 'Daily'),
+        ('every_3_days', 'Every 3 Days'),
+        ('every_5_days', 'Every 5 Days'),
+        ('weekly', 'Weekly'),
+        ('biweekly', 'Bi-weekly'),
+        ('monthly', 'Monthly'),
+        ('harvest', 'Harvest Season'),
     ]
     ROTATION_METHODS = [
         ('sequential','Sequential'), ('random','Random Draw'), ('manual','Manual'),
@@ -17,8 +22,8 @@ class Group(BaseModel):
     name                      = models.CharField(max_length=255)
     description               = models.TextField(blank=True)
     country                   = models.CharField(max_length=10, choices=COUNTRIES)
-    chairperson               = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='chaired_groups')
-    treasurer                 = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='treasured_groups', null=True, blank=True)
+    chairperson               = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='chaired_groups', db_constraint=False)
+    treasurer                 = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='treasured_groups', null=True, blank=True, db_constraint=False)
     max_members               = models.PositiveIntegerField(default=20)
     contribution_amount       = models.DecimalField(max_digits=14, decimal_places=2)
     contribution_frequency    = models.CharField(max_length=20, choices=CONTRIBUTION_FREQUENCY)
@@ -60,7 +65,7 @@ class GroupMember(BaseModel):
         ('exited','Exited'),
         ('deceased','Deceased'),
     ]
-    ROLE_CHOICES = [('member', 'Member'), ('chairperson', 'Chairperson'), ('treasurer', 'Treasurer')]
+    ROLE_CHOICES = [('member', 'Member'), ('chairperson', 'Chairperson'), ('treasurer', 'Treasurer'), ('secretary', 'Secretary')]
 
     # Cross-DB FK: accounts.User lives in 'default' DB; financial data in country DBs.
     # db_constraint=False prevents IntegrityError on country-specific DB migrations.

@@ -21,6 +21,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         ('member', 'Member'),
         ('chairperson', 'Chairperson'),
         ('treasurer', 'Treasurer'),
+        ('secretary', 'Secretary'),
         ('platform_admin', 'Platform Admin'),
         ('super_admin', 'Super Admin'),
     ]

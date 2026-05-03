@@ -3,18 +3,11 @@
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
 import dynamic from "next/dynamic"
+import { gsap } from "@/lib/gsap-init"
 
-const DotLottieReact = dynamic(
-  () => import('@lottiefiles/dotlottie-react').then((mod) => mod.DotLottieReact),
-  { ssr: false }
-)
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP)
-}
+// Removed DotLottieReact import due to JSON format incompatibility
 
 export default function OnboardingSelection() {
   const router = useRouter()
@@ -75,8 +68,8 @@ export default function OnboardingSelection() {
             OS
           </div>
           Welcome
-          <div className="w-6 h-6 ml-1 flex items-center justify-center">
-            <DotLottieReact src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f60a/lottie.json" autoplay loop />
+          <div className="w-6 h-6 ml-1 flex items-center justify-center text-lg animate-bounce">
+            😊
           </div>
         </div>
       </nav>
@@ -106,8 +99,8 @@ export default function OnboardingSelection() {
             >
               <div className="flex-1 flex flex-col items-center w-full mb-8">
                 <div className="w-full h-44 bg-[#e6fcf5] rounded-xl flex items-center justify-center relative overflow-hidden group">
-                    <div className="w-28 h-28 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-2">
-                      <DotLottieReact src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f44b/lottie.json" autoplay loop />
+                    <div className="w-28 h-28 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-2 flex items-center justify-center text-[5rem] animate-pulse">
+                      👋
                     </div>
                     {/* Decorative orbital rings */}
                     <div className="absolute w-40 h-40 border-2 border-[#10b981]/10 rounded-full z-0"></div>
@@ -138,8 +131,8 @@ export default function OnboardingSelection() {
             >
               <div className="flex-1 flex flex-col items-center w-full mb-8">
                 <div className="w-full h-44 bg-[#f8f9fa] border border-black/5 rounded-xl flex items-center justify-center relative overflow-hidden group">
-                    <div className="w-32 h-32 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-2">
-                      <DotLottieReact src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f91d/lottie.json" autoplay loop />
+                    <div className="w-32 h-32 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-translate-y-2 flex items-center justify-center text-[6rem] animate-pulse">
+                      🤝
                     </div>
                     {/* Decorative elements */}
                     <div className="absolute w-40 h-40 border-2 border-black/5 rounded-full z-0"></div>

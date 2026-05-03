@@ -21,7 +21,7 @@ class AuditLog(BaseModel):
     action       = models.CharField(max_length=50, choices=ACTION_TYPES)
     actor        = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True)
     target_user  = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='audit_targets')
-    target_group = models.ForeignKey('groups.Group', on_delete=models.PROTECT, null=True, blank=True)
+    target_group = models.ForeignKey('groups.Group', on_delete=models.PROTECT, null=True, blank=True, db_constraint=False)
     country      = models.CharField(max_length=10, null=True, blank=True)
     ip_address   = models.GenericIPAddressField(null=True, blank=True)
     user_agent   = models.TextField(null=True, blank=True)

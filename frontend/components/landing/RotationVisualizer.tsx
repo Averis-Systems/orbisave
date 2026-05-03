@@ -1,41 +1,25 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { CheckCircle2, Clock } from "lucide-react"
+import { gsap } from "@/lib/gsap-init"
 
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
-
-const ROTATION_QUEUE = [
-  { position: 1, initials: "AK", name: "Amara K.",  country: "GHA", amount: "KES 48,500", status: "current",  cycle: "Cycle 3" },
-  { position: 2, initials: "KO", name: "Kwame O.",  country: "GHA", amount: "KES 48,500", status: "upcoming", cycle: "Cycle 4" },
-  { position: 3, initials: "NW", name: "Njeri W.",  country: "KEN", amount: "KES 48,500", status: "upcoming", cycle: "Cycle 5" },
-  { position: 4, initials: "KA", name: "Kofi A.",   country: "GHA", amount: "KES 48,500", status: "upcoming", cycle: "Cycle 6" },
-  { position: 5, initials: "FM", name: "Fatima M.", country: "KEN", amount: "KES 48,500", status: "upcoming", cycle: "Cycle 7" },
-  { position: 6, initials: "DO", name: "David O.",  country: "KEN", amount: "KES 48,500", status: "upcoming", cycle: "Cycle 8" },
-]
-
-const PAST = [
-  { initials: "RK", name: "Rose K.",  amount: "KES 48,500", cycle: "Cycle 1" },
-  { initials: "JM", name: "James M.", amount: "KES 48,500", cycle: "Cycle 2" },
-]
+import { ORBITAL_MEMBERS, PAST, ROTATION_QUEUE } from "@/lib/demo-data"
 
 // Navy vault colors
 const SVG_CX = 220, SVG_CY = 220, SVG_R = 160
-const POOL_MEMBERS = [
-  { id: 0, initials: "AK", angle: -90,  isPayout: true },
-  { id: 1, initials: "KO", angle: -30,  isPayout: false },
-  { id: 2, initials: "NW", angle:  30,  isPayout: false },
-  { id: 3, initials: "KA", angle:  90,  isPayout: false },
-  { id: 4, initials: "FM", angle: 150,  isPayout: false },
-  { id: 5, initials: "DO", angle: 210,  isPayout: false },
-].map(m => ({
-  ...m,
-  x: Math.round(SVG_CX + SVG_R * Math.cos((m.angle * Math.PI) / 180)),
-  y: Math.round(SVG_CY + SVG_R * Math.sin((m.angle * Math.PI) / 180)),
-}))
+const POOL_MEMBERS = ORBITAL_MEMBERS.map((m, i) => {
+  const angles = [-90, -30, 30, 90, 150, 210]
+  const angle = angles[i] || 0
+  return {
+    ...m,
+    id: m.id,
+    angle,
+    x: Math.round(SVG_CX + SVG_R * Math.cos((angle * Math.PI) / 180)),
+    y: Math.round(SVG_CY + SVG_R * Math.sin((angle * Math.PI) / 180)),
+  }
+})
 
 export function RotationVisualizer() {
   const sectionRef = useRef<HTMLDivElement>(null)
@@ -110,16 +94,16 @@ export function RotationVisualizer() {
             className="inline-flex items-center text-xs font-bold tracking-[0.15em] uppercase mb-4 px-3 py-1.5"
             style={{ color: "#0a2540", background: "#e9f3ed", borderRadius: "4px", border: "1px solid #d6e4df" }}
           >
-            True Mathematical Equity
+            Fair and Simple
           </div>
           <h2
             className="text-3xl sm:text-4xl font-black tracking-tight"
             style={{ color: "#0a2540" }}
           >
-            Every member receives the same. In sequence.
+            Everyone Gets Their Turn.
           </h2>
           <p className="mt-5 text-base font-medium leading-relaxed max-w-xl mx-auto" style={{ color: "#4a5c6a" }}>
-            The rotation order is set at group creation and remains mathematically fixed. No favoritism. No ambiguity. The engine enforces the queue cryptographically.
+            The order of who gets paid is set at the start. No one can skip the line or play favorites. Everything is fair, fixed, and clear for everyone to see.
           </p>
         </div>
 
@@ -233,7 +217,7 @@ export function RotationVisualizer() {
                 className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1"
                 style={{ background: "#e9f3ed", color: "#4a5c6a", borderRadius: "4px", border: "1px solid #d6e4df" }}
               >
-                Sequential · Locked at Creation
+                Fixed Turn Order
               </span>
             </div>
 
@@ -314,7 +298,7 @@ export function RotationVisualizer() {
                     style={{ background: "#00ab00", color: "#ffffff", borderRadius: "4px" }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    Receiving
+                    Getting Paid
                   </div>
                 ) : (
                   <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#d6e4df" }} />
@@ -326,7 +310,7 @@ export function RotationVisualizer() {
               className="text-xs font-medium mt-1 leading-relaxed pl-3"
               style={{ color: "#4a5c6a", borderLeft: "2px solid #00ab00" }}
             >
-              Rotation order is deterministic and tamper-proof. Changes require unanimous group consent and are permanently recorded in the audit log.
+              The turn order is fixed and cannot be changed by one person. Everyone in the group can see the turn list anytime on their phone.
             </p>
           </div>
         </div>

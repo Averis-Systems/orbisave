@@ -1,47 +1,44 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import {
   Wallet, RefreshCw, Smartphone, Landmark, Check
 } from "lucide-react"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 const FEES_DATA = [
   {
     icon: RefreshCw,
-    title: "Platform Maintenance Fee",
+    title: "Service Fee",
     cost: "3% of payout",
-    details: "We charge a small 3% fee only when members receive their payouts. This pays for the secure digital records and automatic text messages."
+    details: "We charge a small 3% fee only when you get your payout. This helps us keep the app safe and send you automatic text messages."
   },
   {
     icon: Smartphone,
-    title: "Mobile Money Charges (M-Pesa / MTN MoMo)",
-    cost: "Standard Telecom Rates",
-    details: "OrbiSave does not add any extra charges to mobile money transfers. You only pay the normal network fees when you deposit or receive money."
+    title: "Mobile Money Fees (M-Pesa / MTN MoMo)",
+    cost: "Standard Network Rates",
+    details: "OrbiSave does not add any extra charges to your mobile money. You only pay the normal network fees when you send or get money."
   },
   {
     icon: Landmark,
-    title: "Secure Bank Escrow",
+    title: "Safe Bank Storage",
     cost: "Free",
-    details: "Your group's money is kept safe in a trusted bank account while your cycle is running. We do not charge any monthly fees to hold your money."
+    details: "Your group's money is kept safe in a trusted bank account. We do not charge any monthly fees to keep your money safe."
   },
   {
     icon: Wallet,
-    title: "Internal Group Loans",
+    title: "Group Loans",
     cost: "Set by your Group",
-    details: "OrbiSave does not charge interest on internal loans. Your Chairperson and Treasurer decide the interest rate, and all the profit goes back to your group."
+    details: "OrbiSave does not charge interest on your group's internal loans. Your group leaders decide the rate, and all the profit stays in your group."
   },
   {
     icon: Check,
-    title: "Premium Group Features",
+    title: "Advanced Features",
     cost: "KES 1,200 per year",
-    details: "For larger cooperatives and NGO groups, we offer an advanced yearly subscription that includes better reporting tools and dedicated support."
+    details: "For very large groups and co-ops, we offer an advanced version of the app with extra tools and more support."
   }
 ]
 
@@ -69,10 +66,10 @@ export default function FeesPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
           <Wallet className="fee-hero w-10 h-10 mx-auto mb-6" style={{ color: "#00ab00" }} />
           <h1 className="fee-hero text-4xl sm:text-5xl font-black tracking-tight mb-5 text-white">
-            Transparent Pricing
+            Simple and Clear Costs
           </h1>
           <p className="fee-hero text-lg font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
-            No hidden charges. No monthly subscriptions. You only pay a tiny fraction when the platform actively coordinates your capital.
+            No hidden fees. No monthly payments. You only pay a small fee when you get your money. We believe in being honest and fair with your group.
           </p>
         </div>
       </section>

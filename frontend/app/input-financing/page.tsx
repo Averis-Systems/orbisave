@@ -1,9 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import Link from "next/link"
 import {
   Sprout, Fish, Leaf, Wheat, Package, ArrowRight,
@@ -12,8 +10,7 @@ import {
 } from "lucide-react"
 import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
-
-if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
+import { gsap } from "@/lib/gsap-init"
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
@@ -60,8 +57,8 @@ const HOW_IT_WORKS = [
     number: "01",
     icon: Users,
     iconCls: "if-icon-1",
-    title: "Join or create your chama on OrbiSave",
-    body: "Gather your farming group — neighbours, cooperative members, or community friends. Register together on OrbiSave. Each member contributes on a schedule.",
+    title: "Start Your Group",
+    body: "Gather your neighbors or friends and sign up on OrbiSave. Everyone saves a little bit of money each week or month.",
     accent: "#00ab00",
     bg: "#e9f3ed",
   },
@@ -69,8 +66,8 @@ const HOW_IT_WORKS = [
     number: "02",
     icon: TrendingUp,
     iconCls: "if-icon-2",
-    title: "Build your contribution record",
-    body: "Every payment you make is recorded automatically. After a few cycles, your group has a verified financial history — proof that you save together and repay consistently.",
+    title: "Build a Good Name",
+    body: "Every shilling you save is recorded. After a few months, your group has proof that you are hardworking and reliable.",
     accent: "#0a2540",
     bg: "#e8edf3",
   },
@@ -78,8 +75,8 @@ const HOW_IT_WORKS = [
     number: "03",
     icon: Globe,
     iconCls: "if-icon-3",
-    title: "OrbiSave connects you to input financiers",
-    body: "The platform matches your group to vetted input providers in your area. You see all options in one place — no middlemen, no hidden fees. The group chooses together.",
+    title: "Find Trusted Suppliers",
+    body: "We match your group with trusted suppliers in your area. You can see all the choices on your phone and pick the best one together.",
     accent: "#00ab00",
     bg: "#e9f3ed",
   },
@@ -87,8 +84,8 @@ const HOW_IT_WORKS = [
     number: "04",
     icon: ShieldCheck,
     iconCls: "if-icon-4",
-    title: "The financier reviews your group's record",
-    body: "The input financier sees your group's verified contribution history on OrbiSave. A strong group record means better terms — lower down payment, longer repayment period.",
+    title: "Suppliers Check Your Progress",
+    body: "The supplier checks your group's savings record. A good record means you get better deals and more time to pay back.",
     accent: "#0a2540",
     bg: "#e8edf3",
   },
@@ -96,8 +93,8 @@ const HOW_IT_WORKS = [
     number: "05",
     icon: Package,
     iconCls: "if-icon-5",
-    title: "Inputs are delivered. You repay over time.",
-    body: "Seeds, feed, fertiliser — delivered to your group. Repayments are small and spread out over your harvest or earning cycle. All tracked automatically on the platform.",
+    title: "Get Your Supplies and Grow",
+    body: "Seeds, tools, and fertilizer are delivered to you. You pay back in small amounts after you harvest. Everything is tracked on the app.",
     accent: "#00ab00",
     bg: "#e9f3ed",
   },
@@ -107,38 +104,38 @@ const BENEFITS = [
   {
     icon: Users,
     iconCls: "icon-pulse-soft",
-    title: "Your group is your guarantee",
-    body: "No single farmer carries the risk alone. The group's combined record and contributions back the financing. Everyone benefits — and everyone is responsible.",
+    title: "The group supports everyone",
+    body: "No single farmer has to worry alone. The group's combined record and savings support the whole team. Everyone benefits and everyone helps.",
   },
   {
     icon: Globe,
     iconCls: "icon-spin",
-    title: "All financiers in one place",
-    body: "Instead of travelling to many offices, you see every available input financier on one screen. Compare options and choose what works for your group.",
+    title: "Compare different suppliers",
+    body: "Instead of traveling to many offices, you see every trusted supplier on one screen. Compare prices and choose what works for your group.",
   },
   {
     icon: Zap,
     iconCls: "icon-flash",
-    title: "Tiny repayments over time",
-    body: "Instead of one big payment at planting time, you repay in small amounts across the season. Your harvest pays for the inputs that made it possible.",
+    title: "Small payments over time",
+    body: "Instead of one big payment at planting time, you pay back in small amounts. Your harvest pays for the seeds and tools you used.",
   },
   {
     icon: Gift,
     iconCls: "icon-bounce",
-    title: "Access to grants",
-    body: "Groups with a verified financial record can be connected to agricultural grants routed through OrbiSave. A clean record opens doors that cash alone cannot.",
+    title: "Get free grants",
+    body: "Groups with a good record can get free grants and support through OrbiSave. A clean record opens doors that cash alone cannot.",
   },
 ]
 
 const COMPARISON = [
   { label: "You need to travel to find a supplier",    old: true,  newWay: false },
-  { label: "One person must sign as guarantor",        old: true,  newWay: false },
-  { label: "Full payment required before planting",    old: true,  newWay: false },
+  { label: "One person must sign to guarantee",        old: true,  newWay: false },
+  { label: "Full payment needed before planting",      old: true,  newWay: false },
   { label: "No record of your purchases",              old: true,  newWay: false },
-  { label: "Group's contribution history counts",      old: false, newWay: true },
-  { label: "Repay across your harvest cycle",          old: false, newWay: true },
-  { label: "Compare multiple financiers",              old: false, newWay: true },
-  { label: "All payments tracked automatically",       old: false, newWay: true },
+  { label: "Group's savings record counts",            old: false, newWay: true },
+  { label: "Pay back after your harvest",              old: false, newWay: true },
+  { label: "Compare many different suppliers",         old: false, newWay: true },
+  { label: "All payments tracked on your phone",       old: false, newWay: true },
 ]
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
@@ -193,11 +190,11 @@ export default function InputFinancingPage() {
                 Input Financing
               </div>
               <h1 className="if-hero-text text-4xl sm:text-5xl font-black tracking-tight leading-tight mb-5" style={{ color: "#0a2540" }}>
-                Get your seeds, feed, and tools —{" "}
-                <span style={{ color: "#00ab00" }}>pay across the season.</span>
+                Get your seeds, feed, and tools —<br />
+                <span style={{ color: "#00ab00" }}>pay after you harvest.</span>
               </h1>
               <p className="if-hero-text text-lg font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
-                You should not have to choose between buying inputs and feeding your family. OrbiSave connects your farming group to input suppliers who are willing to wait for harvest time.
+                You should not have to choose between buying seeds and feeding your family. OrbiSave connects your group to suppliers who provide seeds, fertilizer, and tools now, and let you pay back later.
               </p>
               <div className="if-hero-text flex flex-wrap gap-3">
                 <Link href="/onboarding">
@@ -216,9 +213,9 @@ export default function InputFinancingPage() {
             {/* Hero stat block */}
             <div className="flex flex-col gap-3">
               {[
-                { value: "No single guarantor", sub: "Your group backs the financing together" },
-                { value: "Repay at harvest time", sub: "Repayment follows your earning season" },
-                { value: "All inputs. One platform.", sub: "Seeds, feed, equipment — all in one place" },
+                { value: "No single person responsible", sub: "The whole group supports each other" },
+                { value: "Pay back after harvest", sub: "Pay back when you sell your crops" },
+                { value: "Everything you need", sub: "Seeds, tools, and feed all in one app" },
               ].map((s, i) => (
                 <div key={i} className="flex items-start gap-4 p-5" style={{ background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "8px" }}>
                   <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#00ab00" }} />
@@ -241,10 +238,10 @@ export default function InputFinancingPage() {
               What Can Be Financed
             </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4" style={{ color: "#0a2540" }}>
-              What inputs can your group access?
+              What farm supplies can you get?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Whether you grow crops, raise animals, or farm fish — there are input financiers on OrbiSave who specialise in your type of farming.
+              Whether you grow crops, raise animals, or farm fish — there are trusted suppliers on OrbiSave who can help your type of farming.
             </p>
           </div>
 
@@ -279,10 +276,10 @@ export default function InputFinancingPage() {
               How It Works
             </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4" style={{ color: "#0a2540" }}>
-              Five simple steps to access inputs.
+              Five simple steps to get started.
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              From joining a group to receiving your seeds — here is exactly what happens.
+              From joining a group to getting your seeds — here is how it works.
             </p>
           </div>
 
@@ -367,13 +364,13 @@ export default function InputFinancingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Gift className="w-8 h-8 mx-auto mb-5 icon-bounce" style={{ color: "#00ab00" }} />
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-4 text-white">
-            Grants for farming groups
+            Free grants for farming groups
           </h2>
           <p className="text-base font-medium leading-relaxed mb-8 max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Organisations and governments sometimes give money to help small farmers — without asking for it back. These are called grants. On OrbiSave, groups that have a verified financial record can be matched to grant providers. The platform handles the connection.
+            Some groups want to help farmers by giving them money that doesn't have to be paid back. These are called grants. On OrbiSave, groups that save regularly can be matched with these grant providers. The app helps you get connected.
           </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest" style={{ color: "#00ab00", background: "rgba(0,171,0,0.1)", borderRadius: "4px", border: "1px solid rgba(0,171,0,0.2)" }}>
-            Coming to qualifying groups · Build your record now
+            Coming soon · Start saving now
           </div>
         </div>
       </section>

@@ -6,7 +6,7 @@ interface User {
   id: string
   email: string
   full_name: string
-  role: 'member' | 'treasurer' | 'chairperson' | 'admin'
+  role: 'member' | 'chairperson' | 'treasurer' | 'platform_admin' | 'super_admin'
   country: string
   kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected'
 }
