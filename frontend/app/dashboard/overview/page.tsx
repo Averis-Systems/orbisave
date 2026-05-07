@@ -1,211 +1,174 @@
 "use client"
 
 import { useAuthStore } from "@/store/auth"
-import { useGroups } from "@/hooks/useDashboardData"
-import { ContributionTracker } from "@/components/dashboard/ContributionTracker"
-import { RotationTimeline } from "@/components/dashboard/RotationTimeline"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Plus, ArrowRight, ShieldCheck, Wallet, Bell, AlertTriangle, Users } from "lucide-react"
 import Link from "next/link"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useRouter } from "next/navigation"
+import { 
+  AlertCircle, ArrowDownToLine, RefreshCw, CreditCard, 
+  Users, ClipboardList, Activity, Banknote, ArrowUp, Calendar, ArrowDown
+} from "lucide-react"
+import { 
+  GROUP, MEMBERS, LOANS, MEETINGS, TRANSACTIONS, G 
+} from "@/lib/demo-data"
+import { PoolGrowthChart } from "@/components/dashboard/PoolGrowthChart"
+import { LoanAllocationChart } from "@/components/dashboard/LoanAllocationChart"
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const fmt = (n: number | string) => "KES " + Number(n).toLocaleString();
+
+// ─── COMPONENT: Stat Card ────────────────────────────────────────────────────
+function StatCard({ label, value, sub, icon: Icon, trend, wide = false }: any) {
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 14,
+      padding: "20px 24px",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,154,68,0.04)",
+      gridColumn: wide ? "span 2" : "span 1",
+      position: "relative",
+      overflow: "hidden"
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: 9,
+          background: G[50], display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <Icon size={16} color={G[500]} />
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: "#0d2416", letterSpacing: "-0.02em", marginBottom: 4 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: trend === "up" ? G[500] : trend === "down" ? "#e53e3e" : "#9ca3af", display: "flex", alignItems: "center", gap: 4 }}>
+        {trend === "up" && <ArrowUp size={11} />}{trend === "down" && <ArrowDown size={11} />}{sub}
+      </div>}
+    </div>
+  );
+}
 
 export default function OverviewPage() {
   const { user } = useAuthStore()
-  const { data: groups, isLoading } = useGroups()
+  const router = useRouter()
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-6 max-w-6xl">
-        <Skeleton className="h-24 w-full" />
-        <div className="grid lg:grid-cols-3 gap-6">
-          <Skeleton className="lg:col-span-2 h-64" />
-          <div className="flex flex-col gap-6">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-64" />
-          </div>
-        </div>
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-        </div>
-      </div>
-    )
-  }
-
-  // Common Welcome Card
-  const WelcomeCard = () => (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-black/5 flex items-center justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#012d1d]">Welcome back, {user?.full_name?.split(' ')[0] || "User"}</h1>
-        <p className="text-[#717973] text-sm mt-1">Here is what's happening with your accounts today.</p>
-      </div>
-      <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#f3f4f1] rounded-lg border border-black/5">
-        <div className="w-2 h-2 rounded-full bg-[#012d1d]"></div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#012d1d]">{user?.role}</span>
-      </div>
-    </div>
-  )
-
-  // Empty State
-  if (!groups || groups.length === 0) {
-    return (
-      <div className="flex flex-col gap-6 max-w-5xl">
-        <WelcomeCard />
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* KYC Status Card for Empty State */}
-          <Card className="border-black/5 bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg text-[#012d1d]"><ShieldCheck className="w-5 h-5 text-[#1a5f8a]" /> Identity Verification</CardTitle>
-              <CardDescription className="text-sm">
-                {user?.kyc_status === 'verified' 
-                  ? "Your identity is verified. You have full access to create or join groups."
-                  : "You must verify your identity before creating a new collective."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {user?.kyc_status !== 'verified' ? (
-                <Link href="/dashboard/settings/kyc">
-                  <Button className="w-full bg-[#012d1d] text-white hover:bg-black font-bold">Start KYC Process →</Button>
-                </Link>
-              ) : (
-                <div className="w-full text-center py-2 text-sm font-bold text-[#1a5f8a] bg-[#eaf4fb] rounded">Verified ✓</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
-          <div className="space-y-4">
-            <Link href="/chama-onboarding" className="block">
-              <Card className="border-[#012d1d]/20 bg-[#f9faf6] hover:border-[#012d1d]/50 transition-colors shadow-sm cursor-pointer border-dashed h-full">
-                <CardHeader>
-                  <div className="w-10 h-10 bg-[#012d1d]/10 rounded-lg flex items-center justify-center mb-3">
-                    <Plus className="w-5 h-5 text-[#012d1d]" />
-                  </div>
-                  <CardTitle className="text-lg text-[#012d1d]">Create New Chama</CardTitle>
-                  <CardDescription className="text-sm">Start a new group, set rotation rules, and invite members.</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Active Group State
-  const activeGroup = groups[0]
+  const paidCount = MEMBERS.filter(m => m.paid && m.status === "active").length;
+  const activeMembers = MEMBERS.filter(m => m.status === "active").length;
+  const collectedThisMonth = paidCount * GROUP.monthlyContribution;
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl">
-      <WelcomeCard />
+    <div className="max-w-7xl mx-auto space-y-6">
+      
+      {/* Alert Banner */}
+      <div style={{
+        background: G[50], border: `1px solid ${G[200]}`, borderRadius: 10,
+        padding: "10px 16px",
+        display: "flex", alignItems: "center", gap: 12
+      }}>
+        <AlertCircle size={16} color={G[600]} />
+        <span style={{ fontSize: 13, color: G[800], flex: 1 }}>
+          <strong>{activeMembers - paidCount} members</strong> have not contributed this month. STK push sent. Next meeting: <strong>Oct 12, 2025</strong>.
+        </span>
+        <button onClick={() => router.push("/dashboard/members")} style={{
+          fontSize: 12, fontWeight: 600, color: G[600], background: "none", border: "none", cursor: "pointer",
+          textDecoration: "underline"
+        }}>View Members</button>
+      </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Main Group Status Card */}
+      {/* Key Metrics - Single Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Pool Balance" value={fmt(GROUP.totalPool)} sub="Trust A/C: KCB" icon={Banknote} />
+        <StatCard label="This Month's Collection" value={fmt(collectedThisMonth)} sub={`${paidCount}/${activeMembers} paid`} icon={ArrowDownToLine} trend="up" />
+        <StatCard label="Next Payout" value={fmt(GROUP.nextPayoutAmount)} sub={`${GROUP.nextPayoutMember} · ${GROUP.nextPayoutDate}`} icon={RefreshCw} />
+        <StatCard label="Active Members" value={`${GROUP.activeMembers}/${GROUP.totalMembers}`} sub="2 inactive members" icon={Users} />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <Card className="bg-[#012d1d] text-white shadow-lg relative overflow-hidden border-none h-full">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <CardHeader>
-              <CardTitle className="text-white/90 font-medium text-sm tracking-widest uppercase">{activeGroup.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-white/70 mb-1">Total Liquidity Pool</div>
-              <div className="text-5xl font-bold tracking-tight mb-8">KSh 1,250,000</div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-black/20 p-4 rounded-xl backdrop-blur-md border border-white/5">
-                  <div className="text-[10px] uppercase tracking-widest text-white/60 mb-1">Next Payout</div>
-                  <div className="font-bold text-lg">In 2 days</div>
-                </div>
-                <div className="bg-black/20 p-4 rounded-xl backdrop-blur-md border border-white/5">
-                  <div className="text-[10px] uppercase tracking-widest text-white/60 mb-1">Active Loans</div>
-                  <div className="font-bold text-lg">4 Outstanding</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <PoolGrowthChart />
         </div>
-
-        {/* Right Column: KYC & Notifications */}
-        <div className="flex flex-col gap-6">
-          {/* KYC Status Card */}
-          <Card className="border-black/5 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold tracking-widest uppercase text-[#717973] flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> KYC Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {user?.kyc_status === 'verified' ? (
-                <div className="flex items-center gap-3 text-sm font-bold text-[#1a5f8a]">
-                  <div className="w-8 h-8 rounded-full bg-[#eaf4fb] flex items-center justify-center">✓</div>
-                  Identity Verified
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2 text-sm text-[#93000a]">
-                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span>Verification pending. Some features are restricted.</span>
-                  </div>
-                  <Link href="/dashboard/settings/kyc" className="block text-center text-xs font-bold bg-[#f3f4f1] hover:bg-[#e9eae7] text-[#012d1d] py-2 rounded transition-colors">
-                    Complete Now
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Notifications Feed */}
-          <Card className="border-black/5 shadow-sm flex-1">
-            <CardHeader className="pb-3 border-b border-black/5">
-              <CardTitle className="text-sm font-bold tracking-widest uppercase text-[#717973] flex items-center justify-between">
-                <div className="flex items-center gap-2"><Bell className="w-4 h-4" /> Activity Feed</div>
-                <span className="w-2 h-2 rounded-full bg-[#ba1a1a]"></span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-0">
-              <div className="space-y-0">
-                <div className="px-6 py-3 hover:bg-[#f9faf6] transition-colors border-l-2 border-[#ba1a1a]">
-                  <div className="text-xs font-bold text-[#012d1d] mb-0.5">Contribution Reminder</div>
-                  <div className="text-[11px] text-[#717973]">Your KES 5,000 contribution is due tomorrow.</div>
-                </div>
-                <div className="px-6 py-3 hover:bg-[#f9faf6] transition-colors">
-                  <div className="text-xs font-bold text-[#012d1d] mb-0.5">Loan Approved</div>
-                  <div className="text-[11px] text-[#717973]">David O. received a KES 15,000 loan.</div>
-                </div>
-              </div>
-              <div className="px-6 pt-3 mt-2 text-center">
-                <button className="text-[10px] font-bold uppercase tracking-widest text-[#717973] hover:text-[#012d1d]">View All</button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="lg:col-span-1">
+          <LoanAllocationChart />
         </div>
       </div>
-      
-      {/* Lower Dashboard Area: Trackers & Timelines */}
-      <div className="grid lg:grid-cols-2 gap-6 mt-2">
-        <Card className="border-black/5 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-sm font-bold tracking-widest uppercase text-[#717973] flex items-center gap-2">
-              <Wallet className="w-4 h-4" /> My Contributions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-             <ContributionTracker groupId={activeGroup.id} />
-          </CardContent>
-        </Card>
 
-        <Card className="border-black/5 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-sm font-bold tracking-widest uppercase text-[#717973] flex items-center gap-2">
-              <ArrowRight className="w-4 h-4" /> Rotation Schedule
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-             <RotationTimeline groupId={activeGroup.id} />
-          </CardContent>
-        </Card>
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        {/* Recent Transactions */}
+        <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#0d2416" }}>Recent Transactions</div>
+            <button onClick={() => router.push("/dashboard/ledger")} style={{ fontSize: 12, color: G[500], fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>View All</button>
+          </div>
+          {TRANSACTIONS.slice(0, 5).map(t => (
+            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8,
+                  background: t.direction === "in" ? G[50] : "#fff5f5",
+                  display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                  {t.direction === "in"
+                    ? <ArrowDownToLine size={14} color={G[500]} />
+                    : <ArrowUp size={14} color="#e53e3e" />
+                  }
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#0d2416" }}>{t.member}</div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "capitalize" }}>{t.type.replace("_", " ")}</div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.direction === "in" ? G[500] : "#e53e3e" }}>
+                  {t.direction === "in" ? "+" : "-"}{fmt(t.amount).replace("KES ", "")}
+                </div>
+                <div style={{ fontSize: 11, color: "#9ca3af" }}>{t.date}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pending Actions */}
+        <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#0d2416", marginBottom: 16 }}>Pending Chairperson Actions</div>
+          {LOANS.filter(l => l.status === "pending").map(loan => (
+            <div key={loan.id} style={{
+              border: `1px solid #fee2e2`, borderRadius: 10, padding: "12px 14px", marginBottom: 12, background: "#fff5f5"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0d2416" }}>{loan.member}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>{loan.purpose} · {loan.id}</div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 800, color: G[600] }}>{fmt(loan.amount)}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => router.push("/dashboard/loan-approvals")} style={{
+                  flex: 1, padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                  background: G[500], color: "#fff", border: "none", cursor: "pointer"
+                }}>Review</button>
+                <button style={{
+                  flex: 1, padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                  background: "#fff", color: "#6b7280", border: "1px solid #e5e7eb", cursor: "pointer"
+                }}>Defer</button>
+              </div>
+            </div>
+          ))}
+          
+          {/* Upcoming meeting */}
+          <div style={{ border: `1px solid ${G[100]}`, borderRadius: 10, padding: "12px 14px", background: G[50] }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Calendar size={13} color={G[600]} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: G[700], textTransform: "uppercase", letterSpacing: "0.04em" }}>Upcoming Meeting</span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#0d2416" }}>Monthly Chama Meeting</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>Oct 12, 2025 · 10:00 AM · {MEETINGS[0].agenda.length} agenda items</div>
+            <button onClick={() => router.push("/dashboard/meetings")} style={{
+              marginTop: 8, padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              background: G[500], color: "#fff", border: "none", cursor: "pointer"
+            }}>View Agenda</button>
+          </div>
+        </div>
+
       </div>
     </div>
   )

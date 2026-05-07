@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/v1/contributions/', include('apps.contributions.urls')),
     path('api/v1/payouts/', include('apps.payouts.urls')),
     path('api/v1/loans/', include('apps.loans.urls')),
+    path('api/v1/admin-portal/', include('apps.admin_portal.urls')),
 ]

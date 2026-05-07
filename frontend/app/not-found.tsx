@@ -20,7 +20,7 @@ export default function NotFound() {
         {/* Lottie Animation Container */}
         <div className="w-full h-64 flex items-center justify-center">
           <DotLottieReact
-            src="https://lottie.host/5a0c3f0d-c6a6-4481-9e7b-83935269786a/nS9KzXz7pM.json"
+            src="/lottie/Page Not Found 404.lottie"
             loop
             autoplay
           />

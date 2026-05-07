@@ -1,14 +1,13 @@
-from django.urls import path, include
-from .pin_views import TransactionPinView
-from .views import RegisterView, TokenObtainPairView, UserMeView
-
-app_name = 'accounts'
+from django.urls import path
+from .views import (
+    RegisterView, UserMeView, TokenObtainPairView,
+    KYCSubmitView, KYCStatusView,
+)
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('me/', UserMeView.as_view(), name='me'),
-    path('transaction-pin/', TransactionPinView.as_view(), name='transaction_pin'),
-    # KYC — submit identity documents and check verification status
-    path('kyc/', include('apps.accounts.kyc_urls')),
+    path('register/',      RegisterView.as_view(),        name='register'),
+    path('me/',            UserMeView.as_view(),           name='user-me'),
+    path('token/',         TokenObtainPairView.as_view(),  name='token-obtain'),
+    path('kyc/submit/',    KYCSubmitView.as_view(),        name='kyc-submit'),
+    path('kyc/status/',    KYCStatusView.as_view(),        name='kyc-status'),
 ]

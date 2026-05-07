@@ -16,7 +16,9 @@ api.interceptors.request.use(
   (config) => {
     // Attempt to get token from cookie first (more reliable across tabs), then fallback to store
     const token = Cookies.get('access_token') || useAuthStore.getState().token
-    if (token && !config.headers.Authorization) {
+    const isAuthRoute = config.url?.includes('/auth/token/') || config.url?.includes('/auth/register/')
+    
+    if (token && !config.headers.Authorization && !isAuthRoute) {
       config.headers.Authorization = `Bearer ${token}`
     }
 

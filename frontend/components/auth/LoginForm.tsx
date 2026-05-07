@@ -38,7 +38,7 @@ export function LoginForm() {
         email: data.email,
         password: data.password,
       })
-      const { access } = response.data
+      const access = response.data.access_token || response.data.access
       const profileRes = await api.get("/auth/me/", {
         headers: { Authorization: `Bearer ${access}` },
       })
@@ -47,8 +47,10 @@ export function LoginForm() {
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError("Invalid email or password. Please try again.")
+      } else if (err.response?.data) {
+        setError(`Login failed: ${JSON.stringify(err.response.data)}`)
       } else {
-        setError("Something went wrong. Please check your connection and retry.")
+        setError(`Network error: ${err.message}. Please check your connection.`)
       }
     }
   }

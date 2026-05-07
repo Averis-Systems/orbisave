@@ -82,21 +82,19 @@ export function NarrativeHook() {
           </div>
 
           {/* Right Side: Evocative Imagery */}
-          <div className="relative aspect-square lg:aspect-[4/5] w-full">
-            <div 
-              className="absolute inset-0 bg-[#0a2540]"
-              style={{ borderRadius: "8px" }}
-            >
+          <div className="relative aspect-square lg:aspect-[4/5] w-full overflow-hidden" style={{ borderRadius: "8px" }}>
+            <div className="absolute inset-0">
+              <img 
+                src="/images/step1.jpg" 
+                alt="Community Group" 
+                className="w-full h-full object-cover"
+              />
+              {/* Dark Blue Professional Overlay */}
               <div 
-                className="w-full h-full opacity-30 mix-blend-luminosity"
-                style={{ 
-                  borderRadius: "8px",
-                  background: "radial-gradient(circle at 50% 50%, rgba(0,171,0,0.8) 0%, rgba(10,37,64,0.9) 100%)",
-                }}
+                className="absolute inset-0 bg-[#0a2540]/60 mix-blend-multiply"
               />
               <div 
-                className="absolute inset-0"
-                style={{ background: "linear-gradient(to bottom, transparent, rgba(10,37,64,0.8))" }}
+                className="absolute inset-0 bg-gradient-to-t from-[#0a2540] via-transparent to-transparent opacity-80"
               />
             </div>
             

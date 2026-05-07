@@ -95,15 +95,15 @@ export default function Home() {
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <section
         ref={heroRef}
-        className="relative min-h-screen overflow-hidden pt-16"
+        className="relative min-h-[85vh] flex items-center overflow-hidden pt-16"
         style={{ background: "#f7f9f8" }}
       >
-        {/* Dot-grid overlay */}
+        {/* Subtle People-Icon Pattern Overlay (Emulating the reference) */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
           style={{
-            backgroundImage: "radial-gradient(circle at 1px 1px, rgba(10,37,64,0.05) 1px, transparent 0)",
-            backgroundSize: "36px 36px",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 20c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm8.5 2h-1c-1.5 0-3 1-3 1s-1.5-1-3-1h-1c-2.5 0-4.5 2-4.5 4.5V35h3v-8.5l1.5 1.5V35h3V28l1.5-1.5V35h3V26.5c0-2.5-2-4.5-4.5-4.5z' fill='%230a2540' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+            backgroundSize: "120px 120px",
           }}
         />
 

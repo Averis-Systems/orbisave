@@ -6,8 +6,11 @@ export function useGroups() {
   return useQuery({
     queryKey: ['groups'],
     queryFn: async () => {
-      const res = await api.get('/groups/')
-      return res.data
+      // MOCK DATA for Hybrid Build Phase
+      return [
+        { id: "KAC-2025-001", name: "Kisumu Agri Chama", role: "chairperson", hasLoanPool: true },
+        { id: "TIR-2025-044", name: "Tech Innovators ROSCA", role: "member", hasLoanPool: false },
+      ]
     },
     staleTime: 30 * 1000,
   })

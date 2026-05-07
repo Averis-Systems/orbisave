@@ -63,16 +63,35 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     def __str__(self): return f"{self.full_name} <{self.email}>"
 
 class KYCDocument(BaseModel):
-    user            = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kyc_documents')
-    document_type   = models.CharField(max_length=50)  # national_id | passport | drivers_license
-    front_image     = models.FileField(upload_to='kyc/front/')
-    back_image      = models.FileField(upload_to='kyc/back/', null=True, blank=True)
-    provider_job_id = models.CharField(max_length=255, null=True, blank=True)
-    status          = models.CharField(max_length=20, default='pending')
-    reviewed_at     = models.DateTimeField(null=True, blank=True)
+    DOCUMENT_TYPES = [
+        ('national_id',       'National ID'),
+        ('passport',          'Passport'),
+        ('drivers_license',   "Driver's License"),
+    ]
+    STATUS_CHOICES = [
+        ('pending',   'Pending'),
+        ('submitted', 'Submitted'),
+        ('approved',  'Approved'),
+        ('rejected',  'Rejected'),
+    ]
+    user              = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kyc_documents')
+    document_type     = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
+    front_image       = models.FileField(upload_to='kyc/front/')
+    back_image        = models.FileField(upload_to='kyc/back/', null=True, blank=True)
+    selfie_image      = models.FileField(upload_to='kyc/selfie/', null=True, blank=True)
+    status            = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
+    rejection_reason  = models.TextField(blank=True)
+    reviewed_by       = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='kyc_reviews'
+    )
+    reviewed_at       = models.DateTimeField(null=True, blank=True)
+    # Legacy field kept for any existing data
+    provider_job_id   = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         db_table = 'accounts_kyc_document'
+        ordering = ['-created_at']
 
 class PhoneOTP(BaseModel):
     """One-time codes for phone number verification."""

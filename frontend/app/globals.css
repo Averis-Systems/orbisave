@@ -215,3 +215,22 @@ button:hover .icon-arrow {
 .auth-slider__dot--active {
   @apply w-6 bg-white;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   MARQUEE ANIMATION
+   Infinite continuous scrolling for logos/belts
+───────────────────────────────────────────────────────────────── */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

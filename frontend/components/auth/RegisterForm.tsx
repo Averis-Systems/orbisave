@@ -95,7 +95,7 @@ export function RegisterForm() {
         email: data.email,
         password: data.password,
       })
-      const { access } = tokenRes.data
+      const access = tokenRes.data.access_token || tokenRes.data.access
       
       const profileRes = await api.get("/auth/me/", {
         headers: { Authorization: `Bearer ${access}` },

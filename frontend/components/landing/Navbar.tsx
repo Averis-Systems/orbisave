@@ -7,6 +7,7 @@ import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
 import { Menu, X, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAuthStore } from "@/store/auth"
 
 const NAV_LINKS = [
   { label: "How It Works", href: "#how-it-works" },
@@ -18,6 +19,10 @@ export function Navbar() {
   const navRef = useRef<HTMLElement>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const { isAuthenticated } = useAuthStore()
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => setIsMounted(true), [])
 
   // Scroll detection for blur/border effect
   useEffect(() => {
@@ -88,23 +93,37 @@ export function Navbar() {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-2 nav-item">
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                className="h-9 px-4 text-sm font-semibold text-[#0a2540] hover:text-[#0a2540] hover:bg-[#e9f3ed] rounded-[6px]"
-              >
-                Log in
-              </Button>
-            </Link>
-            <Link href="/onboarding">
-              <Button
-                className="h-9 px-5 text-sm font-semibold text-white rounded-[6px] flex items-center gap-1.5 group border-0"
-                style={{ background: "#00ab00" }}
-              >
-                Get Started
-                <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
-              </Button>
-            </Link>
+            {isMounted && isAuthenticated ? (
+              <Link href="/dashboard">
+                <Button
+                  className="h-9 px-5 text-sm font-semibold text-white rounded-[6px] flex items-center gap-1.5 group border-0"
+                  style={{ background: "#00ab00" }}
+                >
+                  Dashboard
+                  <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="ghost"
+                    className="h-9 px-4 text-sm font-semibold text-[#0a2540] hover:text-[#0a2540] hover:bg-[#e9f3ed] rounded-[6px]"
+                  >
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/onboarding">
+                  <Button
+                    className="h-9 px-5 text-sm font-semibold text-white rounded-[6px] flex items-center gap-1.5 group border-0"
+                    style={{ background: "#00ab00" }}
+                  >
+                    Get Started
+                    <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -160,22 +179,35 @@ export function Navbar() {
               </Link>
             ))}
             <div className="border-t border-[#d6e4df] mt-4 pt-4 flex flex-col gap-2">
-              <Link href="/login" onClick={() => setMobileOpen(false)}>
-                <Button
-                  variant="outline"
-                  className="w-full h-10 text-sm font-semibold text-[#0a2540] border-[#d6e4df] rounded-[6px]"
-                >
-                  Log in
-                </Button>
-              </Link>
-              <Link href="/onboarding" onClick={() => setMobileOpen(false)}>
-                <Button
-                  className="w-full h-10 text-sm font-semibold text-white rounded-[6px] gap-2 border-0"
-                  style={{ background: "#00ab00" }}
-                >
-                  Get Started <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
-                </Button>
-              </Link>
+              {isMounted && isAuthenticated ? (
+                <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
+                  <Button
+                    className="w-full h-10 text-sm font-semibold text-white rounded-[6px] gap-2 border-0"
+                    style={{ background: "#00ab00" }}
+                  >
+                    Dashboard <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setMobileOpen(false)}>
+                    <Button
+                      variant="outline"
+                      className="w-full h-10 text-sm font-semibold text-[#0a2540] border-[#d6e4df] rounded-[6px]"
+                    >
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link href="/onboarding" onClick={() => setMobileOpen(false)}>
+                    <Button
+                      className="w-full h-10 text-sm font-semibold text-white rounded-[6px] gap-2 border-0"
+                      style={{ background: "#00ab00" }}
+                    >
+                      Get Started <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
           <div className="px-5 py-4 border-t border-[#d6e4df]">

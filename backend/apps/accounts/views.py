@@ -2,14 +2,17 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.utils import timezone as dj_timezone
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 import structlog
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import RegisterSerializer, UserSerializer, KYCDocumentSerializer
+from .models import KYCDocument
 
 logger = structlog.get_logger(__name__)
 
@@ -114,3 +117,78 @@ class TokenObtainPairView(APIView):
         )
 
         return Response({"access_token": token})
+
+
+class KYCSubmitView(APIView):
+    """
+    POST /api/accounts/kyc/submit/
+    Accepts multipart/form-data with document images.
+    Creates or replaces the user's KYC submission.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        user = request.user
+
+        # Validate required fields
+        doc_type    = request.data.get('document_type')
+        front_image = request.FILES.get('front_image')
+        selfie      = request.FILES.get('selfie_image')
+
+        if not doc_type or not front_image or not selfie:
+            return Response(
+                {"error": "document_type, front_image and selfie_image are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_types = [c[0] for c in KYCDocument.DOCUMENT_TYPES]
+        if doc_type not in valid_types:
+            return Response(
+                {"error": f"document_type must be one of: {', '.join(valid_types)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create the KYC document record
+        kyc_doc = KYCDocument.objects.create(
+            user          = user,
+            document_type = doc_type,
+            front_image   = front_image,
+            back_image    = request.FILES.get('back_image'),
+            selfie_image  = selfie,
+            status        = 'submitted',
+        )
+
+        # Update user's kyc_status to 'submitted'
+        user.kyc_status = 'submitted'
+        user.save(update_fields=['kyc_status'])
+
+        logger.info("kyc_submission", user_id=str(user.id), doc_type=doc_type)
+
+        return Response(
+            {
+                "message": "KYC submitted successfully. Awaiting review.",
+                "kyc_status": user.kyc_status,
+                "submission_id": str(kyc_doc.id),
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+class KYCStatusView(APIView):
+    """
+    GET /api/accounts/kyc/status/
+    Returns the current KYC status for the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        latest = KYCDocument.objects.filter(user=user).first()
+        return Response({
+            "kyc_status":       user.kyc_status,
+            "submitted_at":     latest.created_at.isoformat() if latest else None,
+            "reviewed_at":      latest.reviewed_at.isoformat() if (latest and latest.reviewed_at) else None,
+            "rejection_reason": latest.rejection_reason if latest else None,
+            "document_type":    latest.document_type if latest else None,
+        })

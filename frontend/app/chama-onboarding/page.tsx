@@ -391,12 +391,15 @@ function StepReview() {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+import { SuccessOverlay } from "@/components/ui/SuccessOverlay"
+
 export default function ChamaOnboardingPage() {
   const router = useRouter()
   const setAuth = useAuthStore((s) => s.setAuth)
   const [step, setStep] = useState(0)
   const [apiError, setApiError] = useState<string | null>(null)
   const [isSubmittingForm, setIsSubmittingForm] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const methods = useForm<WizardData>({
     resolver: zodResolver(
@@ -494,7 +497,7 @@ export default function ChamaOnboardingPage() {
         } 
       })
 
-      router.push("/dashboard")
+      setShowSuccess(true)
     } catch (err: any) {
       console.error("Onboarding submission error:", err.response?.data || err.message)
       if (err.response?.data) {
@@ -514,6 +517,13 @@ export default function ChamaOnboardingPage() {
 
   return (
     <FormProvider {...methods}>
+      {showSuccess && (
+        <SuccessOverlay 
+          message="Chama Created!" 
+          submessage="Your collective is ready. Redirecting to your dashboard..." 
+          onComplete={() => router.push("/dashboard")}
+        />
+      )}
       <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans selection:bg-primary/20 selection:text-primary">
         
         {/* Left Side: Context / Branding */}
