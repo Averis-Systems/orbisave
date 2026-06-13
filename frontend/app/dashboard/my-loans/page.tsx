@@ -1,207 +1,288 @@
 "use client"
 
 import { useState } from "react"
-import { CreditCard, CheckCircle, Clock, AlertCircle, ArrowDown, Send } from "lucide-react"
-import { LOANS, GROUP } from "@/lib/demo-data"
+import { Send, CreditCard, CheckCircle, Info, Loader2 } from "lucide-react"
+import { useAuthStore } from "@/store/auth"
+import { useGroups } from "@/hooks/useGroups"
+import { useLoans, useRequestLoan } from "@/hooks/useLoans"
+import { Skeleton } from "@/components/ui/skeleton"
+import { fmt } from "@/lib/formatters"
 
-const fmt = (n: number) => "KES " + Number(n).toLocaleString()
-
-// My active loan — member perspective
-const MY_LOAN = LOANS.find(l => l.member === "John Kipchoge" && l.status === "active")
-const ELIGIBILITY_AMOUNT = Math.floor(GROUP.totalPool * 0.3) // 30% of pool
+const LOAN_PURPOSES = [
+  { value: 'business', label: 'Business' },
+  { value: 'education', label: 'Education' },
+  { value: 'medical', label: 'Medical' },
+  { value: 'agriculture', label: 'Agriculture' },
+  { value: 'home_improvement', label: 'Home Improvement' },
+  { value: 'personal', label: 'Personal' },
+  { value: 'other', label: 'Other' },
+]
 
 export default function MyLoansPage() {
+  const { user } = useAuthStore()
   const [tab, setTab] = useState<"overview" | "request">("overview")
   const [loanAmount, setLoanAmount] = useState("")
-  const [purpose, setPurpose] = useState("")
-  const [term, setTerm] = useState("1")
-  const [submitted, setSubmitted] = useState(false)
+  const [purpose, setPurpose] = useState("personal")
+  const [term, setTerm] = useState("4") // weeks
+  
+  const { data: groups, isLoading: groupsLoading } = useGroups()
+  const activeGroup = groups?.[0] || null
+  
+  const { data: loans, isLoading: loansLoading } = useLoans(activeGroup?.id || null)
+  const requestLoan = useRequestLoan()
 
+  const myActiveLoan = loans?.find(l => 
+    (l.status === 'active' || l.status === 'disbursed') && 
+    l.borrower_name === user?.full_name
+  )
+
+  const ELIGIBILITY_AMOUNT = activeGroup ? Math.floor(activeGroup.wallet.total * 0.3) : 0
   const requestedAmount = Number(loanAmount) || 0
-  const interest = Math.round(requestedAmount * 0.1 * Number(term))
+  
+  const interestRate = (activeGroup?.loan_interest_rate_monthly || 0) / 100
+  const weeksPerMonth = 4
+  const interest = Math.round(requestedAmount * interestRate * (Number(term) / weeksPerMonth))
   const totalRepay = requestedAmount + interest
-  const monthlyPayment = Number(term) > 0 ? Math.round(totalRepay / Number(term)) : 0
+  const weeklyPayment = Number(term) > 0 ? Math.round(totalRepay / Number(term)) : 0
+
+  const handleRequest = async () => {
+    if (!activeGroup) return
+    try {
+      await requestLoan.mutateAsync({
+        group: activeGroup.id,
+        amount: requestedAmount,
+        purpose: purpose,
+        term_weeks: Number(term)
+      })
+      setTab("overview")
+      setLoanAmount("")
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // Loading handled at component level
+
+  if (!activeGroup) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] bg-white rounded-lg border border-dashed border-gray-200">
+         <Info size={32} className="text-gray-300 mb-4" />
+         <p className="text-sm font-bold text-gray-400">Please join a group to access loan services.</p>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>My Loans</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>View active loans and request new financing</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-black text-[#0a2540] mb-2">My Financing</h1>
+        <p className="text-gray-500 font-bold">Manage your active loans and request new credit lines.</p>
       </div>
 
-      {/* Eligibility card */}
-      <div style={{
-        background: "linear-gradient(135deg, #0a2540 0%, #0f3460 100%)",
-        borderRadius: 14, padding: "24px 28px", marginBottom: 24, color: "#fff",
-        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16,
-      }}>
-        <div>
-          <div style={{ fontSize: 11, opacity: 0.6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Your Loan Eligibility</div>
-          <div style={{ fontSize: 34, fontWeight: 900 }}>{fmt(ELIGIBILITY_AMOUNT)}</div>
-          <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>Based on 30% of group pool · 10% interest · Max 3 months</div>
+      {/* Eligibility Card */}
+      <div className="bg-[#0a2540] rounded-lg p-8 text-white relative overflow-hidden shadow-xl min-h-[160px]">
+        {groupsLoading && (
+           <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px] z-10">
+              <Loader2 className="w-10 h-10 animate-spin text-[#00ab00] opacity-40" />
+           </div>
+        )}
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00ab00] mb-2">Max Eligibility</p>
+            <h2 className="text-4xl font-black">{groupsLoading ? "..." : fmt(ELIGIBILITY_AMOUNT)}</h2>
+            <p className="text-xs font-bold opacity-50 mt-2">
+              {activeGroup ? `Based on 30% of ${activeGroup.name} liquidity · ${activeGroup.loan_interest_rate_monthly}% monthly interest` : "Calculate based on group liquidity"}
+            </p>
+          </div>
+          {activeGroup && (
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 min-w-[200px]">
+               <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">
+                  <span>Group Pool</span>
+                  <span className="text-white">{fmt(activeGroup.wallet.total)}</span>
+               </div>
+               <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/40">
+                  <span>Loan Pool</span>
+                  <span className="text-white">{fmt(activeGroup.wallet.loan_pool)}</span>
+               </div>
+            </div>
+          )}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 12, opacity: 0.7, textAlign: "right" }}>Pool balance: <strong>{fmt(GROUP.totalPool)}</strong></div>
-          <div style={{ fontSize: 12, opacity: 0.7, textAlign: "right" }}>Loan pool: <strong>{fmt(GROUP.loanPoolBalance)}</strong></div>
-          <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(0,171,0,0.25)", padding: "3px 10px", borderRadius: 99, textAlign: "center", color: "#7fffb2" }}>
-            Eligible
-          </span>
-        </div>
+        <CreditCard className="absolute -bottom-8 -right-8 w-48 h-48 text-white/5" />
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "#fff", borderRadius: 10, padding: 4, width: "fit-content", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-        {[{ id: "overview", label: "My Loans" }, { id: "request", label: "Request a Loan" }].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id as any)} style={{
-            padding: "8px 22px", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
-            background: tab === t.id ? "#00ab00" : "transparent",
-            color: tab === t.id ? "#fff" : "#6b7280",
-          }}>{t.label}</button>
+      {/* Navigation */}
+      <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+        {[
+          { id: "overview", label: "Overview" },
+          { id: "request", label: "Request Loan" }
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id as any)}
+            className={`px-8 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+              tab === t.id ? 'bg-white text-[#0a2540] shadow-sm' : 'text-gray-400 hover:text-[#0a2540]'
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
       {tab === "overview" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Active loan */}
-          {MY_LOAN && (
-            <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative min-h-[300px]">
+          {loansLoading && (
+             <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-[1px] z-10">
+                <Loader2 className="w-10 h-10 animate-spin text-[#00ab00] opacity-20" />
+             </div>
+          )}
+          {myActiveLoan ? (
+            <div className="bg-white rounded-lg p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-8">
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#e9f3ed", color: "#016828" }}>ACTIVE</span>
-                    <span style={{ fontSize: 11, color: "#9ca3af" }}>{MY_LOAN.id}</span>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="px-3 py-1 bg-green-50 text-[#00ab00] text-[10px] font-black uppercase tracking-widest rounded-lg border border-green-100">
+                      {myActiveLoan.status}
+                    </span>
+                    <span className="text-xs text-gray-400 font-bold">ID: {myActiveLoan.id.slice(0, 8)}</span>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0a2540" }}>{MY_LOAN.purpose}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Disbursed {(MY_LOAN as any).disbursed} · Due {(MY_LOAN as any).due}</div>
+                  <h3 className="text-2xl font-black text-[#0a2540] capitalize">{myActiveLoan.purpose} Loan</h3>
+                  <p className="text-sm text-gray-500 font-bold mt-1">
+                    Disbursed {myActiveLoan.disbursed_at ? new Date(myActiveLoan.disbursed_at).toLocaleDateString() : 'Pending'}
+                  </p>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#0a2540" }}>{fmt(MY_LOAN.amount)}</div>
-                  <div style={{ fontSize: 12, color: "#00ab00" }}>{fmt((MY_LOAN as any).repaid)} repaid</div>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-                  <span>Repayment progress</span>
-                  <span>{Math.round(((MY_LOAN as any).repaid / MY_LOAN.amount) * 100)}%</span>
-                </div>
-                <div style={{ height: 8, borderRadius: 99, background: "#f0f0f0" }}>
-                  <div style={{ height: "100%", borderRadius: 99, background: "#00ab00", width: `${Math.round(((MY_LOAN as any).repaid / MY_LOAN.amount) * 100)}%` }} />
+                <div className="text-left lg:text-right">
+                  <p className="text-3xl font-black text-[#0a2540]">{fmt(myActiveLoan.amount)}</p>
+                  <p className="text-xs font-bold text-[#00ab00] uppercase tracking-widest">Active Balance</p>
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {[
-                  { label: "Loan Amount",   val: fmt(MY_LOAN.amount) },
-                  { label: "Amount Repaid", val: fmt((MY_LOAN as any).repaid) },
-                  { label: "Balance",       val: fmt(MY_LOAN.amount - (MY_LOAN as any).repaid) },
-                  { label: "Interest Rate", val: `${MY_LOAN.interest}%` },
-                  { label: "Term",          val: MY_LOAN.term },
-                  { label: "Due Date",      val: (MY_LOAN as any).due },
-                ].map(r => (
-                  <div key={r.label} style={{ background: "#f7f9f8", borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{r.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0a2540" }}>{r.val}</div>
+                  { label: "Principal",     val: fmt(myActiveLoan.amount) },
+                  { label: "Interest", val: `${myActiveLoan.interest_rate_monthly}% Mo.` },
+                  { label: "Tenure",          val: `${myActiveLoan.term_weeks} weeks` },
+                ].map((r, i) => (
+                  <div key={i} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{r.label}</p>
+                    <p className="text-sm font-black text-[#0a2540]">{r.val}</p>
                   </div>
                 ))}
               </div>
 
-              <button style={{
-                width: "100%", padding: "11px", borderRadius: 8, border: "none",
-                background: "#00ab00", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              }}>
-                <Send size={14} /> Make Repayment via M-Pesa
+              <button className="w-full py-4 bg-[#0a2540] text-white rounded-xl font-black text-sm hover:bg-[#0f3460] transition-all flex items-center justify-center gap-2 shadow-lg">
+                <Send size={16} /> Repay Loan via Mobile Money
               </button>
             </div>
-          )}
-
-          {!MY_LOAN && (
-            <div style={{ background: "#fff", borderRadius: 14, padding: "40px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", textAlign: "center" }}>
-              <CreditCard size={40} style={{ color: "#d6e4df", marginBottom: 12 }} />
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 6 }}>No Active Loans</div>
-              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>You are eligible to request up to {fmt(ELIGIBILITY_AMOUNT)}</div>
-              <button onClick={() => setTab("request")} style={{
-                padding: "10px 24px", borderRadius: 8, background: "#00ab00", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer",
-              }}>Request a Loan</button>
+          ) : (
+            <div className="bg-white rounded-lg p-16 border border-gray-100 shadow-sm text-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-gray-300">
+                 <CreditCard size={32} />
+              </div>
+              <h3 className="text-xl font-black text-[#0a2540] mb-2">No Active Loans</h3>
+              <p className="text-gray-500 font-bold mb-8">You haven't requested any financing from this pool yet.</p>
+              <button 
+                onClick={() => setTab("request")}
+                className="px-8 py-4 bg-[#00ab00] text-white rounded-xl font-black text-sm hover:bg-[#008a00] transition-all shadow-md"
+              >
+                Apply for Loan
+              </button>
             </div>
           )}
         </div>
       )}
 
       {tab === "request" && (
-        <div style={{ background: "#fff", borderRadius: 14, padding: "28px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", maxWidth: 560 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#0a2540", marginBottom: 20 }}>New Loan Request</div>
-
-          {submitted ? (
-            <div style={{ textAlign: "center", padding: "32px 0" }}>
-              <CheckCircle size={48} style={{ color: "#00ab00", marginBottom: 12 }} />
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0a2540", marginBottom: 6 }}>Request Submitted!</div>
-              <div style={{ fontSize: 13, color: "#6b7280" }}>Your loan request has been sent to the Chairperson and Treasurer for approval.</div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 6 }}>Loan Amount (KES)</label>
-                <input
-                  type="number" value={loanAmount} onChange={e => setLoanAmount(e.target.value)}
-                  placeholder="e.g. 10000" max={ELIGIBILITY_AMOUNT}
-                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                />
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Maximum: {fmt(ELIGIBILITY_AMOUNT)}</div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 6 }}>Purpose</label>
-                <input
-                  value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="e.g. School fees, Medical, Business stock"
-                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 6 }}>Repayment Term</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["1", "2", "3"].map(t => (
-                    <button key={t} onClick={() => setTerm(t)} style={{
-                      flex: 1, padding: "10px", borderRadius: 8, cursor: "pointer", border: "1px solid",
-                      borderColor: term === t ? "#00ab00" : "#e5e7eb",
-                      background: term === t ? "#e9f3ed" : "#fff",
-                      fontSize: 13, fontWeight: 600, color: term === t ? "#016828" : "#6b7280",
-                    }}>{t} {t === "1" ? "month" : "months"}</button>
-                  ))}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl">
+          <div className="bg-white rounded-lg p-8 border border-gray-100 shadow-sm">
+            {requestLoan.isSuccess ? (
+              <div className="text-center py-10">
+                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 text-[#00ab00]">
+                   <CheckCircle size={32} />
                 </div>
+                <h3 className="text-xl font-black text-[#0a2540] mb-2">Request Submitted</h3>
+                <p className="text-gray-500 font-bold mb-8">Your application has been sent to group leaders for review.</p>
+                <button 
+                  onClick={() => { setTab("overview"); requestLoan.reset() }}
+                  className="px-6 py-3 bg-gray-100 text-[#0a2540] rounded-xl font-black text-xs uppercase tracking-widest"
+                >
+                  Back to Overview
+                </button>
               </div>
+            ) : (
+              <div className="space-y-6">
+                <h3 className="text-lg font-black text-[#0a2540] mb-6">New Loan Application</h3>
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Requested Amount ({activeGroup.currency})</label>
+                  <input
+                    type="number" 
+                    value={loanAmount} 
+                    onChange={e => setLoanAmount(e.target.value)}
+                    placeholder="Enter amount..." 
+                    max={ELIGIBILITY_AMOUNT}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm font-black text-[#0a2540] outline-none focus:ring-2 focus:ring-[#00ab00] transition-all"
+                  />
+                  <p className="text-[10px] font-bold text-[#00ab00] uppercase tracking-tighter">Your limit: {fmt(ELIGIBILITY_AMOUNT)}</p>
+                </div>
 
-              {requestedAmount > 0 && (
-                <div style={{ background: "#e9f3ed", borderRadius: 10, padding: "16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#016828", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>Loan Summary</div>
-                  {[
-                    { label: "Principal",        val: fmt(requestedAmount) },
-                    { label: "Interest (10%)",   val: fmt(interest) },
-                    { label: "Total Repayment",  val: fmt(totalRepay) },
-                    { label: "Monthly Payment",  val: fmt(monthlyPayment) },
-                  ].map(r => (
-                    <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-                      <span style={{ color: "#4a5c6a" }}>{r.label}</span>
-                      <span style={{ fontWeight: 700, color: "#0a2540" }}>{r.val}</span>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Loan Purpose</label>
+                  <select 
+                    value={purpose} 
+                    onChange={e => setPurpose(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm font-black text-[#0a2540] outline-none appearance-none"
+                  >
+                    {LOAN_PURPOSES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Repayment Period</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {["4", "8", "12"].map(t => (
+                      <button 
+                        key={t} 
+                        onClick={() => setTerm(t)} 
+                        className={`py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border ${
+                          term === t ? 'bg-green-50 border-[#00ab00] text-[#00ab00]' : 'bg-gray-50 border-gray-100 text-gray-400'
+                        }`}
+                      >
+                        {t} Weeks
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {requestedAmount > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 space-y-4">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#0a2540]">Repayment Summary</h4>
+                    <div className="space-y-2">
+                       <div className="flex justify-between text-xs font-bold text-gray-500">
+                          <span>Principal</span>
+                          <span className="text-[#0a2540]">{fmt(requestedAmount)}</span>
+                       </div>
+                       <div className="flex justify-between text-xs font-bold text-gray-500">
+                          <span>Interest</span>
+                          <span className="text-[#0a2540]">{fmt(interest)}</span>
+                       </div>
+                       <div className="flex justify-between text-sm font-black text-[#0a2540] pt-2 border-t border-gray-200">
+                          <span>Total Obligation</span>
+                          <span className="text-[#00ab00]">{fmt(totalRepay)}</span>
+                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                )}
 
-              <button
-                onClick={() => { if (loanAmount && purpose) setSubmitted(true) }}
-                style={{
-                  padding: "12px", borderRadius: 8, border: "none",
-                  background: loanAmount && purpose ? "#00ab00" : "#e5e7eb",
-                  color: loanAmount && purpose ? "#fff" : "#9ca3af",
-                  fontSize: 13, fontWeight: 700, cursor: loanAmount && purpose ? "pointer" : "not-allowed",
-                }}>
-                Submit Loan Request
-              </button>
-            </div>
-          )}
+                <button
+                  disabled={!loanAmount || requestedAmount <= 0 || requestLoan.isPending}
+                  onClick={handleRequest}
+                  className="w-full py-4 bg-[#00ab00] text-white rounded-xl font-black text-sm hover:bg-[#008a00] transition-all shadow-lg disabled:opacity-50"
+                >
+                  {requestLoan.isPending ? "Syncing..." : "Submit Application"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

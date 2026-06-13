@@ -6,9 +6,18 @@ interface User {
   id: string
   email: string
   full_name: string
+  phone?: string
   role: 'member' | 'chairperson' | 'treasurer' | 'platform_admin' | 'super_admin'
   country: string
   kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected'
+  gender?: string
+  next_of_kin_name?: string
+  next_of_kin_phone?: string
+  disbursement_method?: 'mobile_money' | 'bank_transfer'
+  bank_name?: string
+  bank_account_number?: string
+  onboarding_popup_seen?: boolean
+  languages?: string[]
 }
 
 interface AuthState {
@@ -16,6 +25,7 @@ interface AuthState {
   token: string | null
   isAuthenticated: boolean
   setAuth: (user: User, token: string) => void
+  setUser: (user: User) => void
   logout: () => void
   updateKycStatus: (status: User['kyc_status']) => void
 }
@@ -31,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
         Cookies.set('access_token', token, { secure: true, sameSite: 'strict', expires: 7 })
         set({ user, token, isAuthenticated: true })
       },
+      setUser: (user) => set({ user }),
       logout: () => {
         Cookies.remove('access_token')
         set({ user: null, token: null, isAuthenticated: false })

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Jost } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 
-const jost = Jost({ subsets: ["latin"], variable: "--font-sans" });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "OrbiSave - Collective Capital Coordination",
@@ -17,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${jost.variable} ${jost.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <body className={`${outfit.variable} ${outfit.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>

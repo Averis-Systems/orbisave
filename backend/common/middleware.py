@@ -10,23 +10,27 @@ def set_current_country(country):
 
 class CountryMiddleware:
     """
-    Extracts the country context from the request (e.g., from a header X-Country or user profile)
-    and stores it in thread-local storage for use by the database router.
+    Stores country context in thread-local storage for the database router.
+
+    Authenticated requests must derive country from server-owned user data.
+    X-Country is only accepted for anonymous/public context where no trusted user
+    country exists yet.
+
     NOTE: Financial service methods MUST explicitly pass using(country) and not rely solely on this.
     """
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Determine country from header or user profile.
+        allowed_countries = ['kenya', 'rwanda', 'ghana']
         header_country = request.headers.get('X-Country', '').lower()
-        
         country = 'default'
-        if header_country in ['kenya', 'rwanda', 'ghana']:
+
+        user = getattr(request, 'user', None)
+        if user and getattr(user, 'is_authenticated', False) and getattr(user, 'country', None) in allowed_countries:
+            country = user.country
+        elif header_country in allowed_countries:
             country = header_country
-        elif request.user.is_authenticated and hasattr(request.user, 'country'):
-            if request.user.country in ['kenya', 'rwanda', 'ghana']:
-                country = request.user.country
 
         set_current_country(country)
             

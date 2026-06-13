@@ -1,20 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Save, CheckCircle } from "lucide-react"
+import { Save, CheckCircle, ShieldCheck, PieChart, AlertCircle, Info, ChevronLeft, Settings2 } from "lucide-react"
+import Link from "next/link"
 
 function Field({ label, value, type = "text", hint }: { label: string; value: string; type?: string; hint?: string }) {
   const [val, setVal] = useState(value)
   return (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 6 }}>{label}</label>
+    <div className="space-y-2">
+      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">{label}</label>
       <input
         type={type} value={val} onChange={e => setVal(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
-        onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = "#00ab00"}
-        onBlur={e => (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"}
+        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-lg text-sm font-black text-[#0a2540] outline-none focus:ring-2 focus:ring-[#00ab00] transition-all"
       />
-      {hint && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{hint}</div>}
+      {hint && <p className="text-[10px] font-bold text-gray-400 italic">{hint}</p>}
     </div>
   )
 }
@@ -22,16 +21,16 @@ function Field({ label, value, type = "text", hint }: { label: string; value: st
 function Toggle({ label, checked, hint }: { label: string; checked: boolean; hint?: string }) {
   const [on, setOn] = useState(checked)
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #f5f5f5" }}>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#0a2540" }}>{label}</div>
-        {hint && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{hint}</div>}
+    <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+      <div className="pr-4">
+        <p className="text-sm font-black text-[#0a2540]">{label}</p>
+        {hint && <p className="text-[10px] font-bold text-gray-400 mt-1">{hint}</p>}
       </div>
-      <button onClick={() => setOn(!on)} style={{
-        width: 44, height: 24, borderRadius: 99, border: "none", cursor: "pointer", position: "relative",
-        background: on ? "#00ab00" : "#d1d5db", transition: "background 0.2s", flexShrink: 0,
-      }}>
-        <div style={{ position: "absolute", top: 2, left: on ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      <button 
+        onClick={() => setOn(!on)} 
+        className={`w-12 h-6 rounded-full relative transition-colors duration-300 flex-shrink-0 ${on ? 'bg-[#00ab00]' : 'bg-gray-200'}`}
+      >
+        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${on ? 'left-7' : 'left-1'}`} />
       </button>
     </div>
   )
@@ -39,55 +38,98 @@ function Toggle({ label, checked, hint }: { label: string; checked: boolean; hin
 
 export default function LoanSettingsPage() {
   const [saved, setSaved] = useState(false)
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+  const handleSave = () => { 
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000) 
+  }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>Group Loan Settings</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>Configure the group loan pool, interest, eligibility and repayment rules</p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+             <Link href="/dashboard/settings" className="text-gray-400 hover:text-[#00ab00] transition-colors">
+                <ChevronLeft size={16} />
+             </Link>
+             <h1 className="text-3xl font-black text-[#0a2540]">Liquidity Pool Protocol</h1>
+          </div>
+          <p className="text-gray-500 font-bold">Configure internal lending rules, interest yields, and risk parameters.</p>
+        </div>
+        <button 
+          onClick={handleSave} 
+          className={`flex items-center gap-2 px-8 py-4 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
+            saved ? 'bg-green-50 text-[#00ab00] border border-green-100' : 'bg-[#0a2540] text-white shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460]'
+          }`}
+        >
+          {saved ? <><CheckCircle size={16} /> Strategy Committed</> : <><Save size={16} /> Update Protocol</>}
+        </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 6 }}>Loan Pool</div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 20 }}>Current balance: <strong>KES 45,000</strong></div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Core Mechanics */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-[#00ab00] border border-green-100 shadow-sm">
+                <PieChart size={20} />
+             </div>
+             <div>
+                <h3 className="text-lg font-black text-[#0a2540]">Yield Mechanics</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Available Capital: <span className="text-[#00ab00]">KES 45,000</span></p>
+             </div>
+          </div>
 
-          <Toggle label="Enable Loan Pool" checked={true} hint="Allow members to request loans from the group" />
-          <Toggle label="Require both Chair & Treasurer approval" checked={true} hint="Dual sign-off before disbursement" />
+          <div className="space-y-6">
+             <Toggle label="Enable Liquidity Pool" checked={true} hint="Authorize members to draw from the collective pool." />
+             <Toggle label="Multi-Sig Authorization" checked={true} hint="Require digital signatures from both Chair & Treasurer." />
 
-          <div style={{ marginTop: 20 }}>
-            <Field label="Pool Contribution Rate" value="10" type="number" hint="% of each member's monthly contribution added to loan pool" />
-            <Field label="Maximum Loan Amount (% of pool)" value="30" type="number" hint="Maximum a single member can borrow" />
-            <Field label="Interest Rate (%)" value="10" type="number" hint="Flat interest charged on loan principal" />
-            <Field label="Maximum Repayment Term (months)" value="3" type="number" />
-            <Field label="Loan Processing Period (days)" value="3" type="number" hint="Days from approval to disbursement" />
+             <div className="pt-6 grid grid-cols-1 gap-6 border-t border-gray-50">
+                <Field label="Portfolio Allocation Rate" value="10" type="number" hint="% of monthly contributions diverted to the loan pool." />
+                <Field label="Exposure Limit (% of pool)" value="30" type="number" hint="Maximum principal allowed per individual participant." />
+                <Field label="Target Yield (Interest %)" value="10" type="number" hint="Standard flat interest rate applied to principal." />
+                <div className="grid grid-cols-2 gap-4">
+                   <Field label="Max Maturity (Weeks)" value="12" type="number" />
+                   <Field label="Processing Lag (Days)" value="3" type="number" />
+                </div>
+             </div>
           </div>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 20 }}>Eligibility & Penalties</div>
-
-          <Field label="Minimum Months Before Eligible" value="3" type="number" hint="Member must have contributed for at least N months" />
-          <Field label="Maximum Active Loans Per Member" value="1" type="number" />
-          <Field label="Late Repayment Penalty (%)" value="5" type="number" hint="% added per month of late repayment" />
-          <Field label="Default After (months)" value="2" type="number" hint="Loan declared default after N months of non-payment" />
-
-          <div style={{ marginTop: 8 }}>
-            <Toggle label="Allow members to see loan pool balance" checked={true} />
-            <Toggle label="Notify members when loan is approved" checked={true} />
-            <Toggle label="Notify all members of new loan disbursements" checked={false} hint="Privacy — off by default" />
-            <Toggle label="Block future loan requests if loan defaulted" checked={true} />
+        {/* Governance & Risk */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8 flex flex-col h-full">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500 border border-orange-100 shadow-sm">
+                <ShieldCheck size={20} />
+             </div>
+             <div>
+                <h3 className="text-lg font-black text-[#0a2540]">Risk Governance</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Eligibility & Default Protections</p>
+             </div>
           </div>
 
-          <button onClick={handleSave} style={{
-            marginTop: 24, width: "100%", padding: "12px", borderRadius: 8, border: "none",
-            background: saved ? "#e9f3ed" : "#0a2540", color: saved ? "#016828" : "#fff",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          }}>
-            {saved ? <><CheckCircle size={14} /> Saved!</> : <><Save size={14} /> Save Loan Settings</>}
-          </button>
+          <div className="space-y-6 flex-1">
+             <Field label="Vesting Period (Months)" value="3" type="number" hint="Minimum membership duration before credit eligibility." />
+             <Field label="Active Asset Cap" value="1" type="number" hint="Max simultaneous active loans allowed per member." />
+             
+             <div className="grid grid-cols-2 gap-4">
+                <Field label="Arrears Penalty (%)" value="5" type="number" />
+                <Field label="Default Threshold (Days)" value="60" type="number" />
+             </div>
+
+             <div className="pt-6 border-t border-gray-50 space-y-2">
+                <Toggle label="Transparency Mode" checked={true} hint="Allow all members to view total pool liquidity." />
+                <Toggle label="Approval Alerts" checked={true} hint="Push notifications on disbursement authorization." />
+                <Toggle label="Anonymized Activity" checked={false} hint="Mask borrower identities in general group feed." />
+                <Toggle label="Default Interdiction" checked={true} hint="Auto-block participants with unsettled defaults." />
+             </div>
+          </div>
+
+          {/* Warning Banner */}
+          <div className="mt-8 p-4 bg-orange-50 rounded-lg border border-orange-100 flex items-start gap-3">
+             <AlertCircle size={16} className="text-orange-600 mt-0.5 flex-shrink-0" />
+             <p className="text-[10px] font-bold text-orange-800 leading-relaxed">
+                Modification of yield parameters during an active cycle may affect existing amortization schedules. Ensure all members are notified of protocol shifts.
+             </p>
+          </div>
         </div>
       </div>
     </div>

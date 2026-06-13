@@ -7,8 +7,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # ─── Security ────────────────────────────────────────────────────────────────
 SECRET_KEY = os.environ['SECRET_KEY']
-DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
+DEBUG = True
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
 
 # ─── Applications ────────────────────────────────────────────────────────────
 DJANGO_APPS = [
@@ -145,6 +145,15 @@ def _read_key(path_env_var: str, default: str = '') -> str:
 JWT_PRIVATE_KEY = _read_key('JWT_PRIVATE_KEY_PATH', 'secrets/jwt_private.pem')
 JWT_PUBLIC_KEY = _read_key('JWT_PUBLIC_KEY_PATH', 'secrets/jwt_public.pem')
 
+JWT_ALGORITHM = 'RS256'
+JWT_SIGNING_KEY = JWT_PRIVATE_KEY
+JWT_VERIFYING_KEY = JWT_PUBLIC_KEY
+
+if DEBUG and (not JWT_PRIVATE_KEY or not JWT_PUBLIC_KEY):
+    JWT_ALGORITHM = 'HS256'
+    JWT_SIGNING_KEY = SECRET_KEY
+    JWT_VERIFYING_KEY = None
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(
         minutes=int(os.environ.get('SIMPLE_JWT_ACCESS_TOKEN_LIFETIME_MINUTES', '15'))
@@ -154,11 +163,12 @@ SIMPLE_JWT = {
     ),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    'ALGORITHM': 'RS256',
-    'SIGNING_KEY': _read_key('JWT_PRIVATE_KEY_PATH', 'secrets/jwt_private.pem'),
-    'VERIFYING_KEY': _read_key('JWT_PUBLIC_KEY_PATH', 'secrets/jwt_public.pem'),
+    'ALGORITHM': JWT_ALGORITHM,
+    'SIGNING_KEY': JWT_SIGNING_KEY,
+    'VERIFYING_KEY': JWT_VERIFYING_KEY,
     'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
+    'USER_ID_CLAIM': 'sub',
+    'AUDIENCE': 'orbisave_api',
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
@@ -168,6 +178,12 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3001',
+    'http://localhost:3002',        # Console (super_admin) — dev
+    'http://127.0.0.1:3002',
+    'http://localhost:3003',        # Manager (platform_admin) — dev
+    'http://127.0.0.1:3003',
+    'https://console.orbisave.com', # Console — production
+    'https://manager.orbisave.com', # Manager — production
 ]
 CORS_ALLOW_CREDENTIALS = True
 from corsheaders.defaults import default_headers
@@ -214,6 +230,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.groups.tasks.check_cycle_completion',
         'schedule': timedelta(hours=24),
         'options': {'expires': 3600},
+    },
+    'expire-pending-memberships': {
+        'task': 'apps.groups.tasks.expire_pending_memberships',
+        'schedule': timedelta(hours=1),
+        'options': {'expires': 1800},
     },
     # Flags loan repayments past due date
     'flag-overdue-loan-repayments': {

@@ -1,28 +1,83 @@
-import os
+"""
+Dynamic Payment Provider Selector
+===================================
+Loads the active BankProvider configuration from the database at runtime.
+No hardcoded credentials or provider mappings — everything is managed via
+the Super Admin Console's Provider Hub.
+
+Resolution order:
+  1. Look for an active BankProvider for (country, exact provider_code).
+  2. Fall back to any active provider for the country that supports the method.
+  3. Raise a descriptive error if none configured.
+"""
+import logging
 from .base import PaymentProvider
 
-def get_payment_provider(country: str, method: str) -> PaymentProvider:
+logger = logging.getLogger(__name__)
+
+
+def get_payment_provider(country: str, method: str = None) -> PaymentProvider:
     """
-    Intelligent factory router. Immediately falls back to Mock logic if ENV specifies sandbox explicitly, 
-    otherwise loads up the required geo-fenced payment abstraction class.
+    Returns an instantiated PaymentProvider for the given country/method.
+
+    Args:
+        country: 'kenya' | 'rwanda' | 'ghana'
+        method:  'mpesa' | 'airtel' | 'mtn_momo' | 'bank' | None (uses country default)
     """
-    from .providers.mock import MockProvider
-    
-    # Fast bypass for deep testing or local dev
-    if os.environ.get('MPESA_ENVIRONMENT', 'sandbox') == 'sandbox' and os.environ.get('MTN_ENVIRONMENT', 'sandbox') == 'sandbox':
-         return MockProvider()
-         
-    # Currently pointing Live logic primarily towards Mocking until physical classes are established.
-    # Replace these direct dictionaries with real provider files (MpesaProvider / MTNProvider) in prod deployment.
-    providers = {
-        ('kenya', 'mpesa'): MockProvider,
-        ('kenya', 'airtel'): MockProvider,
-        ('rwanda', 'mtn_momo'): MockProvider,
-        ('ghana', 'mtn_momo'): MockProvider,
+    try:
+        from apps.payments.models import BankProvider
+
+        # Find the best active provider for this country
+        qs = BankProvider.objects.filter(country=country, status='active')
+
+        if method:
+            # Prefer a provider that explicitly supports this mobile method
+            provider_record = (
+                qs.filter(supported_mobile_methods__contains=method).first()
+                or qs.first()
+            )
+        else:
+            provider_record = qs.first()
+
+        if not provider_record:
+            raise ValueError(
+                f"No active payment provider configured for country='{country}'. "
+                f"Configure one in the Console → Provider Hub."
+            )
+
+        return _instantiate_provider(provider_record)
+
+    except Exception as exc:
+        logger.error("Payment provider resolution failed: %s", exc, exc_info=True)
+        raise
+
+
+def get_provider_by_id(provider_id: str) -> PaymentProvider:
+    """Load a specific provider by its DB UUID — used for test connection calls."""
+    from apps.payments.models import BankProvider
+    record = BankProvider.objects.get(id=provider_id)
+    return _instantiate_provider(record)
+
+
+def _instantiate_provider(record) -> PaymentProvider:
+    """Map a BankProvider record to its implementation class."""
+    from apps.payments.providers.jenga import JengaProvider
+
+    mapping = {
+        'jenga_ke': JengaProvider,
+        'jenga_rw': JengaProvider,
+        # 'ecobank_gh': EcobankProvider,  # coming soon
     }
-    
-    cls = providers.get((country, method))
-    if not cls:
-        raise ValueError(f"CRUCIAL SYSTEM FAILURE: No provider architecture explicitly mapped for {country}/{method}")
-    
-    return cls()
+
+    cls = mapping.get(record.provider_code)
+    if cls is None:
+        raise ValueError(
+            f"Provider code '{record.provider_code}' has no implementation class. "
+            f"Add it to apps/payments/selector.py and create the provider module."
+        )
+
+    logger.info(
+        "Resolved provider: %s | country=%s | env=%s",
+        record.name, record.country, record.environment
+    )
+    return cls(record)

@@ -10,9 +10,18 @@ class LedgerEntry(BaseModel):
         ('refund','Refund'), ('reconciliation_adjustment','Reconciliation Adjustment'),
     ]
     DIRECTIONS = [('credit','Credit'), ('debit','Debit')]
+    ACCOUNT_STREAMS = [
+        ('rotation', 'Rotation Trust'),
+        ('savings', 'Mandatory Savings'),
+        ('loaning', 'Loaning'),
+        ('company_revenue', 'Company Revenue'),
+        ('suspense', 'Suspense'),
+        ('provider_settlement', 'Provider Settlement'),
+    ]
 
     group               = models.ForeignKey('groups.Group', on_delete=models.PROTECT, related_name='ledger_entries')
     member              = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, db_constraint=False)
+    account_stream      = models.CharField(max_length=40, choices=ACCOUNT_STREAMS, default='rotation')
     entry_type          = models.CharField(max_length=40, choices=ENTRY_TYPES)
     direction           = models.CharField(max_length=10, choices=DIRECTIONS)
     amount              = models.DecimalField(max_digits=14, decimal_places=2)
@@ -24,6 +33,8 @@ class LedgerEntry(BaseModel):
     related_loan        = models.ForeignKey('loans.Loan', on_delete=models.PROTECT, null=True, blank=True)
     related_payout      = models.ForeignKey('payouts.Payout', on_delete=models.PROTECT, null=True, blank=True)
     recorded_by         = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, related_name='ledger_entries_recorded', db_constraint=False)
+    idempotency_key     = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    source_system       = models.CharField(max_length=50, default='orbisave')
     previous_hash       = models.CharField(max_length=64, default='0' * 64)
     hash                = models.CharField(max_length=64)
 
@@ -32,10 +43,11 @@ class LedgerEntry(BaseModel):
         ordering = ['created_at']
 
     def save(self, *args, **kwargs):
-        if self.pk:
+        if self.pk and not self._state.adding:
             raise PermissionError("Ledger entries are immutable — no updates permitted.")
-        
-        previous = LedgerEntry.objects.filter(group=self.group).order_by('-created_at').first()
+
+        db_alias = kwargs.get('using') or self._state.db or 'default'
+        previous = LedgerEntry.objects.using(db_alias).filter(group=self.group).order_by('-created_at').first()
         
         # 1. Compute Running Balance Contextually
         from decimal import Decimal
@@ -49,9 +61,16 @@ class LedgerEntry(BaseModel):
                 self.running_balance = prev_balance
                 
         # 2. Build Cryptographic Chain Hash
+        if self._state.adding and (not self.previous_hash or self.previous_hash == '0' * 64):
+            self.previous_hash = previous.hash if previous else '0' * 64
+
         if not self.hash:
             prev_hash = previous.hash if previous else '0' * 64
-            payload = f"{prev_hash}{self.group_id}{self.entry_type}{self.amount}{self.reference}"
+            payload = (
+                f"{prev_hash}{self.group_id}{self.member_id}{self.account_stream}"
+                f"{self.entry_type}{self.direction}{self.amount}{self.currency}"
+                f"{self.running_balance}{self.reference}{self.idempotency_key or ''}"
+            )
             self.hash = hashlib.sha256(payload.encode()).hexdigest()
             
         super().save(*args, **kwargs)
@@ -84,6 +103,101 @@ class DailyLedgerCheckpoint(BaseModel):
 
     def delete(self, *args, **kwargs):
         raise PermissionError("Ledger checkpoints cannot be deleted.")
+
+
+class ReconciliationRun(BaseModel):
+    STATUS = [
+        ('running', 'Running'),
+        ('matched', 'Matched'),
+        ('needs_review', 'Needs Review'),
+        ('failed', 'Failed'),
+    ]
+
+    country = models.CharField(max_length=10)
+    provider_code = models.CharField(max_length=40)
+    account_stream = models.CharField(max_length=40, choices=LedgerEntry.ACCOUNT_STREAMS)
+    account_number = models.CharField(max_length=100)
+    business_date = models.DateField()
+    source = models.CharField(max_length=80, default='daily_bank_statement')
+    expected_closing_balance = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    observed_closing_balance = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS, default='running')
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'ledger_reconciliation_run'
+        ordering = ['-business_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.country}/{self.provider_code}/{self.account_stream} {self.business_date}"
+
+
+class ReconciliationItem(BaseModel):
+    ISSUE_TYPES = [
+        ('amount_mismatch', 'Amount Mismatch'),
+        ('closing_balance_mismatch', 'Closing Balance Mismatch'),
+        ('missing_bank_record', 'Missing Bank Record'),
+        ('missing_provider_callback', 'Missing Provider Callback'),
+        ('orphan_bank_transaction', 'Orphan Bank Transaction'),
+        ('duplicate_reference', 'Duplicate Reference'),
+        ('signature_mismatch', 'Signature Mismatch'),
+    ]
+    STATUS = [
+        ('open', 'Open'),
+        ('investigating', 'Investigating'),
+        ('resolved', 'Resolved'),
+        ('escalated', 'Escalated'),
+    ]
+    SEVERITIES = [('green', 'Green'), ('orange', 'Orange'), ('red', 'Red')]
+
+    run = models.ForeignKey(
+        ReconciliationRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='items',
+    )
+    group = models.ForeignKey(
+        'groups.Group',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reconciliation_items',
+    )
+    related_contribution = models.ForeignKey(
+        'contributions.Contribution',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reconciliation_items',
+    )
+    account_stream = models.CharField(max_length=40, choices=LedgerEntry.ACCOUNT_STREAMS)
+    issue_type = models.CharField(max_length=40, choices=ISSUE_TYPES)
+    status = models.CharField(max_length=20, choices=STATUS, default='open')
+    severity = models.CharField(max_length=10, choices=SEVERITIES, default='orange')
+    reference = models.CharField(max_length=255)
+    provider_reference = models.CharField(max_length=255, blank=True)
+    bank_reference = models.CharField(max_length=255, blank=True)
+    expected_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    observed_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=5, blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='resolved_reconciliation_items',
+        db_constraint=False,
+    )
+
+    class Meta:
+        db_table = 'ledger_reconciliation_item'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.issue_type} [{self.status}] {self.reference}"
 
 class SystemConfiguration(BaseModel):
     """

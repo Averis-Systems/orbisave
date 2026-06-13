@@ -23,7 +23,9 @@ class TransactionPinView(views.APIView):
              return Response({"error": "Core Account Password actively failed validation required to instantiate PIN setting."}, status=status.HTTP_401_UNAUTHORIZED)
              
         request.user.transaction_pin = make_password(str(pin))
-        request.user.save(update_fields=['transaction_pin'])
+        request.user.transaction_pin_failed_attempts = 0
+        request.user.transaction_pin_locked_at = None
+        request.user.save(update_fields=['transaction_pin', 'transaction_pin_failed_attempts', 'transaction_pin_locked_at'])
         
         log_audit(
             action='transaction_pin_instantiated',

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { AlertTriangle, Shield, CheckCircle, Key } from "lucide-react"
+import { AlertTriangle, Shield, CheckCircle, Key, Loader2 } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -99,9 +99,18 @@ export function LoginForm() {
           {errors.password && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.password.message}</p>}
         </div>
 
-        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm" disabled={isSubmitting}>
-          {isSubmitting ? "Authenticating…" : "Sign In to My Account"}
-          {!isSubmitting && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>}
+        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-70" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Authenticating…
+            </>
+          ) : (
+            <>
+              Sign In to My Account
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </>
+          )}
         </button>
       </form>
     </div>

@@ -1,9 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import GroupViewSet, GroupMemberActionViewSet
+from .views import GroupViewSet, GroupMemberActionViewSet, RotationViewSet
 from .invite_views import GroupInviteCreateView, GroupInvitePublicView
 
 router = DefaultRouter()
+router.register(r'rotations', RotationViewSet, basename='rotation')
 router.register(r'', GroupViewSet, basename='group')
 
 urlpatterns = [
@@ -11,6 +12,7 @@ urlpatterns = [
     path('<uuid:group_pk>/invites/', GroupInviteCreateView.as_view(), name='group-invite-create'),
     
     # Member lifecycle routes explicitly defined for strict structural controls
+    path('<uuid:group_pk>/members/', GroupMemberActionViewSet.as_view({'get': 'list'}), name='group-member-list'),
     path('<uuid:group_pk>/members/<uuid:pk>/remove/', GroupMemberActionViewSet.as_view({'post': 'remove'}), name='group-member-remove'),
     path('<uuid:group_pk>/members/<uuid:pk>/suspend/', GroupMemberActionViewSet.as_view({'post': 'suspend'}), name='group-member-suspend'),
     path('<uuid:group_pk>/members/<uuid:pk>/reinstate/', GroupMemberActionViewSet.as_view({'post': 'reinstate'}), name='group-member-reinstate'),

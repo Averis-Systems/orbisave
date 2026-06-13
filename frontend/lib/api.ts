@@ -5,7 +5,7 @@ import Cookies from 'js-cookie'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_URL.endsWith('/') ? API_URL : `${API_URL}/`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,9 +14,17 @@ export const api = axios.create({
 // Request Interceptor: Attach JWT token from cookies or store
 api.interceptors.request.use(
   (config) => {
+    // Normalize URL: Remove leading slash to ensure it's relative to baseURL (api/v1/)
+    if (config.url?.startsWith('/')) {
+      config.url = config.url.substring(1)
+    }
+
     // Attempt to get token from cookie first (more reliable across tabs), then fallback to store
     const token = Cookies.get('access_token') || useAuthStore.getState().token
-    const isAuthRoute = config.url?.includes('/auth/token/') || config.url?.includes('/auth/register/')
+    const isAuthRoute = 
+      config.url?.includes('auth/token/') || 
+      config.url?.includes('auth/register/') ||
+      config.url?.includes('admin-portal/auth/')
     
     if (token && !config.headers.Authorization && !isAuthRoute) {
       config.headers.Authorization = `Bearer ${token}`
@@ -27,9 +35,17 @@ api.interceptors.request.use(
       config.headers['X-Country'] = country
     }
 
+    console.log(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      baseURL: config.baseURL,
+      headers: { ...config.headers, Authorization: config.headers.Authorization ? 'Bearer [REDACTED]' : undefined }
+    })
+
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('[API] Request Error:', error.message)
+    return Promise.reject(error)
+  }
 )
 
 let isRefreshing = false
@@ -52,7 +68,7 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/login')) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && !originalRequest.url?.includes('/auth/login')) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
@@ -71,24 +87,24 @@ api.interceptors.response.use(
             throw new Error("No refresh token available")
         }
         
-        // Assuming backend endpoint is /auth/refresh
-        const { data } = await axios.post(`${API_URL}/auth/refresh`, { refresh_token: refreshToken })
-        const { access_token, refresh_token: new_refresh_token } = data
+        // Standard SimpleJWT refresh endpoint
+        const { data } = await axios.post(`${API_URL}/auth/token/refresh/`, { refresh: refreshToken })
+        const { access, refresh: new_refresh_token } = data
 
-        Cookies.set('access_token', access_token, { secure: true, sameSite: 'strict', expires: 7 })
+        Cookies.set('access_token', access, { secure: true, sameSite: 'strict', expires: 7 })
         if (new_refresh_token) {
           Cookies.set('refresh_token', new_refresh_token, { secure: true, sameSite: 'strict', expires: 7 })
         }
         
         const currentUser = useAuthStore.getState().user
         if (currentUser) {
-          useAuthStore.getState().setAuth(currentUser, access_token)
+          useAuthStore.getState().setAuth(currentUser, access)
         }
 
-        api.defaults.headers.common['Authorization'] = 'Bearer ' + access_token
-        originalRequest.headers['Authorization'] = 'Bearer ' + access_token
+        api.defaults.headers.common['Authorization'] = 'Bearer ' + access
+        originalRequest.headers['Authorization'] = 'Bearer ' + access
 
-        processQueue(null, access_token)
+        processQueue(null, access)
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)

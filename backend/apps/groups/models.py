@@ -16,8 +16,18 @@ class Group(BaseModel):
     ROTATION_METHODS = [
         ('sequential','Sequential'), ('random','Random Draw'), ('manual','Manual'),
     ]
-    STATUS   = [('active','Active'), ('paused','Paused'), ('closed','Closed')]
+    STATUS   = [
+        ('pending_activation','Pending Activation'),
+        ('active','Active'),
+        ('paused','Paused'),
+        ('closed','Closed'),
+    ]
     COUNTRIES = [('kenya','Kenya'), ('rwanda','Rwanda'), ('ghana','Ghana')]
+    VERIFICATION_STATUS = [
+        ('pending_review', 'Pending Review'),  # Awaiting country admin approval
+        ('verified',       'Verified'),          # Approved — group can go live
+        ('rejected',       'Rejected'),          # Rejected with reason
+    ]
 
     name                      = models.CharField(max_length=255)
     description               = models.TextField(blank=True)
@@ -35,12 +45,23 @@ class Group(BaseModel):
     max_loan_multiplier       = models.DecimalField(max_digits=5, decimal_places=2, default=3)
     loan_term_weeks           = models.PositiveIntegerField(default=12)
     loan_interest_rate_monthly = models.DecimalField(max_digits=5, decimal_places=2, default=5)
+    mandatory_savings_amount   = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    savings_access_month       = models.PositiveSmallIntegerField(null=True, blank=True)
+    savings_access_day         = models.PositiveSmallIntegerField(null=True, blank=True)
     rotation_method           = models.CharField(max_length=20, choices=ROTATION_METHODS, default='sequential')
-    status                    = models.CharField(max_length=20, choices=STATUS, default='active')
+    status                    = models.CharField(max_length=20, choices=STATUS, default='pending_activation')
     invite_code               = models.CharField(max_length=50, unique=True, blank=True)
     invite_expires_at         = models.DateTimeField(null=True, blank=True)
     currency                  = models.CharField(max_length=5)  # KES | RWF | GHS
     trust_account_ref         = models.CharField(max_length=255, null=True, blank=True)
+    # ─ Group Verification (managed by country admin in the Manager portal) ───────────────
+    verification_status       = models.CharField(max_length=20, choices=VERIFICATION_STATUS, default='pending_review')
+    verification_note         = models.TextField(blank=True)  # Admin approval/rejection note
+    verified_by               = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='verified_groups', db_constraint=False
+    )
+    verified_at               = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'groups_group'
@@ -60,6 +81,8 @@ class GroupMember(BaseModel):
     # 'exited' replaces old 'left' for consistency with the financial engine checklist.
     # 'deceased' added as required by Section 8 (Member State Management).
     STATUS = [
+        ('pending_approval','Pending Approval'),
+        ('pending_session_refresh','Pending Session Refresh'),
         ('active','Active'),
         ('suspended','Suspended'),
         ('exited','Exited'),
@@ -76,7 +99,7 @@ class GroupMember(BaseModel):
     )
     role              = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
     rotation_position = models.PositiveIntegerField(null=True, blank=True)
-    status            = models.CharField(max_length=20, choices=STATUS, default='active')
+    status            = models.CharField(max_length=30, choices=STATUS, default='active')
     joined_at         = models.DateTimeField(auto_now_add=True)
     exited_at         = models.DateTimeField(null=True, blank=True)  # Renamed from left_at
     suspension_reason = models.TextField(blank=True)

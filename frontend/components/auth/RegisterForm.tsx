@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { AlertTriangle, User, Users, Shield, CheckCircle, Key, Info } from "lucide-react"
+import { AlertTriangle, User, Users, Shield, CheckCircle, Key, Info, Loader2 } from "lucide-react"
 
 const memberSchema = z.object({
   full_name: z.string().min(3, "Full name is required"),
@@ -118,6 +118,25 @@ export function RegisterForm() {
     } catch (err: any) {
       if (err.response?.data) {
         const d = err.response.data
+        
+        // If the first registration step succeeded but something after it failed,
+        // re-clicking "Join" will return "user already exists". We handle this by
+        // skipping registration and trying to log in directly.
+        const isAlreadyExists = d.email?.[0]?.includes("already exists") || d.phone?.[0]?.includes("already exists")
+        
+        if (isAlreadyExists) {
+           try {
+             const tokenRes = await api.post("/auth/token/", { email: data.email, password: data.password })
+             const access = tokenRes.data.access_token || tokenRes.data.access
+             const profileRes = await api.get("/auth/me/", { headers: { Authorization: `Bearer ${access}` } })
+             setAuth(profileRes.data, access)
+             router.push("/dashboard")
+             return
+           } catch (loginErr) {
+             // Fall through to original error if auto-login also fails
+           }
+        }
+
         const msg = d.email?.[0] || d.phone?.[0] || d.non_field_errors?.[0] || "Registration failed."
         setError(msg)
       } else {
@@ -287,9 +306,18 @@ export function RegisterForm() {
           </label>
         </div>
 
-        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm" disabled={isSubmitting}>
-          {isSubmitting ? "Creating Account…" : "Join the Collective"}
-          {!isSubmitting && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>}
+        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-70" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Securing Account…
+            </>
+          ) : (
+            <>
+              Join the Collective
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </>
+          )}
         </button>
       </form>
 

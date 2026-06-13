@@ -5,7 +5,7 @@ import { useGSAP } from "@gsap/react"
 import { CheckCircle2, Clock } from "lucide-react"
 import { gsap } from "@/lib/gsap-init"
 
-import { ORBITAL_MEMBERS, PAST, ROTATION_QUEUE } from "@/lib/demo-data"
+import { ORBITAL_MEMBERS, PAST, ROTATION_QUEUE } from "@/lib/landing-data"
 
 // Navy vault colors
 const SVG_CX = 220, SVG_CY = 220, SVG_R = 160

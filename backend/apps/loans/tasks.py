@@ -76,7 +76,7 @@ def check_loan_defaults(self):
     defaulted = 0
 
     active_loans = Loan.objects.filter(
-        status='approved'
+        status__in=['approved', 'disbursed', 'active']
     ).select_related('group', 'borrower', 'group__chairperson')
 
     for loan in active_loans:

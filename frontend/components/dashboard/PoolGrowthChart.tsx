@@ -1,7 +1,7 @@
 "use client"
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { CONTRIBUTIONS_HISTORY, G } from "@/lib/demo-data"
+import { CONTRIBUTIONS_HISTORY, G } from "@/lib/landing-data"
 
 const fmt = (n: number) => "KES " + Number(n).toLocaleString();
 
@@ -26,7 +26,7 @@ export function PoolGrowthChart() {
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={v => v / 1000 + "k"} />
-          <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }} />
+          <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }} />
           <Area type="monotone" dataKey="target" stroke="#e5e7eb" strokeDasharray="4 4" fill="none" strokeWidth={1} />
           <Area type="monotone" dataKey="collected" stroke={G[500]} fill="url(#cg)" strokeWidth={2.5} dot={{ fill: G[500], r: 3 }} />
         </AreaChart>

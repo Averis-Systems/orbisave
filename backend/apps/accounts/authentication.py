@@ -27,12 +27,14 @@ class RS256JWTAuthentication(BaseAuthentication):
         token = parts[1]
 
         try:
-            # Note: settings.JWT_PUBLIC_KEY must be loaded from env securely
+            jwt_settings = settings.SIMPLE_JWT
+            algorithm = jwt_settings.get('ALGORITHM', 'RS256')
+            key = jwt_settings.get('VERIFYING_KEY') if algorithm.startswith('RS') else jwt_settings.get('SIGNING_KEY')
             payload = jwt.decode(
                 token,
-                settings.JWT_PUBLIC_KEY,
-                algorithms=['RS256'],
-                audience='orbisave_api'
+                key,
+                algorithms=[algorithm],
+                audience=jwt_settings.get('AUDIENCE')
             )
         except jwt.ExpiredSignatureError:
             raise AuthenticationFailed('Token has expired.')

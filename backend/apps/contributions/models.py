@@ -3,7 +3,14 @@ from common.models import BaseModel
 
 class Contribution(BaseModel):
     METHODS = [('mpesa','M-Pesa'), ('airtel','Airtel Money'), ('mtn_momo','MTN MoMo'), ('bank','Bank Transfer')]
-    STATUS  = [('scheduled','Scheduled'), ('initiated','Initiated'), ('pending','Pending'), ('confirmed','Confirmed'), ('failed','Failed')]
+    STATUS  = [
+        ('scheduled','Scheduled'),
+        ('initiated','Initiated'),
+        ('pending','Pending'),
+        ('confirmed','Confirmed'),
+        ('failed','Failed'),
+        ('disputed','Disputed'),
+    ]
 
     group              = models.ForeignKey('groups.Group', on_delete=models.PROTECT, related_name='contributions')
     # db_constraint=False: User is on 'default' DB; contributions live on country DB.
@@ -26,6 +33,12 @@ class Contribution(BaseModel):
 
     class Meta:
         db_table = 'contributions_contribution'
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.status == 'confirmed':
+            from apps.groups.lifecycle import apply_confirmed_contribution_lifecycle
+            apply_confirmed_contribution_lifecycle(self)
 
     def __str__(self):
         return f"Contribution {self.platform_reference} | {self.amount} {self.currency} [{self.status}]"

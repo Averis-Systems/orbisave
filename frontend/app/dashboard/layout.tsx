@@ -7,23 +7,25 @@ import { useEffect, useState, useRef } from "react"
 import {
   LayoutDashboard, Users, CreditCard, Settings, LogOut,
   Bell, LineChart, Menu, AlertTriangle, User,
-  Shield, Video, CheckCircle, ChevronDown, Plus,
-  Building2, Vote, Wallet, RefreshCw, UserCheck, Settings2
+  Shield, Video, CheckCircle, ChevronDown, Plus, ShieldCheck,
+  Building2, RefreshCw, Wallet, Settings2, UserCheck
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { KYCModal } from "@/components/dashboard/KYCModal"
+import { GuidedOnboardingModal } from "@/components/dashboard/GuidedOnboardingModal"
+import { useGroups } from "@/hooks/useGroups"
+import { useNotifications } from "@/hooks/useNotifications"
 
-// ─── Brand Colors (from homepage) ──────────────────────────────────────────
+// ─── Brand Colors ──────────────────────────────────────────────────────────
 const B = {
-  navy:        "#0a2540",   // sidebar bg, vault, navbar
-  navyLight:   "#0f3460",   // hover bg
-  green:       "#00ab00",   // primary CTA, active states
-  greenLight:  "#e9f3ed",   // light green bg
-  greenMuted:  "#d6e4df",   // borders
+  navy:        "#0a2540",
+  navyLight:   "#0f3460",
+  green:       "#00ab00",
+  greenLight:  "#e9f3ed",
+  greenMuted:  "#d6e4df",
   white:       "#ffffff",
-  offWhite:    "#f7f9f8",   // page background
-  textMuted:   "#4a5c6a",   // body text
-  textFaint:   "rgba(255,255,255,0.45)",
+  offWhite:    "#f7f9f8",
+  textMuted:   "#4a5c6a",
   border:      "rgba(255,255,255,0.07)",
 }
 
@@ -44,88 +46,50 @@ function useSidebarState() {
   return { isCollapsed, toggle, isMounted }
 }
 
-// ─── Mock groups ────────────────────────────────────────────────────────────
-const MOCK_GROUPS = [
-  { id: "KAC-2025-001", name: "Kisumu Agri Chama",   role: "chairperson", hasLoanPool: true  },
-  { id: "TIR-2025-044", name: "Tech Innovators ROSCA", role: "member",     hasLoanPool: false },
-]
-
 // ─── Navigation structure ───────────────────────────────────────────────────
-// Each section can have items, or items with children (nested dropdowns)
 const getNavigation = (role: string, hasLoanPool: boolean) => {
   const isAdmin = role === "chairperson" || role === "treasurer"
 
   return [
-    // ── MAIN ──────────────────────────────────────────────────────
     {
-      title: "MAIN",
+      title: "Main",
       flat: true,
       items: [
         { name: "Overview",  href: "/dashboard",          icon: LayoutDashboard },
         { name: "My Group",  href: "/dashboard/my-group", icon: Building2 },
       ],
     },
-
-    // ── CONTRIBUTIONS ─────────────────────────────────────────────
     {
-      title: "CONTRIBUTIONS",
+      title: "Financing",
       flat: true,
       items: [
-        { name: "My Contributions", href: "/dashboard/contributions", icon: Wallet },
-      ],
-    },
-
-    // ── LOANS ─────────────────────────────────────────────────────
-    ...(hasLoanPool ? [{
-      title: "LOANS",
-      flat: false,
-      items: [
-        { name: "My Loans",      href: "/dashboard/my-loans",         icon: CreditCard },
-        ...(isAdmin ? [
-          { name: "Loan Approvals",     href: "/dashboard/loan-approvals",  icon: CheckCircle, badge: 2 },
-          { name: "Group Loan Settings", href: "/dashboard/settings/loans",  icon: Settings2 },
-        ] : []),
-      ],
-    }] : []),
-
-    // ── GROUP ─────────────────────────────────────────────────────
-    {
-      title: "GROUP",
-      flat: false,
-      items: [
-        { name: "Rotations",  href: "/dashboard/rotations", icon: RefreshCw },
-        { name: "Meetings",   href: "/dashboard/meetings",  icon: Video },
-        ...(isAdmin ? [
-          { name: "Members",          href: "/dashboard/members",  icon: Users },
-          { name: "Fines & Penalties",href: "/dashboard/fines",    icon: AlertTriangle },
-          { name: "Group Reports",    href: "/dashboard/reports",  icon: LineChart },
+        { name: "Contributions", href: "/dashboard/contributions", icon: Wallet },
+        ...(hasLoanPool ? [
+          { name: "My Loans", href: "/dashboard/my-loans", icon: CreditCard },
         ] : []),
       ],
     },
-
-    // ── SETTINGS (admin only) ─────────────────────────────────────
     ...(isAdmin ? [{
-      title: "SETTINGS",
+      title: "Management",
       flat: false,
       items: [
-        { name: "Group Settings",    href: "/dashboard/settings",          icon: Settings },
-        { name: "Rotation Settings", href: "/dashboard/settings/rotations",icon: RefreshCw },
-        { name: "Meetings Config",   href: "/dashboard/settings/meetings", icon: Vote },
+        { name: "Members",      href: "/dashboard/members",  icon: Users },
+        { name: "Loan Approvals", href: "/dashboard/loan-approvals", icon: UserCheck, badge: 2 },
+        { name: "Rotations",    href: "/dashboard/rotations", icon: RefreshCw },
+        { name: "Meetings",     href: "/dashboard/meetings",  icon: Video },
       ],
     }] : []),
-
-    // ── SYSTEM ────────────────────────────────────────────────────
     {
-      title: "SYSTEM",
+      title: "System",
       flat: true,
       items: [
-        { name: "Notifications", href: "/dashboard/notifications", icon: Bell,        badge: 3 },
-        { name: "Personal Info", href: "/dashboard/profile",       icon: User },
+        { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: 3 },
+        { name: "Personal Profile", href: "/dashboard/profile", icon: User },
+        ...(isAdmin ? [
+          { name: "Group Settings", href: "/dashboard/settings", icon: Settings },
+        ] : []),
         ...(role === 'platform_admin' || role === 'super_admin' ? [
           { name: "Staff Portal", href: "/staff-portal", icon: Shield, badge: "Admin" }
-        ] : []),
-        ...(role === 'super_admin' ? [
-          { name: "Super Admin",  href: "/super-admin",  icon: ShieldCheck, badge: "Root" }
         ] : []),
       ],
     },
@@ -141,34 +105,22 @@ function NavItem({ item, isCollapsed, sidebarMounted, pathname }: any) {
     <Link
       href={item.href}
       title={isCollapsed && sidebarMounted ? item.name : undefined}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: isCollapsed && sidebarMounted ? "center" : "space-between",
-        gap: 10,
-        padding: isCollapsed && sidebarMounted ? "11px 0" : "10px 14px",
-        borderRadius: 8,
-        textDecoration: "none",
-        transition: "background 0.15s, color 0.15s",
-        background: isActive ? B.green : "transparent",
-        color: "#ffffff",
-        fontWeight: isActive ? 700 : 400,
-        fontSize: 14,
-        letterSpacing: "0.01em",
-      }}
-      onMouseEnter={e => { if (!isActive)(e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.09)" }}
-      onMouseLeave={e => { if (!isActive)(e.currentTarget as HTMLElement).style.background = "transparent" }}
+      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all group ${
+        isActive ? 'bg-[#00ab00] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
+      } ${isCollapsed && sidebarMounted ? 'justify-center px-0' : ''}`}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-        <Icon size={17} style={{ flexShrink: 0, color: isActive ? "#fff" : B.green, opacity: isActive ? 1 : 0.85 }} />
-        {!(isCollapsed && sidebarMounted) && <span style={{ opacity: isActive ? 1 : 0.9 }}>{item.name}</span>}
-      </div>
+      <Icon size={18} className={`${isActive ? 'text-white' : 'text-[#00ab00]'} shrink-0`} />
+      {!(isCollapsed && sidebarMounted) && (
+        <span className={`text-sm font-bold truncate flex-1 ${isActive ? '' : 'group-hover:translate-x-1 transition-transform'}`}>
+          {item.name}
+        </span>
+      )}
       {!(isCollapsed && sidebarMounted) && item.badge && (
-        <span style={{
-          background: item.badge === "Admin" || item.badge === "Root" ? B.green : "#e53e3e", 
-          color: "#fff", fontSize: 10, fontWeight: 700,
-          borderRadius: 99, padding: "1px 7px", lineHeight: "16px",
-        }}>{item.badge}</span>
+        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${
+          item.badge === "Admin" ? 'bg-[#00ab00] text-white' : 'bg-red-500 text-white'
+        }`}>
+          {item.badge}
+        </span>
       )}
     </Link>
   )
@@ -180,7 +132,7 @@ function NavSection({ section, isCollapsed, sidebarMounted, pathname }: any) {
 
   if (isCollapsed && sidebarMounted) {
     return (
-      <div style={{ marginBottom: 8 }}>
+      <div className="mb-4 space-y-1">
         {section.items.map((item: any) => (
           <NavItem key={item.name} item={item} isCollapsed={isCollapsed} sidebarMounted={sidebarMounted} pathname={pathname} />
         ))}
@@ -190,13 +142,11 @@ function NavSection({ section, isCollapsed, sidebarMounted, pathname }: any) {
 
   if (section.flat) {
     return (
-      <div style={{ marginBottom: 20 }}>
-        <div style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-          textTransform: "uppercase", color: "rgba(255,255,255,0.5)",
-          padding: "0 14px", marginBottom: 6,
-        }}>{section.title}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <div className="mb-8">
+        <div className="px-4 mb-2">
+           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">{section.title}</h3>
+        </div>
+        <div className="space-y-1">
           {section.items.map((item: any) => (
             <NavItem key={item.name} item={item} isCollapsed={isCollapsed} sidebarMounted={sidebarMounted} pathname={pathname} />
           ))}
@@ -206,27 +156,16 @@ function NavSection({ section, isCollapsed, sidebarMounted, pathname }: any) {
   }
 
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div className="mb-8">
       <button
         onClick={() => setOpen(o => !o)}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          width: "100%", padding: "0 14px", marginBottom: 6,
-          background: "none", border: "none", cursor: "pointer",
-        }}
+        className="flex items-center justify-between w-full px-4 mb-2 group"
       >
-        <span style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-          textTransform: "uppercase", color: "rgba(255,255,255,0.5)",
-        }}>{section.title}</span>
-        <ChevronDown size={12} style={{
-          color: "rgba(255,255,255,0.3)",
-          transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          transition: "transform 0.2s",
-        }} />
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 group-hover:text-white/50 transition-colors">{section.title}</span>
+        <ChevronDown size={12} className={`text-white/20 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <div className="space-y-1">
           {section.items.map((item: any) => (
             <NavItem key={item.name} item={item} isCollapsed={isCollapsed} sidebarMounted={sidebarMounted} pathname={pathname} />
           ))}
@@ -244,12 +183,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const [isMounted, setIsMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [activeGroup, setActiveGroup] = useState(MOCK_GROUPS[0])
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [isKycModalOpen, setIsKycModalOpen] = useState(false)
   const switcherRef = useRef<HTMLDivElement>(null)
 
   const { isCollapsed, toggle, isMounted: sidebarMounted } = useSidebarState()
+  
+  const { data: groups, isLoading: groupsLoading, isError: groupsError } = useGroups()
+  const activeGroup = groups?.find(g => g.id === activeGroupId) || groups?.[0] || null
+
+  const { data: notifications } = useNotifications(activeGroup?.id || null)
+  const unreadCount = notifications?.filter(n => !n.read_at).length || 0
 
   useEffect(() => {
     setIsMounted(true)
@@ -266,306 +211,196 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (isMounted && !isAuthenticated) router.replace("/login")
   }, [isMounted, isAuthenticated, router])
 
-  if (!isMounted) return (
-    <div className="min-h-screen p-8 space-y-6" style={{ background: B.offWhite }}>
-      <div className="flex gap-4">
-        <Skeleton className="h-12 w-48" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-      <div className="grid grid-cols-4 gap-6">
-        <Skeleton className="h-[80vh] w-full" />
-        <div className="col-span-3 space-y-6">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </div>
-    </div>
-  )
+  if (!isMounted) return null
 
-  if (!isAuthenticated || !user) return (
-    <div className="min-h-screen p-8" style={{ background: B.offWhite }}>
-      <Skeleton className="h-[90vh] w-full" />
-    </div>
-  )
+  if (!isAuthenticated || !user) {
+    return null
+  }
 
-  const navSections = getNavigation(user.role, activeGroup.hasLoanPool)
+  const navSections = activeGroup 
+    ? getNavigation(user.role, (activeGroup.wallet?.loan_pool ?? 0) > 0)
+    : getNavigation(user.role, false)
+
   const showKycBanner = user.kyc_status !== "verified"
-
-  const sidebarW = isCollapsed && sidebarMounted ? 68 : 272
+  const sidebarW = isCollapsed && sidebarMounted ? 80 : 280
 
   return (
-    <div style={{ minHeight: "100vh", background: B.offWhite, display: "flex", fontFamily: "inherit" }}>
-
-      {/* Mobile overlay */}
-      {mobileMenuOpen && (
-        <div
-          onClick={() => setMobileMenuOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 30 }}
-        />
-      )}
-
-      {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
-      <aside style={{
-        position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 40,
-        width: sidebarW,
-        background: B.navy,
-        display: "flex", flexDirection: "column",
-        transition: "width 0.3s",
-        transform: mobileMenuOpen ? "translateX(0)" : undefined,
-        boxShadow: "4px 0 24px rgba(10,37,64,0.18)",
-        overflowX: "hidden",
-      }}>
-
-        {/* Logo */}
-        <div style={{
-          display: "flex", alignItems: "center",
-          justifyContent: isCollapsed && sidebarMounted ? "center" : "space-between",
-          padding: isCollapsed && sidebarMounted ? "20px 0" : "20px 20px",
-          borderBottom: `1px solid ${B.border}`,
-          flexShrink: 0,
-        }}>
-          {!(isCollapsed && sidebarMounted) && (
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.02em" }}>
-                <span style={{ color: B.green }}>Orbi</span>Save
-              </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2, fontWeight: 600 }}>
-                Financial Platform
-              </div>
-            </div>
-          )}
-          <button
-            onClick={toggle}
-            style={{
-              background: "rgba(255,255,255,0.06)", border: "none", cursor: "pointer",
-              borderRadius: 6, width: 30, height: 30,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "rgba(255,255,255,0.45)", flexShrink: 0,
-            }}
-          >
-            <Menu size={15} />
-          </button>
+    <div className="min-h-screen bg-[#f7f9f8] flex">
+      {/* Sidebar */}
+      <aside 
+        style={{ width: sidebarW }}
+        className={`fixed top-0 left-0 bottom-0 z-40 bg-[#0a2540] flex flex-col transition-all duration-300 shadow-2xl border-r border-white/5 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        {/* Sidebar Header */}
+        <div className={`p-6 border-b border-white/5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+           {!isCollapsed && (
+             <div className="flex flex-col">
+                <span className="text-xl font-black text-white tracking-tight"><span className="text-[#00ab00]">Orbi</span>Save</span>
+                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Chama Engine v2</span>
+             </div>
+           )}
+           <button 
+             onClick={toggle}
+             className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+           >
+              <Menu size={16} />
+           </button>
         </div>
 
         {/* Group Switcher */}
-        {!(isCollapsed && sidebarMounted) && (
-          <div style={{ padding: "12px 12px 0", flexShrink: 0 }} ref={switcherRef}>
-            <button
-              onClick={() => setSwitcherOpen(!switcherOpen)}
-              style={{
-                width: "100%", background: "rgba(255,255,255,0.05)",
-                border: `1px solid ${B.border}`, borderRadius: 10,
-                padding: "12px 14px", cursor: "pointer", textAlign: "left",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 10, color: B.green, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Active Group</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{activeGroup.name}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2, textTransform: "capitalize" }}>{activeGroup.role}</div>
-              </div>
-              <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.4)", transform: switcherOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
-            </button>
-
-            {switcherOpen && (
-              <div style={{
-                background: "#0f3460", border: `1px solid ${B.border}`,
-                borderRadius: 10, marginTop: 6, overflow: "hidden",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 14px 6px" }}>My Groups</div>
-                {MOCK_GROUPS.map(g => (
-                  <button key={g.id} onClick={() => { setActiveGroup(g); setSwitcherOpen(false) }}
-                    style={{
-                      width: "100%", textAlign: "left", padding: "10px 14px",
-                      background: activeGroup.id === g.id ? "rgba(0,171,0,0.12)" : "none",
-                      border: "none", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                    }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{g.name}</div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "capitalize" }}>{g.role}</div>
-                    </div>
-                    {activeGroup.id === g.id && <CheckCircle size={14} style={{ color: B.green }} />}
-                  </button>
-                ))}
-                <div style={{ borderTop: `1px solid ${B.border}`, padding: "6px 8px" }}>
-                  <button style={{
-                    width: "100%", textAlign: "left", padding: "9px 10px",
-                    background: "none", border: "none", cursor: "pointer", borderRadius: 6,
-                    display: "flex", alignItems: "center", gap: 8,
-                    fontSize: 13, fontWeight: 700, color: B.green,
-                  }}>
-                    <Plus size={14} /> Create New Group
-                  </button>
+        {!isCollapsed && activeGroup && (
+          <div className="px-4 py-6" ref={switcherRef}>
+             <button 
+               onClick={() => setSwitcherOpen(!switcherOpen)}
+               className="w-full bg-white/5 border border-white/5 rounded-lg p-4 text-left group hover:bg-white/10 transition-all relative"
+             >
+                <p className="text-[9px] font-black uppercase tracking-widest text-[#00ab00] mb-1">Active Pool</p>
+                <div className="flex items-center justify-between">
+                   <span className="text-sm font-bold text-white truncate pr-4">{activeGroup.name}</span>
+                   <ChevronDown size={14} className={`text-white/30 transition-transform ${switcherOpen ? 'rotate-180' : ''}`} />
                 </div>
-              </div>
-            )}
+                
+                {switcherOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f3460] border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                     <div className="p-2 space-y-1">
+                        {groups?.map(g => (
+                          <button 
+                            key={g.id} 
+                            onClick={() => { setActiveGroupId(g.id); setSwitcherOpen(false) }}
+                            className={`w-full text-left p-3 rounded-md text-xs font-bold transition-colors flex items-center justify-between ${
+                              activeGroup.id === g.id ? 'bg-[#00ab00] text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            {g.name}
+                            {activeGroup.id === g.id && <CheckCircle size={12} />}
+                          </button>
+                        ))}
+                        <button 
+                          onClick={() => router.push("/dashboard/settings")}
+                          className="w-full text-left p-3 rounded-md text-xs font-black text-[#00ab00] border-t border-white/5 mt-1 hover:bg-white/5 transition-colors flex items-center gap-2"
+                        >
+                           <Plus size={14} /> Create New Pool
+                        </button>
+                     </div>
+                  </div>
+                )}
+             </button>
           </div>
         )}
 
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: isCollapsed && sidebarMounted ? "12px 8px" : "16px 10px", overflowY: "auto" }}>
-          {navSections.map(section => (
-            <NavSection
-              key={section.title}
-              section={section}
-              isCollapsed={isCollapsed}
-              sidebarMounted={sidebarMounted}
-              pathname={pathname}
-            />
-          ))}
+        {/* Nav Content */}
+        <nav className="flex-1 overflow-y-auto px-4 py-4 scrollbar-hide">
+           {navSections.map(section => (
+             <NavSection
+               key={section.title}
+               section={section}
+               isCollapsed={isCollapsed}
+               sidebarMounted={sidebarMounted}
+               pathname={pathname}
+             />
+           ))}
         </nav>
 
-        {/* User footer */}
-        <div style={{
-          borderTop: `1px solid ${B.border}`,
-          padding: isCollapsed && sidebarMounted ? "14px 0" : "14px 14px",
-          display: "flex", alignItems: "center",
-          justifyContent: isCollapsed && sidebarMounted ? "center" : "flex-start",
-          gap: 10, flexShrink: 0,
-        }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: "50%",
-            background: B.green, display: "flex", alignItems: "center",
-            justifyContent: "center", color: "#fff", fontSize: 13,
-            fontWeight: 800, flexShrink: 0,
-          }}>
-            {user.full_name?.slice(0, 2).toUpperCase() ?? "ME"}
-          </div>
-          {!(isCollapsed && sidebarMounted) && (
-            <>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.full_name}</div>
-                <div style={{ fontSize: 11, color: B.green, fontWeight: 600 }}>View Profile</div>
-              </div>
-              <button
-                onClick={() => { logout(); router.push("/login") }}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", padding: 4, borderRadius: 6 }}
-                title="Sign out"
-              >
-                <LogOut size={15} />
-              </button>
-            </>
-          )}
+        {/* User Footer */}
+        <div className={`p-6 border-t border-white/5 bg-black/10 flex items-center ${isCollapsed ? 'justify-center' : 'gap-4'}`}>
+           <div className="w-10 h-10 rounded-lg bg-[#00ab00] flex items-center justify-center text-white font-black shrink-0 shadow-lg shadow-[#00ab00]/20">
+              {user.full_name?.charAt(0).toUpperCase()}
+           </div>
+           {!isCollapsed && (
+             <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-white truncate">{user.full_name}</p>
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-tighter truncate">{user.role}</p>
+             </div>
+           )}
+           {!isCollapsed && (
+             <button 
+               onClick={() => { logout(); router.push("/login") }}
+               className="text-white/20 hover:text-red-400 transition-colors"
+             >
+                <LogOut size={16} />
+             </button>
+           )}
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
-      <div style={{
-        flex: 1,
-        paddingLeft: sidebarW,
-        display: "flex", flexDirection: "column", minHeight: "100vh",
-        transition: "padding-left 0.3s",
-      }}>
+      {/* Main Container */}
+      <div 
+        className="flex-1 flex flex-col transition-all duration-300"
+        style={{ paddingLeft: sidebarW }}
+      >
+        {/* Top Header */}
+        <header className="h-16 bg-white border-b border-[#d6e4df] flex items-center px-8 sticky top-0 z-30 justify-between">
+           <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden text-[#0a2540]"
+              >
+                <Menu size={20} />
+              </button>
+              <div>
+                 <h2 className="text-lg font-black text-[#0a2540] capitalize tracking-tight">
+                    {pathname === "/dashboard" ? "Overview" : pathname.split("/").pop()?.replace(/-/g, " ")}
+                 </h2>
+              </div>
+           </div>
 
-        {/* Topbar */}
-        <header style={{
-          height: 64, background: "#fff",
-          borderBottom: `1px solid ${B.greenMuted}`,
-          display: "flex", alignItems: "center",
-          padding: "0 32px", gap: 16, flexShrink: 0,
-          position: "sticky", top: 0, zIndex: 20,
-        }}>
-          {/* Mobile menu trigger */}
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            style={{ background: "none", border: "none", cursor: "pointer", display: "none" }}
-            className="md:hidden"
-          >
-            <Menu size={20} />
-          </button>
+           <div className="flex items-center gap-6">
+              <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-[#e9f3ed] border border-[#d6e4df] rounded-lg">
+                 <ShieldCheck size={14} className="text-[#00ab00]" />
+                 <span className="text-[10px] font-black text-[#0a2540] uppercase tracking-widest">{activeGroup?.currency || 'KES'} Escrow Protected</span>
+              </div>
 
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: B.navy, letterSpacing: "-0.01em", textTransform: "capitalize" }}>
-              {pathname === "/dashboard" ? "Overview" : pathname.split("/").pop()?.replace(/-/g, " ")}
-            </div>
-            <div style={{ fontSize: 11, color: B.textMuted, fontWeight: 500, marginTop: 1 }}>{activeGroup.name}</div>
-          </div>
-
-          {/* KCB Trust badge */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "6px 12px", borderRadius: 6,
-            background: B.greenLight, border: `1px solid ${B.greenMuted}`,
-          }}>
-            <Shield size={13} style={{ color: B.green }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: B.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>KCB Trust A/C</span>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: B.green, display: "inline-block" }} />
-          </div>
-
-          {/* Notifications */}
-          <button
-            onClick={() => router.push("/dashboard/notifications")}
-            style={{
-              position: "relative", width: 38, height: 38, borderRadius: 8,
-              background: B.offWhite, border: `1px solid ${B.greenMuted}`,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <Bell size={16} style={{ color: B.textMuted }} />
-            <span style={{
-              position: "absolute", top: -4, right: -4,
-              width: 17, height: 17, borderRadius: "50%",
-              background: "#e53e3e", color: "#fff",
-              fontSize: 9, fontWeight: 800,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              border: "2px solid #fff",
-            }}>3</span>
-          </button>
+              <button 
+                onClick={() => router.push("/dashboard/notifications")}
+                className="w-10 h-10 rounded-lg border border-[#d6e4df] flex items-center justify-center text-[#4a5c6a] hover:bg-gray-50 transition-all relative"
+              >
+                 <Bell size={18} />
+                 {unreadCount > 0 && (
+                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white">
+                      {unreadCount}
+                   </span>
+                 )}
+              </button>
+           </div>
         </header>
 
-        {/* KYC Banner */}
+        {/* KYC Alert */}
         {showKycBanner && (
-          <div style={{
-            background: B.navy,
-            borderBottom: `1px solid rgba(0,171,0,0.25)`,
-            padding: "12px 32px",
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(0,171,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {user.kyc_status === 'submitted' ? (
-                   <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-[#00ab00] animate-spin" />
-                ) : (
-                  <AlertTriangle size={15} style={{ color: B.green }} />
-                )}
-              </div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", margin: 0 }}>
-                {user.kyc_status === 'submitted' ? (
-                  <><strong style={{ color: "#fff" }}>KYC Verification Pending.</strong> Your documents are under manual review by our staff.</>
-                ) : user.kyc_status === 'rejected' ? (
-                  <><strong style={{ color: "#fff" }}>KYC Rejected.</strong> Please resubmit valid documents to unlock your account.</>
-                ) : (
-                  <><strong style={{ color: "#fff" }}>KYC Verification Required.</strong> Complete your identity verification to unlock full features.</>
-                )}
-              </p>
-            </div>
-            {user.kyc_status !== 'submitted' && (
-              <button 
-                onClick={() => setIsKycModalOpen(true)}
-                style={{
-                  fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
-                  background: B.green, color: "#fff", border: "none", borderRadius: 6,
-                  padding: "8px 16px", cursor: "pointer", whiteSpace: "nowrap",
-                }}
-              >
-                {user.kyc_status === 'rejected' ? 'Resubmit KYC' : 'Complete KYC'}
-              </button>
-            )}
+          <div className="bg-[#0a2540] px-8 py-3 flex items-center justify-between border-b border-[#00ab00]/20 animate-in slide-in-from-top duration-500">
+             <div className="flex items-center gap-4">
+                <div className="w-8 h-8 rounded-full bg-[#00ab00]/10 flex items-center justify-center">
+                   {user.kyc_status === 'submitted' ? (
+                      <div className="w-4 h-4 border-2 border-[#00ab00] border-t-transparent rounded-full animate-spin" />
+                   ) : (
+                      <AlertTriangle size={16} className="text-[#00ab00]" />
+                   )}
+                </div>
+                <p className="text-xs font-bold text-white/80">
+                   {user.kyc_status === 'submitted' 
+                     ? "KYC in Review — Your account is being verified by regional compliance staff."
+                     : "Identity Verification Required — Complete your KYC to unlock global pool services."}
+                </p>
+             </div>
+             {user.kyc_status !== 'submitted' && (
+               <button 
+                 onClick={() => setIsKycModalOpen(true)}
+                 className="px-6 py-2 bg-[#00ab00] text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-[#008a00] transition-all shadow-lg shadow-[#00ab00]/20"
+               >
+                  Verify Now
+               </button>
+             )}
           </div>
         )}
 
-        {/* KYC Modal */}
-        <KYCModal isOpen={isKycModalOpen} onClose={() => setIsKycModalOpen(false)} />
-
-        {/* Page content */}
-        <main style={{
-          flex: 1, padding: "32px", overflowY: "auto",
-          background: B.offWhite, maxWidth: 1280, width: "100%", margin: "0 auto",
-        }}>
-          {children}
+        {/* Main Content Area */}
+        <main className="flex-1 p-8 max-w-7xl w-full mx-auto">
+           {children}
         </main>
+
+        <KYCModal isOpen={isKycModalOpen} onClose={() => setIsKycModalOpen(false)} />
+        <GuidedOnboardingModal />
       </div>
     </div>
   )

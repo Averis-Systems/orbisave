@@ -1,5 +1,7 @@
 from rest_framework import serializers
+from decimal import Decimal
 from .models import Loan, LoanRepayment
+from apps.groups.models import Group
 
 
 # ─────────────────────────────────────────────────────────
@@ -17,7 +19,7 @@ class LoanRequestSerializer(serializers.Serializer):
     ]
 
     amount = serializers.DecimalField(
-        max_digits=14, decimal_places=2, min_value='1.00',
+        max_digits=14, decimal_places=2, min_value=Decimal('1.00'),
         error_messages={'min_value': 'Loan amount must be at least 1.00.'}
     )
     purpose = serializers.ChoiceField(choices=ALLOWED_PURPOSES)
@@ -32,11 +34,23 @@ class LoanRequestSerializer(serializers.Serializer):
         }
     )
 
+    group = serializers.PrimaryKeyRelatedField(queryset=Group.objects.none()) # Will be set in __init__
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'request' in self.context:
+            user = self.context['request'].user
+            from apps.groups.models import Group
+            self.fields['group'].queryset = Group.objects.filter(memberships__member=user, memberships__status='active')
+
     def validate_amount(self, value):
-        from decimal import Decimal
         if value <= Decimal('0'):
             raise serializers.ValidationError('Amount must be greater than zero.')
         return value
+
+    def create(self, validated_data):
+        borrower = self.context['request'].user
+        return Loan.objects.create(borrower=borrower, **validated_data)
 
 
 # ─────────────────────────────────────────────────────────
@@ -102,5 +116,6 @@ class LoanListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'borrower_name', 'amount', 'currency',
             'interest_rate_monthly', 'status', 'disbursed_at',
+            'purpose', 'term_weeks',
         ]
         read_only_fields = fields

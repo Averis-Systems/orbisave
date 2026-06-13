@@ -166,6 +166,52 @@ services:
         condition: service_started
     command: npm run dev
 
+  # ──────────────────────────────────────────────────────────────────
+  # Console (super_admin portal) — console.orbisave.com
+  # ──────────────────────────────────────────────────────────────────
+  console:
+    build:
+      context: ../../apps/console
+      dockerfile: ../infrastructure/docker/Dockerfiles/console.Dockerfile
+    container_name: orbisave_console
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ../../apps/console:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - '3002:3002'
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_started
+    command: npm run dev
+
+  # ──────────────────────────────────────────────────────────────────
+  # Manager (platform_admin portal) — manager.orbisave.com
+  # ──────────────────────────────────────────────────────────────────
+  manager:
+    build:
+      context: ../../apps/manager
+      dockerfile: ../infrastructure/docker/Dockerfiles/manager.Dockerfile
+    container_name: orbisave_manager
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ../../apps/manager:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - '3003:3003'
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_started
+    command: npm run dev
+
 volumes:
   postgres_data:
   redis_data:

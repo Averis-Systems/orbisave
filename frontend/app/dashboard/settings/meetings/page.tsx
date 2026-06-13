@@ -1,20 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Save, CheckCircle } from "lucide-react"
+import { Save, CheckCircle, Calendar, Vote, ShieldCheck, Info, ChevronLeft, Settings2, Clock } from "lucide-react"
+import Link from "next/link"
 
 function Field({ label, value, type = "text", hint }: { label: string; value: string; type?: string; hint?: string }) {
   const [val, setVal] = useState(value)
   return (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 6 }}>{label}</label>
+    <div className="space-y-2">
+      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">{label}</label>
       <input
         type={type} value={val} onChange={e => setVal(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }}
-        onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = "#00ab00"}
-        onBlur={e => (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"}
+        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-lg text-sm font-black text-[#0a2540] outline-none focus:ring-2 focus:ring-[#00ab00] transition-all"
       />
-      {hint && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{hint}</div>}
+      {hint && <p className="text-[10px] font-bold text-gray-400 italic">{hint}</p>}
     </div>
   )
 }
@@ -22,16 +21,16 @@ function Field({ label, value, type = "text", hint }: { label: string; value: st
 function Toggle({ label, checked, hint }: { label: string; checked: boolean; hint?: string }) {
   const [on, setOn] = useState(checked)
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #f5f5f5" }}>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#0a2540" }}>{label}</div>
-        {hint && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{hint}</div>}
+    <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+      <div className="pr-4">
+        <p className="text-sm font-black text-[#0a2540]">{label}</p>
+        {hint && <p className="text-[10px] font-bold text-gray-400 mt-1">{hint}</p>}
       </div>
-      <button onClick={() => setOn(!on)} style={{
-        width: 44, height: 24, borderRadius: 99, border: "none", cursor: "pointer", position: "relative",
-        background: on ? "#00ab00" : "#d1d5db", transition: "background 0.2s", flexShrink: 0,
-      }}>
-        <div style={{ position: "absolute", top: 2, left: on ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      <button 
+        onClick={() => setOn(!on)} 
+        className={`w-12 h-6 rounded-full relative transition-colors duration-300 flex-shrink-0 ${on ? 'bg-[#00ab00]' : 'bg-gray-200'}`}
+      >
+        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${on ? 'left-7' : 'left-1'}`} />
       </button>
     </div>
   )
@@ -39,50 +38,94 @@ function Toggle({ label, checked, hint }: { label: string; checked: boolean; hin
 
 export default function MeetingsSettingsPage() {
   const [saved, setSaved] = useState(false)
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+  const handleSave = () => { 
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000) 
+  }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>Meetings Configuration</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>Configure meeting schedules, quorum, and digital voting rules</p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+             <Link href="/dashboard/settings" className="text-gray-400 hover:text-[#00ab00] transition-colors">
+                <ChevronLeft size={16} />
+             </Link>
+             <h1 className="text-3xl font-black text-[#0a2540]">Governance Protocols</h1>
+          </div>
+          <p className="text-gray-500 font-bold">Configure meeting frequency, consensus thresholds, and voting logic.</p>
+        </div>
+        <button 
+          onClick={handleSave} 
+          className={`flex items-center gap-2 px-8 py-4 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
+            saved ? 'bg-green-50 text-[#00ab00] border border-green-100' : 'bg-[#0a2540] text-white shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460]'
+          }`}
+        >
+          {saved ? <><CheckCircle size={16} /> Governance Committed</> : <><Save size={16} /> Update Protocol</>}
+        </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 20 }}>Schedule & Quorum</div>
-
-          <Field label="Meeting Frequency" value="Monthly" hint="Options: Weekly, Monthly, Quarterly" />
-          <Field label="Default Meeting Day" value="Second Sunday" hint="e.g. 'Second Sunday', '15th', 'Last Friday'" />
-          <Field label="Default Time" value="10:00 AM" type="time" />
-          <Field label="Default Venue" value="Online — WhatsApp / Zoom" />
-          <Field label="Notice Period (days)" value="7" type="number" hint="Days before meeting to send invitations" />
-          <Field label="Quorum Threshold (%)" value="60" type="number" hint="Minimum % of members required for valid meeting" />
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 20 }}>Digital Voting</div>
-
-          <Toggle label="Enable in-app digital voting" checked={true} hint="Members vote on resolutions through the dashboard" />
-          <Toggle label="Allow proxy voting" checked={false} hint="Members can authorize another to vote on their behalf" />
-          <Toggle label="Require quorum before opening vote" checked={true} />
-          <Toggle label="Show live vote results during meeting" checked={true} />
-          <Toggle label="Send meeting minutes automatically" checked={true} hint="Minutes sent to all members after meeting closes" />
-          <Toggle label="Record attendance automatically" checked={true} hint="Tracks who opened the meeting in-app" />
-          <Toggle label="Allow agenda items from members" checked={false} hint="Members can submit topics for chairperson review" />
-
-          <div style={{ marginTop: 24 }}>
-            <Field label="Vote Validity Window (hours)" value="48" type="number" hint="How long a vote stays open for online members" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Schedule & Cadence */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 shadow-sm">
+                <Calendar size={20} />
+             </div>
+             <div>
+                <h3 className="text-lg font-black text-[#0a2540]">Session Cadence</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Scheduling & Quorum</p>
+             </div>
           </div>
 
-          <button onClick={handleSave} style={{
-            marginTop: 8, width: "100%", padding: "12px", borderRadius: 8, border: "none",
-            background: saved ? "#e9f3ed" : "#0a2540", color: saved ? "#016828" : "#fff",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          }}>
-            {saved ? <><CheckCircle size={14} /> Saved!</> : <><Save size={14} /> Save Meeting Settings</>}
-          </button>
+          <div className="space-y-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Field label="Meeting Frequency" value="Monthly" hint="cadence level" />
+                <Field label="Standard Recurrence" value="Second Sunday" hint="day of cycle" />
+             </div>
+             <div className="grid grid-cols-2 gap-6">
+                <Field label="Execution Time" value="10:00 AM" type="time" />
+                <Field label="Notice Window (Days)" value="7" type="number" />
+             </div>
+             <Field label="Primary Virtual Venue" value="WhatsApp / Zoom / OrbiMeet" />
+             <Field label="Consensus Quorum (%)" value="60" type="number" hint="Min attendance for resolution validity." />
+          </div>
+        </div>
+
+        {/* Digital Voting Logic */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8 flex flex-col h-full">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="w-10 h-10 rounded-lg bg-[#00ab00]/10 flex items-center justify-center text-[#00ab00] border border-[#00ab00]/20 shadow-sm">
+                <Vote size={20} />
+             </div>
+             <div>
+                <h3 className="text-lg font-black text-[#0a2540]">Consensus Logic</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Digital Voting & Minutes</p>
+             </div>
+          </div>
+
+          <div className="space-y-6 flex-1">
+             <Toggle label="App-Native Voting" checked={true} hint="Authorized resolution voting within dashboard." />
+             <Toggle label="Proxy Delegation" checked={false} hint="Allow members to assign voting weight to others." />
+             <Toggle label="Quorum Interlock" checked={true} hint="Prevent voting if quorum threshold isn't met." />
+             <Toggle label="Real-time Analytics" checked={true} hint="Display live vote progression to participants." />
+             
+             <div className="pt-6 border-t border-gray-50 space-y-4">
+                <Field label="Ballot Validity (Hours)" value="48" type="number" hint="Window for asynchronous remote voting." />
+                <div className="space-y-2">
+                   <Toggle label="Automated Minutes" checked={true} hint="Auto-distribute minutes via PDF after adjournment." />
+                   <Toggle label="Presence Tracking" checked={true} hint="Auto-record attendance based on session entry." />
+                </div>
+             </div>
+          </div>
+
+          {/* Compliance Banner */}
+          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100 flex items-start gap-3">
+             <ShieldCheck size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+             <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
+                All digital votes are cryptographically signed and stored in the group archive for auditability. High-impact resolutions (bylaw changes) require 75% consensus.
+             </p>
+          </div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.core.cache import cache
 from .models import Group, GroupMember
 from django.db.models import Sum
+from common.db_utils import get_db_for_group
 
 class WalletCalculations:
     @staticmethod
@@ -18,7 +19,8 @@ class WalletCalculations:
 
         # Cache Miss - Compute it dynamically and save.
         # This will be invalidated upon ANY new LedgerEntry insertion via a Django Signal.
-        entries = group.ledger_entries.all()
+        db_alias = group._state.db or get_db_for_group(group)
+        entries = group.ledger_entries.using(db_alias).all()
         total_credits = entries.filter(direction='credit').aggregate(Sum('amount'))['amount__sum'] or 0
         total_debits  = entries.filter(direction='debit').aggregate(Sum('amount'))['amount__sum'] or 0
         total = total_credits - total_debits
@@ -48,13 +50,22 @@ class GroupCreateSerializer(serializers.ModelSerializer):
             'name', 'description', 'country', 'max_members', 'contribution_amount',
             'contribution_frequency', 'contribution_day', 'rotation_savings_pct',
             'loan_pool_pct', 'max_loan_multiplier', 'loan_term_weeks',
-            'loan_interest_rate_monthly', 'rotation_method'
+            'loan_interest_rate_monthly', 'mandatory_savings_amount',
+            'savings_access_month', 'savings_access_day', 'rotation_method'
         ]
 
     def validate(self, data):
         total = data.get('rotation_savings_pct', 0) + data.get('loan_pool_pct', 0)
         if total != 100:
             raise serializers.ValidationError({"error": "rotation_savings_pct + loan_pool_pct must exactly equal 100."})
+        access_month = data.get('savings_access_month')
+        access_day = data.get('savings_access_day')
+        if (access_month is None) != (access_day is None):
+            raise serializers.ValidationError({"error": "savings_access_month and savings_access_day must be provided together."})
+        if access_month is not None and not 1 <= access_month <= 12:
+            raise serializers.ValidationError({"error": "savings_access_month must be between 1 and 12."})
+        if access_day is not None and not 1 <= access_day <= 31:
+            raise serializers.ValidationError({"error": "savings_access_day must be between 1 and 31."})
         return data
 
     def create(self, validated_data):
@@ -64,9 +75,10 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         country = validated_data.get('country')
         validated_data['currency'] = currency_map.get(country, 'USD')
         validated_data['chairperson'] = user
+        validated_data['status'] = 'pending_activation'
+        validated_data['verification_status'] = 'pending_review'
         
-        # Will inherently save to the correct Multi-DB based on the `using(country)` logic.
-        return super().create(validated_data)
+        return Group.objects.using(country).create(**validated_data)
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -82,8 +94,10 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'country', 'currency', 'status',
             'max_members', 'contribution_amount', 'contribution_frequency',
-            'contribution_day', 'wallet', 'chairperson_name', 'member_count',
-            'created_at'
+            'contribution_day', 'mandatory_savings_amount',
+            'savings_access_month', 'savings_access_day',
+            'verification_status', 'wallet', 'chairperson_name',
+            'member_count', 'created_at'
         ]
 
     def get_wallet(self, obj):
@@ -102,3 +116,16 @@ class GroupMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroupMember
         fields = ['id', 'member', 'member_name', 'member_email', 'role', 'status', 'joined_at', 'rotation_position']
+
+from .models import RotationCycle, RotationSchedule
+
+class RotationCycleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RotationCycle
+        fields = ['id', 'cycle_number', 'start_date', 'end_date', 'is_current', 'status', 'total_contributions', 'total_payouts']
+
+class RotationScheduleSerializer(serializers.ModelSerializer):
+    member_name = serializers.CharField(source='member.full_name', read_only=True)
+    class Meta:
+        model = RotationSchedule
+        fields = ['id', 'member', 'member_name', 'cycle_number', 'scheduled_payout_date', 'is_paid_out']

@@ -1,0 +1,670 @@
+"""Admin Portal — Extended views for groups, loans, contributions, audit, analytics."""
+from django.utils import timezone
+from django.db.models import Sum, Count, Q
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from apps.groups.models import Group, GroupMember
+from apps.loans.models import Loan
+from apps.contributions.models import Contribution
+from apps.audit.models import AuditLog
+from apps.accounts.models import User
+from .views import IsPlatformAdmin, IsSuperAdmin
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+
+def _country_scope(request):
+    """Return queryset filter dict scoped to admin's country."""
+    if request.user.role == 'super_admin':
+        return {}
+    return {'country': request.user.country}
+
+
+# ── Group Detail ─────────────────────────────────────────────────────────────
+
+class AdminGroupDetailView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request, group_id):
+        scope = _country_scope(request)
+        try:
+            g = Group.objects.select_related('chairperson', 'treasurer', 'verified_by').get(
+                id=group_id, **scope
+            )
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found.'}, status=404)
+
+        from apps.ledger.models import LedgerEntry
+        from apps.payouts.models import Payout
+
+        wallet = LedgerEntry.objects.filter(group=g).aggregate(
+            total_contributions=Sum('amount', filter=Q(entry_type='contribution', direction='credit')),
+            total_payouts=Sum('amount', filter=Q(entry_type='payout', direction='debit')),
+            total_loans_out=Sum('amount', filter=Q(entry_type='loan_disbursement', direction='debit')),
+            total_repaid=Sum('amount', filter=Q(entry_type='loan_repayment', direction='credit')),
+        )
+
+        members = GroupMember.objects.filter(group=g).select_related('member')
+        loans = Loan.objects.filter(group=g).select_related('borrower')
+        contribs = Contribution.objects.filter(group=g)
+
+        return Response({
+            'id': str(g.id),
+            'name': g.name,
+            'description': g.description,
+            'country': g.country,
+            'currency': g.currency,
+            'status': g.status,
+            'verification_status': g.verification_status,
+            'verification_note': g.verification_note,
+            'verified_at': g.verified_at.isoformat() if g.verified_at else None,
+            'verified_by': g.verified_by.full_name if g.verified_by else None,
+            'chairperson': {
+                'id': str(g.chairperson.id),
+                'name': g.chairperson.full_name,
+                'email': g.chairperson.email,
+                'phone': g.chairperson.phone,
+                'kyc_status': g.chairperson.kyc_status,
+            } if g.chairperson_id else None,
+            'treasurer': {
+                'id': str(g.treasurer.id),
+                'name': g.treasurer.full_name,
+                'email': g.treasurer.email,
+            } if g.treasurer_id else None,
+            'contribution_amount': str(g.contribution_amount),
+            'contribution_frequency': g.contribution_frequency,
+            'max_members': g.max_members,
+            'rotation_savings_pct': str(g.rotation_savings_pct),
+            'loan_pool_pct': str(g.loan_pool_pct),
+            'max_loan_multiplier': str(g.max_loan_multiplier),
+            'loan_interest_rate_monthly': str(g.loan_interest_rate_monthly),
+            'invite_code': g.invite_code,
+            'trust_account_ref': g.trust_account_ref,
+            'created_at': g.created_at.isoformat(),
+            'member_count': members.filter(status='active').count(),
+            'wallet': {
+                'total_contributions': str(wallet['total_contributions'] or 0),
+                'total_payouts': str(wallet['total_payouts'] or 0),
+                'total_loans_disbursed': str(wallet['total_loans_out'] or 0),
+                'total_loan_repayments': str(wallet['total_repaid'] or 0),
+            },
+            'loan_summary': {
+                'total': loans.count(),
+                'pending_admin': loans.filter(status='pending_admin').count(),
+                'active': loans.filter(status='active').count(),
+                'defaulted': loans.filter(status='defaulted').count(),
+            },
+            'contribution_summary': {
+                'total': contribs.count(),
+                'confirmed': contribs.filter(status='confirmed').count(),
+                'failed': contribs.filter(status='failed').count(),
+                'pending': contribs.filter(status__in=['scheduled', 'initiated', 'pending']).count(),
+            },
+        })
+
+
+class AdminGroupMembersView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request, group_id):
+        scope = _country_scope(request)
+        try:
+            g = Group.objects.get(id=group_id, **scope)
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found.'}, status=404)
+
+        members = GroupMember.objects.filter(group=g).select_related('member').order_by('rotation_position')
+        results = []
+        for m in members:
+            u = m.member
+            confirmed = Contribution.objects.filter(group=g, member=u, status='confirmed').count()
+            total_scheduled = Contribution.objects.filter(group=g, member=u).count()
+            results.append({
+                'membership_id': str(m.id),
+                'user_id': str(u.id),
+                'full_name': u.full_name,
+                'email': u.email,
+                'phone': u.phone,
+                'kyc_status': u.kyc_status,
+                'role': m.role if hasattr(m, 'role') else 'member',
+                'status': m.status,
+                'rotation_position': m.rotation_position,
+                'joined_at': m.joined_at.isoformat(),
+                'contributions_confirmed': confirmed,
+                'contributions_total': total_scheduled,
+                'compliance_rate': round((confirmed / total_scheduled * 100) if total_scheduled else 0, 1),
+            })
+        return Response({'count': len(results), 'results': results})
+
+
+class AdminGroupContributionsView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request, group_id):
+        scope = _country_scope(request)
+        try:
+            g = Group.objects.get(id=group_id, **scope)
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found.'}, status=404)
+
+        qs = Contribution.objects.filter(group=g).select_related('member').order_by('-created_at')
+        s = request.query_params.get('status')
+        if s:
+            qs = qs.filter(status=s)
+
+        page = int(request.query_params.get('page', 1))
+        page_size = 50
+        offset = (page - 1) * page_size
+        total = qs.count()
+
+        results = []
+        for c in qs[offset:offset + page_size]:
+            results.append({
+                'id': str(c.id),
+                'member_name': c.member.full_name,
+                'member_phone': c.member.phone,
+                'amount': str(c.amount),
+                'currency': c.currency,
+                'method': c.method,
+                'mobile_number': c.mobile_number,
+                'provider_reference': c.provider_reference,
+                'platform_reference': c.platform_reference,
+                'status': c.status,
+                'scheduled_date': c.scheduled_date.isoformat() if c.scheduled_date else None,
+                'confirmed_at': c.confirmed_at.isoformat() if c.confirmed_at else None,
+                'failure_reason': c.failure_reason,
+                'retry_count': c.retry_count,
+                'created_at': c.created_at.isoformat(),
+            })
+        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+
+
+class AdminGroupLoansView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request, group_id):
+        scope = _country_scope(request)
+        try:
+            g = Group.objects.get(id=group_id, **scope)
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found.'}, status=404)
+
+        qs = Loan.objects.filter(group=g).select_related('borrower').order_by('-created_at')
+        s = request.query_params.get('status')
+        if s:
+            qs = qs.filter(status=s)
+
+        results = []
+        for loan in qs[:100]:
+            results.append({
+                'id': str(loan.id),
+                'borrower_name': loan.borrower.full_name,
+                'borrower_phone': loan.borrower.phone,
+                'amount': str(loan.amount),
+                'currency': loan.currency,
+                'purpose': loan.purpose,
+                'status': loan.status,
+                'interest_rate_monthly': str(loan.interest_rate_monthly),
+                'term_weeks': loan.term_weeks,
+                'disbursed_at': loan.disbursed_at.isoformat() if loan.disbursed_at else None,
+                'fully_repaid_at': loan.fully_repaid_at.isoformat() if loan.fully_repaid_at else None,
+                'created_at': loan.created_at.isoformat(),
+            })
+        return Response({'count': qs.count(), 'results': results})
+
+
+class AdminGroupLedgerView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request, group_id):
+        scope = _country_scope(request)
+        try:
+            g = Group.objects.get(id=group_id, **scope)
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found.'}, status=404)
+
+        from apps.ledger.models import LedgerEntry
+        qs = LedgerEntry.objects.filter(group=g).select_related('member').order_by('-created_at')
+
+        page = int(request.query_params.get('page', 1))
+        page_size = 50
+        offset = (page - 1) * page_size
+        total = qs.count()
+
+        results = []
+        for e in qs[offset:offset + page_size]:
+            results.append({
+                'id': str(e.id),
+                'entry_type': e.entry_type,
+                'direction': e.direction,
+                'amount': str(e.amount),
+                'currency': e.currency,
+                'running_balance': str(e.running_balance),
+                'description': e.description,
+                'reference': e.reference,
+                'member_name': e.member.full_name if e.member_id else None,
+                'hash': e.hash[:16] + '...' if e.hash else None,
+                'created_at': e.created_at.isoformat(),
+            })
+        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+
+
+# ── Loan Administration ───────────────────────────────────────────────────────
+
+class AdminLoanListView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        qs = Loan.objects.select_related('borrower', 'group').filter(group__country=scope.get('country', None) or Q())
+        if 'country' in scope:
+            qs = Loan.objects.select_related('borrower', 'group').filter(group__country=scope['country'])
+        else:
+            qs = Loan.objects.select_related('borrower', 'group').all()
+
+        s = request.query_params.get('status')
+        if s:
+            qs = qs.filter(status=s)
+
+        results = []
+        for loan in qs.order_by('-created_at')[:200]:
+            results.append({
+                'id': str(loan.id),
+                'borrower_name': loan.borrower.full_name,
+                'borrower_phone': loan.borrower.phone,
+                'group_name': loan.group.name,
+                'group_country': loan.group.country,
+                'amount': str(loan.amount),
+                'currency': loan.currency,
+                'purpose': loan.purpose,
+                'status': loan.status,
+                'created_at': loan.created_at.isoformat(),
+                'chair_approved_at': loan.chair_approved_at.isoformat() if loan.chair_approved_at else None,
+                'treasurer_approved_at': loan.treasurer_approved_at.isoformat() if loan.treasurer_approved_at else None,
+            })
+        return Response({'count': qs.count(), 'results': results})
+
+
+class AdminLoanApproveView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def post(self, request, loan_id):
+        try:
+            loan = Loan.objects.select_related('borrower', 'group').get(id=loan_id)
+        except Loan.DoesNotExist:
+            return Response({'error': 'Loan not found.'}, status=404)
+
+        if request.user.role != 'super_admin':
+            if loan.group.country != request.user.country:
+                return Response({'error': 'Forbidden.'}, status=403)
+
+        action = request.data.get('action')
+        reason = request.data.get('reason', '').strip()
+
+        if action == 'approve':
+            if loan.status != 'pending_admin':
+                return Response({'error': f'Loan is not pending admin approval (current: {loan.status}).'}, status=400)
+            loan.status = 'approved'
+            loan.admin_approved_by = request.user
+            loan.admin_approved_at = timezone.now()
+            loan.save(update_fields=['status', 'admin_approved_by', 'admin_approved_at'])
+            from apps.audit.services import log_audit
+            log_audit(action='loan_admin_approved', actor=request.user,
+                      target_user=loan.borrower, target_group=loan.group,
+                      ip_address=request.META.get('REMOTE_ADDR'),
+                      metadata={'amount': str(loan.amount)})
+            return Response({'message': 'Loan approved. Disbursement is pending.', 'status': 'approved'})
+
+        elif action == 'disburse':
+            if loan.status != 'approved':
+                return Response({'error': f'Loan is not approved for disbursement (current: {loan.status}).'}, status=400)
+            from apps.loans.services import LoanEngine
+            loan = LoanEngine.disburse_loan(
+                loan,
+                actor=request.user,
+                disbursement_reference=request.data.get('disbursement_reference') or None,
+            )
+            from apps.audit.services import log_audit
+            log_audit(action='loan_disbursed', actor=request.user,
+                      target_user=loan.borrower, target_group=loan.group,
+                      ip_address=request.META.get('REMOTE_ADDR'),
+                      metadata={'amount': str(loan.amount), 'reference': loan.disbursement_reference})
+            return Response({'message': 'Loan disbursed.', 'status': loan.status})
+
+        elif action == 'reject':
+            if not reason:
+                return Response({'error': 'Reason required for rejection.'}, status=400)
+            loan.status = 'rejected'
+            loan.admin_rejection_reason = reason
+            loan.admin_approved_by = request.user
+            loan.admin_approved_at = timezone.now()
+            loan.save(update_fields=['status', 'admin_rejection_reason', 'admin_approved_by', 'admin_approved_at'])
+            from apps.audit.services import log_audit
+            log_audit(action='loan_admin_rejected', actor=request.user,
+                      target_user=loan.borrower, target_group=loan.group,
+                      ip_address=request.META.get('REMOTE_ADDR'),
+                      metadata={'reason': reason})
+            return Response({'message': 'Loan rejected.', 'status': 'rejected'})
+
+        return Response({'error': 'action must be "approve" or "reject".'}, status=400)
+
+
+# ── Contributions Monitor ─────────────────────────────────────────────────────
+
+class AdminContributionsView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        if 'country' in scope:
+            qs = Contribution.objects.filter(group__country=scope['country'])
+        else:
+            qs = Contribution.objects.all()
+
+        qs = qs.select_related('member', 'group').order_by('-created_at')
+        s = request.query_params.get('status')
+        search = request.query_params.get('search', '').strip()
+        if s:
+            qs = qs.filter(status=s)
+        if search:
+            qs = qs.filter(
+                Q(member__full_name__icontains=search) |
+                Q(provider_reference__icontains=search)
+            )
+
+        page = int(request.query_params.get('page', 1))
+        page_size = 50
+        offset = (page - 1) * page_size
+        total = qs.count()
+
+        results = []
+        for c in qs[offset:offset + page_size]:
+            results.append({
+                'id': str(c.id),
+                'member_name': c.member.full_name,
+                'member_phone': c.member.phone,
+                'group_name': c.group.name,
+                'amount': str(c.amount),
+                'currency': c.currency,
+                'method': c.method,
+                'provider_reference': c.provider_reference,
+                'status': c.status,
+                'scheduled_date': c.scheduled_date.isoformat() if c.scheduled_date else None,
+                'confirmed_at': c.confirmed_at.isoformat() if c.confirmed_at else None,
+                'failure_reason': c.failure_reason,
+                'retry_count': c.retry_count,
+                'created_at': c.created_at.isoformat(),
+            })
+        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+
+
+# ── Audit Trail ───────────────────────────────────────────────────────────────
+
+class AdminAuditView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        qs = AuditLog.objects.select_related('actor', 'target_user').order_by('-created_at')
+        if 'country' in scope:
+            qs = qs.filter(country=scope['country'])
+
+        action_filter = request.query_params.get('action')
+        search = request.query_params.get('search', '').strip()
+        date_from = request.query_params.get('from')
+        date_to = request.query_params.get('to')
+
+        if action_filter:
+            qs = qs.filter(action=action_filter)
+        if search:
+            qs = qs.filter(
+                Q(actor__full_name__icontains=search) |
+                Q(actor__email__icontains=search)
+            )
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        page = int(request.query_params.get('page', 1))
+        page_size = 50
+        offset = (page - 1) * page_size
+        total = qs.count()
+
+        results = []
+        for log in qs[offset:offset + page_size]:
+            results.append({
+                'id': str(log.id),
+                'action': log.action,
+                'actor_name': log.actor.full_name if log.actor_id else 'System',
+                'actor_email': log.actor.email if log.actor_id else None,
+                'target_user': log.target_user.full_name if log.target_user_id else None,
+                'country': log.country,
+                'ip_address': log.ip_address,
+                'metadata': log.metadata,
+                'previous_state': log.previous_state,
+                'new_state': log.new_state,
+                'session_id': log.session_id,
+                'created_at': log.created_at.isoformat(),
+            })
+        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+class AdminAnalyticsView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        country = scope.get('country') or request.query_params.get('country')
+
+        group_qs = Group.objects.all()
+        user_qs = User.objects.all()
+        contrib_qs = Contribution.objects.all()
+        loan_qs = Loan.objects.all()
+
+        if country:
+            group_qs = group_qs.filter(country=country)
+            user_qs = user_qs.filter(country=country)
+            contrib_qs = contrib_qs.filter(group__country=country)
+            loan_qs = loan_qs.filter(group__country=country)
+
+        from django.utils.timezone import now
+        from datetime import timedelta
+        this_month = now().replace(day=1, hour=0, minute=0, second=0)
+        last_month = (this_month - timedelta(days=1)).replace(day=1)
+
+        contrib_this_month = contrib_qs.filter(
+            status='confirmed', confirmed_at__gte=this_month
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        contrib_last_month = contrib_qs.filter(
+            status='confirmed',
+            confirmed_at__gte=last_month,
+            confirmed_at__lt=this_month
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        # Monthly contribution trend (last 6 months)
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            month_start = (now().replace(day=1) - timedelta(days=30 * i)).replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+            month_end = (month_start + timedelta(days=32)).replace(day=1)
+            val = contrib_qs.filter(
+                status='confirmed',
+                confirmed_at__gte=month_start,
+                confirmed_at__lt=month_end
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            monthly_trend.append({
+                'month': month_start.strftime('%b %Y'),
+                'contributions': float(val),
+            })
+
+        return Response({
+            'summary': {
+                'total_groups': group_qs.count(),
+                'active_groups': group_qs.filter(status='active').count(),
+                'pending_review': group_qs.filter(verification_status='pending_review').count(),
+                'total_members': user_qs.filter(role__in=['member', 'chairperson', 'treasurer']).count(),
+                'kyc_verified': user_qs.filter(kyc_status='verified').count(),
+                'kyc_pending': user_qs.filter(kyc_status='submitted').count(),
+                'total_contributions_this_month': float(contrib_this_month),
+                'total_contributions_last_month': float(contrib_last_month),
+                'active_loans': loan_qs.filter(status='active').count(),
+                'pending_admin_loans': loan_qs.filter(status='pending_admin').count(),
+                'defaulted_loans': loan_qs.filter(status='defaulted').count(),
+                'total_loan_value': float(
+                    loan_qs.filter(status__in=['active', 'disbursed']).aggregate(
+                        t=Sum('amount'))['t'] or 0
+                ),
+            },
+            'monthly_contribution_trend': monthly_trend,
+        })
+
+
+# ── User Actions ──────────────────────────────────────────────────────────────
+
+class AdminUserDetailView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request, user_id):
+        scope = _country_scope(request)
+        try:
+            u = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=404)
+        if 'country' in scope and u.country != scope['country']:
+            return Response({'error': 'Forbidden.'}, status=403)
+
+        memberships = GroupMember.objects.filter(member=u).select_related('group')
+        audit_logs = AuditLog.objects.filter(
+            Q(actor=u) | Q(target_user=u)
+        ).order_by('-created_at')[:50]
+
+        from apps.accounts.serializers import KYCDocumentSerializer
+        kyc_docs = u.kyc_documents.all()
+
+        return Response({
+            'id': str(u.id),
+            'full_name': u.full_name,
+            'email': u.email,
+            'phone': u.phone,
+            'role': u.role,
+            'country': u.country,
+            'kyc_status': u.kyc_status,
+            'phone_verified': u.phone_verified,
+            'two_factor_enabled': u.two_factor_enabled,
+            'mobile_money_provider': u.mobile_money_provider,
+            'mobile_money_number': u.mobile_money_number,
+            'last_login_ip': u.last_login_ip,
+            'is_active': u.is_active,
+            'date_of_birth': u.date_of_birth.isoformat() if u.date_of_birth else None,
+            'national_id': u.national_id,
+            'created_at': u.created_at.isoformat(),
+            'kyc_documents': KYCDocumentSerializer(kyc_docs, many=True, context={'request': request}).data,
+            'group_memberships': [
+                {
+                    'group_id': str(m.group.id),
+                    'group_name': m.group.name,
+                    'role': m.role if hasattr(m, 'role') else 'member',
+                    'status': m.status,
+                    'joined_at': m.joined_at.isoformat(),
+                }
+                for m in memberships
+            ],
+            'recent_audit': [
+                {
+                    'action': a.action,
+                    'actor': a.actor.full_name if a.actor_id else 'System',
+                    'country': a.country,
+                    'ip_address': a.ip_address,
+                    'created_at': a.created_at.isoformat(),
+                    'metadata': a.metadata,
+                }
+                for a in audit_logs
+            ],
+        })
+
+
+class AdminUserSuspendView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def post(self, request, user_id):
+        try:
+            u = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=404)
+
+        scope = _country_scope(request)
+        if 'country' in scope and u.country != scope['country']:
+            return Response({'error': 'Forbidden.'}, status=403)
+        if u.role in ('super_admin', 'platform_admin'):
+            return Response({'error': 'Cannot suspend admin accounts from this portal.'}, status=403)
+
+        action = request.data.get('action', 'suspend')
+        reason = request.data.get('reason', '')
+
+        if action == 'suspend':
+            u.is_active = False
+            u.save(update_fields=['is_active'])
+            from apps.audit.services import log_audit
+            log_audit(action='admin_action', actor=request.user, target_user=u,
+                      country=u.country, ip_address=request.META.get('REMOTE_ADDR'),
+                      metadata={'action': 'suspend', 'reason': reason})
+            return Response({'message': f'{u.full_name} suspended.', 'is_active': False})
+        else:
+            u.is_active = True
+            u.save(update_fields=['is_active'])
+            from apps.audit.services import log_audit
+            log_audit(action='admin_action', actor=request.user, target_user=u,
+                      country=u.country, ip_address=request.META.get('REMOTE_ADDR'),
+                      metadata={'action': 'reinstate'})
+            return Response({'message': f'{u.full_name} reinstated.', 'is_active': True})
+
+
+# ── Trust Account ─────────────────────────────────────────────────────────────
+
+class AdminTrustAccountView(APIView):
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        country = scope.get('country') or request.query_params.get('country', 'kenya')
+
+        # Fetch live balance from configured bank provider
+        balance_data = {'balance': None, 'currency': None, 'error': None, 'source': 'bank_api'}
+        try:
+            from apps.payments.selector import get_payment_provider
+            provider = get_payment_provider(country)
+            if hasattr(provider, 'get_account_balance'):
+                raw = provider.get_account_balance()
+                balance_data['balance'] = raw.get('balances', [{}])[0].get('amount', 0)
+                balance_data['currency'] = raw.get('balances', [{}])[0].get('currency', '')
+                balance_data['fetched_at'] = timezone.now().isoformat()
+            else:
+                balance_data['error'] = 'Provider does not support account balance queries.'
+        except Exception as exc:
+            balance_data['error'] = str(exc)
+            balance_data['source'] = 'error'
+
+        # Ledger total for this country
+        from apps.ledger.models import LedgerEntry
+        ledger_total = LedgerEntry.objects.filter(
+            group__country=country
+        ).aggregate(
+            credits=Sum('amount', filter=Q(direction='credit')),
+            debits=Sum('amount', filter=Q(direction='debit')),
+        )
+        ledger_net = float(ledger_total['credits'] or 0) - float(ledger_total['debits'] or 0)
+
+        return Response({
+            'country': country,
+            'bank_balance': balance_data,
+            'ledger_net': ledger_net,
+            'delta': float(balance_data.get('balance') or 0) - ledger_net,
+            'last_reconciled_at': None,  # TODO: store reconciliation records
+        })

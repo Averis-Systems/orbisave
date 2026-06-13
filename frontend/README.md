@@ -38,6 +38,24 @@ Refer to the [Root README](../README.md) for Docker commands. The Dockerized fro
 
 ---
 
+## 🛡️ Administrative Portals
+
+OrbiSave features two dedicated administrative environments, located in the `apps/` directory. Access is restricted to accounts with the `@averissystems.com` corporate domain.
+
+### 1. Console (Global Oversight)
+- **Directory**: `apps/console/`
+- **Dev Command**: `npm run dev` (Port 3002)
+- **Role**: `super_admin`
+- **URL**: [http://localhost:3002](http://localhost:3002)
+
+### 2. Manager (Regional Operations)
+- **Directory**: `apps/manager/`
+- **Dev Command**: `npm run dev` (Port 3003)
+- **Role**: `platform_admin`
+- **URL**: [http://localhost:3003](http://localhost:3003)
+
+---
+
 ## 📂 Key Directories
 - **`app/`**: Route handlers and page components.
   - `chama-onboarding/`: The 5-step leader registration flow.

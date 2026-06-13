@@ -9,6 +9,7 @@
 OrbiSave is structured as a **Turborepo monorepo**, managing a modern Next.js frontend and a robust Django financial engine in a single, synchronized codebase.
 
 - **Frontend**: Next.js 14/16 with GSAP animations and Tailwind CSS.
+- **Admin Portals**: Dedicated portals for global oversight (**Console**) and regional management (**Manager**).
 - **Backend**: Django 5.0 with a multi-database financial routing engine.
 - **Packages**: Shared TypeScript types and utilities located in `frontend/packages/`.
 
@@ -29,7 +30,9 @@ The easiest way to get the entire stack running (including Databases, Redis, Cel
 docker-compose -f infrastructure/docker/docker-compose.yml up --build
 ```
 
-- **Frontend**: [http://localhost:3001](http://localhost:3001)
+- **Frontend (Web)**: [http://localhost:3001](http://localhost:3001)
+- **Console (Super Admin)**: [http://localhost:3002](http://localhost:3002)
+- **Manager (Regional Admin)**: [http://localhost:3003](http://localhost:3003)
 - **Backend API**: [http://localhost:8000/api/v1](http://localhost:8000/api/v1)
 - **Flower (Tasks)**: [http://localhost:5555](http://localhost:5555)
 
@@ -68,7 +71,10 @@ npm run dev
 
 ```text
 orbisave/
-├── frontend/                  # Next.js App Router & Shared Packages
+├── apps/                      # Administrative Portals
+│   ├── console/               # Global oversight (console.orbisave.com)
+│   └── manager/               # Regional management (manager.orbisave.com)
+├── frontend/                  # Member Web App & Shared Packages
 │   ├── app/                   # Dashboard & Onboarding pages
 │   └── packages/              # @orbisave/shared-types, @orbisave/shared-utils
 ├── backend/                   # Django 5 Project (13 focused apps)

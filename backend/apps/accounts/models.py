@@ -48,10 +48,31 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     is_active              = models.BooleanField(default=True)
     is_staff               = models.BooleanField(default=False)
     last_login_ip          = models.GenericIPAddressField(null=True, blank=True)
+
+    # ─ Onboarding & Financial Preferences ───────────────
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other'),
+        ('prefer_not_to_say', 'Prefer not to say'),
+    ]
+    DISBURSEMENT_CHOICES = [
+        ('mobile_money', 'Mobile Money'),
+        ('bank_transfer', 'Bank Transfer'),
+    ]
+    gender                 = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True)
     next_of_kin_name       = models.CharField(max_length=255, blank=True)
     next_of_kin_phone      = models.CharField(max_length=20, blank=True)
+    disbursement_method    = models.CharField(max_length=20, choices=DISBURSEMENT_CHOICES, default='mobile_money')
+    bank_name              = models.CharField(max_length=100, blank=True)
+    bank_account_number    = models.CharField(max_length=50, blank=True)
+    onboarding_popup_seen  = models.BooleanField(default=False)
+    languages              = models.JSONField(default=list, blank=True, help_text="List of preferred languages (max 2)")
+
     # Argon2id-hashed 4-digit PIN — SOLE transaction PIN field (transaction_pin_hash removed).
     transaction_pin        = models.CharField(max_length=255, blank=True, help_text="Argon2id hashed 4-digit transaction verification code")
+    transaction_pin_failed_attempts = models.PositiveSmallIntegerField(default=0)
+    transaction_pin_locked_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD  = 'email'
     REQUIRED_FIELDS = ['phone', 'full_name']
@@ -61,6 +82,10 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         db_table = 'accounts_user'
 
     def __str__(self): return f"{self.full_name} <{self.email}>"
+
+    @property
+    def is_transaction_pin_locked(self):
+        return self.transaction_pin_locked_at is not None
 
 class KYCDocument(BaseModel):
     DOCUMENT_TYPES = [

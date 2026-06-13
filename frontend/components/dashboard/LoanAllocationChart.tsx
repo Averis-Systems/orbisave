@@ -1,7 +1,7 @@
 "use client"
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
-import { POOL_DATA } from "@/lib/demo-data"
+import { POOL_DATA } from "@/lib/landing-data"
 
 const fmt = (n: number) => "KES " + Number(n).toLocaleString();
 
@@ -15,7 +15,7 @@ export function LoanAllocationChart() {
           <Pie data={POOL_DATA} cx="50%" cy="50%" innerRadius={42} outerRadius={62} dataKey="value" strokeWidth={0}>
             {POOL_DATA.map((e, i) => <Cell key={i} fill={e.color} />)}
           </Pie>
-          <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+          <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
         </PieChart>
       </ResponsiveContainer>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>

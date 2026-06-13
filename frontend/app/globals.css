@@ -8,9 +8,9 @@
        ─────────────────────────────────────────────────────────────────
        DESIGN SYSTEM CONSTRAINTS (MAY 2026)
        ─────────────────────────────────────────────────────────────────
-       1. RADIUS: Max 8px (0.5rem) for all dashboard cards/containers.
+       1. RADIUS: Max 5px for all dashboard cards/containers.
        2. LOADING: Use Skeleton components, avoid spinners where possible.
-       3. TYPOGRAPHY: Jost for all platform text.
+       3. TYPOGRAPHY: Outfit for all platform text.
        ─────────────────────────────────────────────────────────────────
     */
 
@@ -53,8 +53,8 @@
     --input: 138 25% 85%;
     --ring: 120 100% 34%;
 
-    /* 8px radius cap — enforced everywhere */
-    --radius: 0.5rem;
+    /* 5px radius cap for cards and containers */
+    --radius: 5px;
   }
 }
 
@@ -177,7 +177,7 @@ button:hover .icon-arrow {
 }
 
 .auth-slider__headline {
-  @apply text-4xl lg:text-5xl font-serif text-white leading-[1.1] mb-6 whitespace-pre-line;
+  @apply text-4xl lg:text-5xl font-sans text-white leading-[1.1] mb-6 whitespace-pre-line;
 }
 
 .auth-slider__headline i {

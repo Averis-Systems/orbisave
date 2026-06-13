@@ -1,20 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Save, CheckCircle } from "lucide-react"
+import { Save, CheckCircle, RefreshCw, Layers, ShieldCheck, Info, ChevronLeft, Settings2, Smartphone, Lock } from "lucide-react"
+import Link from "next/link"
 
 function Field({ label, value, type = "text", hint }: { label: string; value: string; type?: string; hint?: string }) {
   const [val, setVal] = useState(value)
   return (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 6 }}>{label}</label>
+    <div className="space-y-2">
+      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">{label}</label>
       <input
         type={type} value={val} onChange={e => setVal(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box", background: "#fff" }}
-        onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = "#00ab00"}
-        onBlur={e => (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"}
+        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-lg text-sm font-black text-[#0a2540] outline-none focus:ring-2 focus:ring-[#00ab00] transition-all"
       />
-      {hint && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{hint}</div>}
+      {hint && <p className="text-[10px] font-bold text-gray-400 italic">{hint}</p>}
     </div>
   )
 }
@@ -22,16 +21,16 @@ function Field({ label, value, type = "text", hint }: { label: string; value: st
 function Toggle({ label, checked, hint }: { label: string; checked: boolean; hint?: string }) {
   const [on, setOn] = useState(checked)
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #f5f5f5" }}>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#0a2540" }}>{label}</div>
-        {hint && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{hint}</div>}
+    <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+      <div className="pr-4">
+        <p className="text-sm font-black text-[#0a2540]">{label}</p>
+        {hint && <p className="text-[10px] font-bold text-gray-400 mt-1">{hint}</p>}
       </div>
-      <button onClick={() => setOn(!on)} style={{
-        width: 44, height: 24, borderRadius: 99, border: "none", cursor: "pointer", position: "relative",
-        background: on ? "#00ab00" : "#d1d5db", transition: "background 0.2s", flexShrink: 0,
-      }}>
-        <div style={{ position: "absolute", top: 2, left: on ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      <button 
+        onClick={() => setOn(!on)} 
+        className={`w-12 h-6 rounded-full relative transition-colors duration-300 flex-shrink-0 ${on ? 'bg-[#00ab00]' : 'bg-gray-200'}`}
+      >
+        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${on ? 'left-7' : 'left-1'}`} />
       </button>
     </div>
   )
@@ -39,50 +38,103 @@ function Toggle({ label, checked, hint }: { label: string; checked: boolean; hin
 
 export default function RotationSettingsPage() {
   const [saved, setSaved] = useState(false)
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000) }
+  const handleSave = () => { 
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000) 
+  }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>Rotation Settings</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>Configure payout cycle rules and schedule options</p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+             <Link href="/dashboard/settings" className="text-gray-400 hover:text-[#00ab00] transition-colors">
+                <ChevronLeft size={16} />
+             </Link>
+             <h1 className="text-3xl font-black text-[#0a2540]">Payout Logic Protocol</h1>
+          </div>
+          <p className="text-gray-500 font-bold">Configure sequencing rules, disbursement triggers, and position governance.</p>
+        </div>
+        <button 
+          onClick={handleSave} 
+          className={`flex items-center gap-2 px-8 py-4 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
+            saved ? 'bg-green-50 text-[#00ab00] border border-green-100' : 'bg-[#0a2540] text-white shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460]'
+          }`}
+        >
+          {saved ? <><CheckCircle size={16} /> Protocol Locked</> : <><Save size={16} /> Update Sequence</>}
+        </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 20 }}>Payout Configuration</div>
-          <Field label="Payout Frequency" value="Monthly" />
-          <Field label="Payout Day of Month" value="Last day" hint="e.g. '30', 'Last day', or a specific date" />
-          <Field label="Payout Amount Per Member" value="100000" type="number" hint="KES — based on group pool size" />
-          <Field label="Platform Fee (%)" value="3" type="number" hint="Deducted from payout before disbursement" />
-          <Field label="Total Cycle Length (months)" value="20" type="number" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Sequence Mechanics */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="w-10 h-10 rounded-lg bg-[#00ab00]/10 flex items-center justify-center text-[#00ab00] border border-[#00ab00]/20 shadow-sm">
+                <RefreshCw size={20} />
+             </div>
+             <div>
+                <h3 className="text-lg font-black text-[#0a2540]">Disbursement Logic</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cycles & Settlement</p>
+             </div>
+          </div>
 
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0a2540", marginBottom: 12, marginTop: 8 }}>Payout Rules</div>
-          <Toggle label="Allow early payout requests" checked={false} hint="Members can request to move their payout date earlier" />
-          <Toggle label="Require quorum before triggering payout" checked={true} hint="Minimum 60% member attendance required" />
-          <Toggle label="Send M-Pesa STK push to recipient" checked={true} hint="Automatic mobile money disbursement" />
-          <Toggle label="Send payout notification to all members" checked={true} />
+          <div className="space-y-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Field label="Payout Frequency" value="Monthly" />
+                <Field label="Settlement Day" value="Last Day" hint="cycle boundary" />
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Field label="Individual Payout" value="100000" type="number" />
+                <Field label="Platform Utility Fee (%)" value="3" type="number" />
+             </div>
+             <Field label="Total Rotation Horizon (Months)" value="20" type="number" />
+
+             <div className="pt-6 border-t border-gray-50 space-y-2">
+                <Toggle label="Accelerated Payouts" checked={false} hint="Allow members to request sequence advancement." />
+                <Toggle label="Quorum Interlock" checked={true} hint="Prevent payout trigger without valid meeting quorum." />
+                <Toggle label="Automated M-Pesa STK" checked={true} hint="Initiate instant push to recipient wallet." />
+                <Toggle label="Global Transparency" checked={true} hint="Broadcast disbursement status to all participants." />
+             </div>
+          </div>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 20 }}>Position Management</div>
-          <div style={{ background: "#e9f3ed", borderRadius: 8, padding: "12px 14px", marginBottom: 20, fontSize: 12, color: "#016828" }}>
-            The rotation order is currently locked. You can change positions during the next meeting approval cycle.
+        {/* Position Management */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8 flex flex-col h-full">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 shadow-sm">
+                <Layers size={20} />
+             </div>
+             <div>
+                <h3 className="text-lg font-black text-[#0a2540]">Position Governance</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Queue Management</p>
+             </div>
           </div>
-          <Field label="Position Assignment Method" value="First come, first served" hint="Options: First come first served, Draw/Lottery, Manual" />
-          <Field label="Skip Policy" value="Reschedule to end" hint="What happens when a member is skipped" />
-          <Toggle label="Allow members to swap positions" checked={true} hint="With chairperson approval" />
-          <Toggle label="Lock positions after cycle starts" checked={true} hint="Prevents unauthorized reordering" />
-          <Toggle label="Notify member 7 days before payout" checked={true} />
 
-          <button onClick={handleSave} style={{
-            marginTop: 24, width: "100%", padding: "12px", borderRadius: 8, border: "none",
-            background: saved ? "#e9f3ed" : "#0a2540", color: saved ? "#016828" : "#fff",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          }}>
-            {saved ? <><CheckCircle size={14} /> Saved!</> : <><Save size={14} /> Save Rotation Settings</>}
-          </button>
+          <div className="space-y-6 flex-1">
+             <div className="p-5 bg-[#00ab00]/5 rounded-lg border border-[#00ab00]/10 flex items-start gap-4 mb-4">
+                <Lock size={16} className="text-[#00ab00] mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] font-bold text-[#016828] leading-relaxed">
+                   The rotation matrix is currently <span className="font-black uppercase">Immutable</span>. Sequencing changes can only be initiated during the next governance session.
+                </p>
+             </div>
+
+             <Field label="Assignment Methodology" value="Chronological Entry" hint="Options: Draw, Manual, Chronological." />
+             <Field label="Disruption Protocol" value="Append to End" hint="Action on skipped/non-compliant cycles." />
+             
+             <div className="pt-6 border-t border-gray-50 space-y-2">
+                <Toggle label="Swap Authorization" checked={true} hint="Allow peer-to-peer sequence exchanges." />
+                <Toggle label="Positional Freeze" checked={true} hint="Auto-lock sequence once cycle execution starts." />
+                <Toggle label="Proactive Alerts" checked={true} hint="7-day maturity countdown notification." />
+             </div>
+          </div>
+
+          {/* Compliance Banner */}
+          <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-100 flex items-start gap-3">
+             <Smartphone size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+             <p className="text-[10px] font-bold text-gray-400 leading-relaxed">
+                Mobile money disbursements are subject to regional carrier limits. Recipient identity must match KYC documentation for automated payout success.
+             </p>
+          </div>
         </div>
       </div>
     </div>

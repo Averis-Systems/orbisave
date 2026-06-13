@@ -7,14 +7,67 @@ Satisfies Financial Engine Checklist §14 (Failure Handling — retry safely).
 import pytest
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
+from django.core.cache import cache
+from django.utils import timezone
+
+from apps.groups.models import Group, GroupMember, RotationCycle
+
+
+def _fund_rotation_pool(group, user, reference):
+    from apps.ledger.services import append_ledger_entry
+
+    cache.delete(f"group_wallet_{group.id}")
+    return append_ledger_entry(
+        group=group,
+        member=user,
+        account_stream="rotation",
+        entry_type="contribution",
+        direction="credit",
+        amount=Decimal("10000.00"),
+        currency=group.currency,
+        description="Test funding for payout idempotency.",
+        reference=reference,
+    )
+
+
+@pytest.fixture
+def group(db, chairperson):
+    return Group.objects.using("kenya").create(
+        name='Payout Idempotency Chama',
+        description='Automated payout idempotency group',
+        country='kenya',
+        currency='KES',
+        max_members=10,
+        contribution_amount=Decimal('5000.00'),
+        contribution_frequency='monthly',
+        contribution_day=1,
+        rotation_savings_pct=Decimal('70'),
+        loan_pool_pct=Decimal('30'),
+        max_loan_multiplier=Decimal('3'),
+        loan_term_weeks=12,
+        loan_interest_rate_monthly=Decimal('5.00'),
+        rotation_method='sequential',
+        status='active',
+        verification_status='verified',
+        chairperson=chairperson,
+    )
+
+
+@pytest.fixture
+def group_member(db, group, user):
+    return GroupMember.objects.using("kenya").create(
+        group=group,
+        member=user,
+        role='member',
+        status='active',
+        rotation_position=2,
+    )
 
 
 @pytest.fixture
 def rotation_cycle(db, group):
     """An open rotation cycle for the test group."""
-    from apps.groups.models import RotationCycle
-    from django.utils import timezone
-    return RotationCycle.objects.create(
+    return RotationCycle.objects.using("kenya").create(
         group=group,
         cycle_number=1,
         start_date=timezone.now().date(),
@@ -24,10 +77,10 @@ def rotation_cycle(db, group):
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases=["default", "kenya"])
 class TestPayoutIdempotency:
 
-    @patch('apps.payments.selector.get_payment_provider')
+    @patch('apps.payouts.services.get_payment_provider')
     def test_duplicate_payout_blocked(
         self, mock_provider_factory, group, user, group_member, rotation_cycle
     ):
@@ -47,6 +100,7 @@ class TestPayoutIdempotency:
             'provider_reference': 'MOCK-REF-001',
         }
         mock_provider_factory.return_value = mock_provider
+        _fund_rotation_pool(group, user, "PAYOUT-IDEM-FUND-001")
 
         # First call — should create payout
         payout1 = PayoutService.execute_rotation_payout(
@@ -66,14 +120,14 @@ class TestPayoutIdempotency:
         assert payout1.id == payout2.id
 
         # Strict DB assertion: only ONE payout in the database
-        assert Payout.objects.filter(
+        assert Payout.objects.using("kenya").filter(
             group=group, recipient=user, cycle=rotation_cycle
         ).count() == 1
 
         # Strict Ledger check: only ONE ledger entry for this payout
-        assert LedgerEntry.objects.filter(related_payout=payout1).count() == 1
+        assert LedgerEntry.objects.using("kenya").filter(related_payout=payout1).count() == 1
 
-    @patch('apps.payments.selector.get_payment_provider')
+    @patch('apps.payouts.services.get_payment_provider')
     def test_failed_payout_can_be_retried(
         self, mock_provider_factory, group, user, group_member, rotation_cycle
     ):
@@ -91,6 +145,7 @@ class TestPayoutIdempotency:
             'error': 'Network timeout',
         }
         mock_provider_factory.return_value = mock_provider
+        _fund_rotation_pool(group, user, "PAYOUT-IDEM-FUND-002")
 
         payout1 = PayoutService.execute_rotation_payout(
             group=group,

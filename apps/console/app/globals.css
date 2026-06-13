@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #00ab00;
+  --navy: #0a2540;
+}
+
+body {
+  @apply bg-[#f8fafc] text-[#0a2540];
+}
+
+.glass {
+  @apply bg-white/80 backdrop-blur-md border border-white/20;
+}
+
+.btn-primary {
+  @apply bg-primary hover:bg-[#009200] text-white px-4 py-2 rounded font-medium transition-all active:scale-[0.98];
+}
+
+.input-field {
+  @apply w-full bg-white border border-gray-200 rounded px-4 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all;
+}

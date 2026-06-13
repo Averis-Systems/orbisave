@@ -1,5 +1,10 @@
-from django.urls import path
-from .views import InitiateContributionView, ContributionWebhookView
+from django.urls import path, include
+from rest_framework.routers import SimpleRouter
+from .views import InitiateContributionView, ContributionWebhookView, ContributionViewSet, PenaltyViewSet
+
+router = SimpleRouter()
+router.register('history', ContributionViewSet, basename='contribution')
+router.register('fines', PenaltyViewSet, basename='penalty')
 
 urlpatterns = [
     # Explicit webhook receiver scoped dynamically by geography and telecom mapping
@@ -7,4 +12,6 @@ urlpatterns = [
     
     # User-triggered initiation logic
     path('<uuid:group_pk>/initiate/', InitiateContributionView.as_view(), name='contrib_initiate'),
+
+    path('', include(router.urls)),
 ]

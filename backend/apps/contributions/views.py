@@ -2,7 +2,7 @@ import hashlib
 import uuid
 import structlog
 from django.utils import timezone as tz
-from rest_framework import views, status
+from rest_framework import views, status, viewsets, mixins
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db import transaction, models
@@ -11,13 +11,16 @@ from decimal import Decimal
 
 from contextlib import contextmanager
 from threading import Lock
-from .models import Contribution
-from .serializers import ContributionInitiateSerializer, ContributionStatusSerializer
-from apps.groups.models import GroupMember, Group, RotationCycle
-from apps.ledger.models import LedgerEntry
+from rest_framework.decorators import action
+from .models import Contribution, Penalty
+from .serializers import ContributionInitiateSerializer, ContributionStatusSerializer, PenaltySerializer
+from apps.groups.models import GroupMember, Group, RotationCycle, PenaltyRule
+from apps.ledger.services import append_ledger_entry
 from apps.payments.selector import get_payment_provider
 from common.exceptions import success_response
 from common.db_utils import get_db_for_group, get_db_for_country
+from common.permissions import IsGroupMember, IsGroupLeader
+from .services.provider_exceptions import freeze_contribution_amount_mismatch
 
 _sqlite_lock = Lock()
 
@@ -38,8 +41,88 @@ def advisory_lock(lock_id: int):
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
             yield
 
+class PenaltyViewSet(viewsets.ModelViewSet):
+    """
+    Controller for member penalties (fines).
+    """
+    serializer_class = PenaltySerializer
+    permission_classes = [IsAuthenticated, IsGroupMember]
+
+    def get_queryset(self):
+        user = self.request.user
+        group_id = self.request.query_params.get('group')
+
+        # Penalties for any group the user is a member of
+        queryset = Penalty.objects.filter(
+            rule__group__memberships__member=user,
+            rule__group__memberships__status='active'
+        ).distinct().select_related('member', 'rule').order_by('-created_at')
+
+        if group_id:
+            queryset = queryset.filter(rule__group_id=group_id)
+
+        return queryset
+
+    @action(detail=False, methods=['post'], permission_classes=[IsGroupLeader])
+    def issue(self, request):
+        """
+        Manually issue a fine to a member.
+        """
+        member_id = request.data.get('member')
+        amount = request.data.get('amount')
+        rule_type = request.data.get('rule_type', 'late_contribution')
+        group_id = request.data.get('group')
+
+        if not all([member_id, amount, group_id]):
+            return Response({"error": "Member, amount, and group are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            group = Group.objects.get(id=group_id)
+            # Find or create a generic rule for this type if needed
+            rule, _ = PenaltyRule.objects.get_or_create(
+                group=group,
+                rule_type=rule_type,
+                defaults={'penalty_type': 'fixed', 'value': amount}
+            )
+
+            from apps.accounts.models import User
+            member = User.objects.get(id=member_id)
+
+            penalty = Penalty.objects.create(
+                member=member,
+                rule=rule,
+                amount=amount,
+                status='pending'
+            )
+
+            return success_response(data=PenaltySerializer(penalty).data, message="Fine issued successfully.")
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class ContributionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Controller for member contributions.
+    Provides visibility into contribution history and status.
+    """
+    serializer_class = ContributionStatusSerializer
+    permission_classes = [IsAuthenticated, IsGroupMember]
+
+    def get_queryset(self):
+        user = self.request.user
+        group_id = self.request.query_params.get('group')
+
+        queryset = Contribution.objects.filter(
+            group__memberships__member=user,
+            group__memberships__status='active'
+        ).select_related('member', 'group').order_by('-created_at')
+
+        if group_id:
+            queryset = queryset.filter(group_id=group_id)
+
+        return queryset
 
 class InitiateContributionView(views.APIView):
+# ...
     permission_classes = [IsAuthenticated]
 
     def post(self, request, group_pk):
@@ -61,15 +144,51 @@ class InitiateContributionView(views.APIView):
             membership = GroupMember.objects.select_related('group').get(
                 group_id=group_pk,
                 member=request.user,
-                status='active'
+                status__in=['active', 'pending_approval', 'pending_session_refresh']
             )
         except GroupMember.DoesNotExist:
             return Response(
-                {"error": "You do not have an active membership in this group."},
+                {"error": "You do not have a contribution-eligible membership in this group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Mandatory Next of Kin check for financial engine participation
+        if not request.user.next_of_kin_name or not request.user.next_of_kin_phone:
+            return Response(
+                {"error": "Next of Kin information (name and phone) is mandatory before contributing to any group pool."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         group = membership.group
+        from apps.groups.lifecycle import mandatory_activation_amount, pending_membership_expired
+
+        if membership.status != 'active':
+            threshold = mandatory_activation_amount(group)
+            if membership.role == 'chairperson':
+                if (
+                    request.user.kyc_status != 'verified'
+                    or group.verification_status != 'verified'
+                    or group.status != 'pending_activation'
+                    or amount_dec < threshold
+                ):
+                    return Response(
+                        {"error": "Chairperson KYC approval and the first mandatory contribution are required before group activation."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            elif membership.role == 'member':
+                if group.status != 'active':
+                    return Response({"error": "This group is not active for member contributions yet."}, status=status.HTTP_403_FORBIDDEN)
+                if pending_membership_expired(membership):
+                    membership.status = 'exited'
+                    membership.exited_at = tz.now()
+                    membership.save(update_fields=['status', 'exited_at'])
+                    return Response({"error": "Membership activation grace period expired. Request a fresh invite."}, status=status.HTTP_403_FORBIDDEN)
+                if amount_dec < threshold:
+                    return Response(
+                        {"error": f"Mandatory activation contribution must be at least {threshold} {group.currency}."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
         db_alias = get_db_for_group(group)
 
         lock_seed = int(hashlib.md5(
@@ -90,7 +209,7 @@ class InitiateContributionView(views.APIView):
                      return Response({"error": "An identical structurally pending contribution is already actively awaiting settlement via payment provider."}, status=status.HTTP_409_CONFLICT)
 
                 # Fire the abstract Telecom interface
-                provider = get_payment_provider(country=group.country, method='mpesa') 
+                provider = get_payment_provider(country=group.country, method=method)
                 res = provider.initiate_collection(
                     phone=phone,
                     amount=amount_dec,
@@ -148,10 +267,16 @@ class ContributionWebhookView(views.APIView):
         prov_ref = parsed.get("transaction_id")
         cb_status = parsed.get("status")
         
-        with transaction.atomic(using=get_db_for_country(country)):  # Safe multi-DB routing
+        db_alias = get_db_for_country(country)
+        with transaction.atomic(using=db_alias):  # Safe multi-DB routing
             # Select FOR UPDATE mechanically freezes the row locking out thousands of concurrent pings immediately.
             try:
-                contrib = Contribution.objects.select_for_update().select_related('group', 'member').get(provider_reference=prov_ref)
+                contrib = (
+                    Contribution.objects.using(db_alias)
+                    .select_for_update()
+                    .select_related('group')
+                    .get(provider_reference=prov_ref)
+                )
             except Contribution.DoesNotExist:
                 logger.error("webhook_orphan_reference", reference=prov_ref)
                 return Response({"status": "acknowledged"}, status=status.HTTP_200_OK) # Acknowledge anyway so provider doesn't DDOS retry
@@ -166,11 +291,28 @@ class ContributionWebhookView(views.APIView):
                 logger.info("contribution_webhook_failed_marked", contrib_id=contrib.id)
                 return Response({"status": "acknowledged"}, status=status.HTTP_200_OK)
                 
+            observed_amount = Decimal(parsed.get('amount', contrib.amount))
+            if observed_amount != contrib.amount:
+                freeze_contribution_amount_mismatch(
+                    contribution=contrib,
+                    country=country,
+                    provider_id=provider_id,
+                    observed_amount=observed_amount,
+                    raw_payload=parsed.get('raw', request.data),
+                )
+                logger.warning(
+                    "contribution_webhook_amount_mismatch_frozen",
+                    contrib_id=contrib.id,
+                    expected=str(contrib.amount),
+                    observed=str(observed_amount),
+                )
+                return Response({"status": "acknowledged", "review": "required"}, status=status.HTTP_200_OK)
+
             # Success Track! Shift to double-entry ledger instantiation.
             contrib.status = 'confirmed'
             contrib.confirmed_at = tz.now()
-            contrib.actual_amount = Decimal(parsed.get('amount', contrib.amount))
-            contrib.save(update_fields=['status', 'confirmed_at', 'actual_amount'])
+            contrib.actual_amount = observed_amount
+            contrib.save(using=db_alias, update_fields=['status', 'confirmed_at', 'actual_amount'])
             
             # Formally calculate and bind any statutory late penalties defining this specific transaction sequence.
             from .services.penalty_service import PenaltyService
@@ -180,19 +322,22 @@ class ContributionWebhookView(views.APIView):
             if contrib.cycle:
                 from django.db.models import F
                 contrib.cycle.total_contributions = F('total_contributions') + contrib.actual_amount
-                contrib.cycle.save(update_fields=['total_contributions'])
+                contrib.cycle.save(using=db_alias, update_fields=['total_contributions'])
             
             # Double-Entry Logic enforced instantly
-            LedgerEntry.objects.create(
+            append_ledger_entry(
                 group=contrib.group,
                 member=contrib.member,
+                account_stream='rotation',
                 entry_type='contribution',
                 direction='credit',
                 amount=contrib.actual_amount,
                 currency=contrib.group.currency,
                 description=f"Member Contribution directly via {provider_id.upper()}",
                 reference=prov_ref,
-                related_contribution=contrib
+                related_contribution=contrib,
+                idempotency_key=f"contribution:webhook:{prov_ref}",
+                source_system='provider_webhook',
             )
             
             logger.info("contribution_webhook_success_locked", contrib_id=contrib.id, amount=contrib.actual_amount)

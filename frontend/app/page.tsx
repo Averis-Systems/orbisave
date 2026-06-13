@@ -6,17 +6,11 @@ import Link from "next/link"
 import { ArrowRight, ShieldCheck, ClipboardList, Globe } from "lucide-react"
 import { Navbar }                 from "@/components/landing/Navbar"
 import { TrustBelt }              from "@/components/landing/TrustBelt"
-import { NarrativeHook }          from "@/components/landing/NarrativeHook"
-import { WhyChooseUs }            from "@/components/landing/WhyChooseUs"
-import { WhoCanJoin }             from "@/components/landing/WhoCanJoin"
 import { HowItWorks }             from "@/components/landing/HowItWorks"
-import { RotationVisualizer }     from "@/components/landing/RotationVisualizer"
-import { LoanPool }               from "@/components/landing/LoanPool"
-import { InputFinancingTeaser }   from "@/components/landing/InputFinancingTeaser"
 import { CtaSection }             from "@/components/landing/CtaSection"
 import { Footer }                 from "@/components/landing/Footer"
 import { gsap }                   from "@/lib/gsap-init"
-import { ORBITAL_MEMBERS }        from "@/lib/demo-data"
+import { ORBITAL_MEMBERS }        from "@/lib/landing-data"
 
 export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null)
@@ -73,10 +67,6 @@ export default function Home() {
     gsap.to(".hero-shield", {
       scale: 1.15, duration: 1.8, yoyo: true, repeat: -1, ease: "sine.inOut",
     })
-    // Zap icon flash
-    gsap.to(".hero-zap", {
-      opacity: 0.5, duration: 0.6, yoyo: true, repeat: -1, ease: "power1.inOut",
-    })
     // Globe icon slow spin
     gsap.to(".hero-globe", {
       rotate: 360, duration: 14, repeat: -1, ease: "linear",
@@ -88,6 +78,7 @@ export default function Home() {
     <div
       className="min-h-screen font-sans"
       style={{ background: "#f7f9f8" }}
+      suppressHydrationWarning
     >
       {/* ── STICKY NAVBAR ──────────────────────────────────────────────── */}
       <Navbar />
@@ -128,7 +119,7 @@ export default function Home() {
             </div>
 
             <h1
-              className="hero-text-el text-[2.8rem] sm:text-5xl lg:text-[4.5rem] font-black leading-[1.05] tracking-tighter"
+              className="hero-text-el text-[2.8rem] sm:text-5xl lg:text-[4.5rem] font-bold leading-[1.05] tracking-tight"
               style={{ color: "#0a2540" }}
             >
               Take Your Group<br />
@@ -146,8 +137,8 @@ export default function Home() {
             <div className="hero-text-el flex flex-wrap gap-3 pt-2">
               <Link href="/onboarding">
                 <button
-                  className="h-[52px] px-8 text-sm font-bold text-white flex items-center gap-2 group transition-opacity hover:opacity-90"
-                  style={{ background: "#00ab00", borderRadius: "6px" }}
+                className="h-[52px] px-8 text-sm font-semibold text-white flex items-center gap-2 group transition-opacity hover:opacity-90"
+                  style={{ background: "#00ab00", borderRadius: "5px" }}
                 >
                   Start a Group
                   <ArrowRight className="w-4 h-4 icon-arrow" />
@@ -156,7 +147,7 @@ export default function Home() {
               <Link href="/onboarding">
                 <button
                   className="h-12 px-7 text-sm font-semibold flex items-center gap-2 transition-colors hover:bg-[#e9f3ed]"
-                  style={{ color: "#0a2540", background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "6px" }}
+                  style={{ color: "#0a2540", background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "5px" }}
                 >
                   Join with Invite Code
                 </button>
@@ -182,7 +173,7 @@ export default function Home() {
             {/* Live status badge */}
             <div
               className="absolute top-4 right-4 lg:top-0 lg:right-0 z-10 flex items-center gap-2 px-4 py-2"
-              style={{ background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "999px" }}
+              style={{ background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "5px" }}
             >
               <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#00ab00" }} />
               <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "#0a2540" }}>
@@ -275,19 +266,13 @@ export default function Home() {
       {/* S2: Trust Belt */}
       <TrustBelt />
       {/* S3: Narrative Hook — emotional story */}
-      <NarrativeHook />
       {/* S4: Why Choose Us — Authority Pillars & Comparison */}
-      <WhyChooseUs />
       {/* S5: Who Can Join */}
-      <WhoCanJoin />
       {/* S6: How It Works */}
       <HowItWorks />
       {/* S7: Rotation Visualizer */}
-      <RotationVisualizer />
       {/* S8: Loan Pool */}
-      <LoanPool />
       {/* S9: Input Financing Teaser */}
-      <InputFinancingTeaser />
       {/* S10: Final CTA */}
       <CtaSection />
       {/* Footer */}

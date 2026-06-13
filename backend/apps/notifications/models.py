@@ -21,6 +21,7 @@ class Notification(BaseModel):
     title      = models.CharField(max_length=255)
     body       = models.TextField()
     metadata   = models.JSONField(default=dict)
+    read_at    = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'notifications_notification'

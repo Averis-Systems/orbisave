@@ -24,6 +24,20 @@ class GroupInviteCreateView(views.APIView):
         if not target_phone and not target_email:
             return Response({"error": "Must provide 'phone' or 'email' target."}, status=status.HTTP_400_BAD_REQUEST)
 
+        is_active_chairperson = (
+            group.chairperson_id == request.user.id
+            and group.verification_status == 'verified'
+            and group.memberships.filter(member=request.user, role='chairperson', status='active').exists()
+        )
+        if not is_active_chairperson:
+            return Response({"error": "Only the verified active chairperson can create invites."}, status=status.HTTP_403_FORBIDDEN)
+
+        if group.status != 'active':
+            return Response(
+                {"error": "Invite links are enabled after the chairperson completes KYC and confirms the first contribution."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Disallow generation if max members reached
         if group.memberships.filter(status='active').count() >= group.max_members:
              return Response({"error": "Group has reached maximum capacity."}, status=status.HTTP_403_FORBIDDEN)
@@ -42,8 +56,16 @@ class GroupInviteCreateView(views.APIView):
         channel = 'sms' if target_phone else 'email'
         address = target_phone if target_phone else target_email
         
-        # Async invocation! Offloads 2-3 SECONDS of delay entirely
-        send_invite_notification.delay(invite.id, channel, address)
+        # Async invocation. Notification failure must not invalidate a created invite.
+        try:
+            send_invite_notification.delay(invite.id, channel, address)
+        except Exception as exc:
+            import structlog
+            structlog.get_logger(__name__).warning(
+                "invite_notification_dispatch_failed",
+                invite_id=str(invite.id),
+                error=str(exc),
+            )
         
         log_audit(
             action='invite_sent',
@@ -67,6 +89,9 @@ class GroupInvitePublicView(views.APIView):
 
         if invite.expires_at < timezone.now():
             return Response({"error": "Invite expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if invite.group.status != 'active':
+            return Response({"error": "Invite is not active until the group is activated."}, status=status.HTTP_403_FORBIDDEN)
 
         member_count = invite.group.memberships.filter(status='active').count()
         payload = {
@@ -97,21 +122,32 @@ class GroupInvitePublicView(views.APIView):
             return Response({"error": "Invite explicitly expired."}, status=status.HTTP_400_BAD_REQUEST)
 
         group = invite.group
+        if group.status != 'active':
+            return Response({"error": "Invite is not active until the group is activated."}, status=status.HTTP_403_FORBIDDEN)
+
         member_count = group.memberships.filter(status='active').count()
         
         if member_count >= group.max_members:
             return Response({"error": "Target collective strictly reached maximum capacity constraints."}, status=status.HTTP_403_FORBIDDEN)
             
         # Already a member handling
-        if group.memberships.filter(member=request.user, status='active').exists():
-            return Response({"error": "User is actively structurally integrated within target collective."}, status=status.HTTP_400_BAD_REQUEST)
+        if group.memberships.filter(member=request.user, status__in=['active', 'pending_approval', 'pending_session_refresh']).exists():
+            return Response({"error": "User is already linked to this collective."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mandatory Next of Kin check
+        if not request.user.next_of_kin_name or not request.user.next_of_kin_phone:
+            return Response(
+                {"error": "Next of Kin information (name and phone) is mandatory before joining a group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # Lock in positional membership logically
         GroupMember.objects.create(
             group=group,
             member=request.user,
             role='member',
-            rotation_position=member_count + 1  # Next slot naturally
+            status='pending_approval',
+            rotation_position=member_count + 1
         )
         
         invite.status = 'accepted'

@@ -63,6 +63,30 @@ def check_cycle_completion(self):
     return {'groups_cycled': completed}
 
 
+@shared_task
+def expire_pending_memberships():
+    """
+    Removes invitees who did not make their mandatory activation contribution
+    within 24 hours of accepting an invite.
+    """
+    from apps.groups.lifecycle import COUNTRY_DATABASE_ALIASES, PENDING_MEMBER_GRACE_PERIOD
+    from apps.groups.models import GroupMember
+
+    cutoff = timezone.now() - PENDING_MEMBER_GRACE_PERIOD
+    expired = 0
+    for alias in COUNTRY_DATABASE_ALIASES:
+        qs = GroupMember.objects.using(alias).filter(
+            role='member',
+            status='pending_approval',
+            joined_at__lt=cutoff,
+        )
+        count = qs.update(status='exited', exited_at=timezone.now())
+        expired += count
+
+    logger.info('pending_memberships_expired', expired=expired)
+    return {'expired': expired}
+
+
 def _emit_group_event(group_id, event_type: str, payload: dict):
     """Helper: sends a real-time channel event to the group's WebSocket room."""
     try:

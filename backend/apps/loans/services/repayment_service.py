@@ -22,7 +22,7 @@ class LoanRepaymentService:
         monthly_interest = (total_interest / Decimal(str(months))).quantize(Decimal('0.01'))
         monthly_total = (repayment_amount_total / Decimal(str(months))).quantize(Decimal('0.01'))
         
-        db_alias = get_db_for_group(loan.group)
+        db_alias = loan._state.db or get_db_for_group(loan.group)
         with transaction.atomic(using=db_alias):
             repayments = []
             for i in range(1, months + 1):
@@ -45,5 +45,5 @@ class LoanRepaymentService:
                 repayments[-1].interest_amount += interest_delta
                 repayments[-1].total_due += (principal_delta + interest_delta)
             
-            LoanRepayment.objects.bulk_create(repayments)
+            LoanRepayment.objects.using(db_alias).bulk_create(repayments)
             return len(repayments)

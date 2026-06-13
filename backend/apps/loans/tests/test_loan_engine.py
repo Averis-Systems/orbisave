@@ -7,8 +7,8 @@ import pytest
 from decimal import Decimal
 from django.contrib.auth.hashers import make_password
 
+pytestmark = pytest.mark.django_db(databases=["default", "kenya"])
 
-@pytest.mark.django_db
 class TestLoanEngine:
 
     def test_chair_approves_loan_to_pending_treasurer(
@@ -30,11 +30,11 @@ class TestLoanEngine:
         assert result.chair_approved_by == chairperson
         assert result.chair_approved_at is not None
 
-    def test_chair_approves_loan_directly_when_no_treasurer(
+    def test_chair_approves_loan_to_pending_admin_when_no_treasurer(
         self, loan_pending_chair, chairperson, group
     ):
         """
-        When no treasurer is assigned, approval by chairperson jumps straight to 'approved'.
+        When no treasurer is assigned, chair approval still requires platform-admin review.
         """
         from apps.loans.services.loan_engine import LoanEngine
 
@@ -48,7 +48,52 @@ class TestLoanEngine:
             provided_pin='1234',
         )
 
-        assert result.status == 'approved'
+        assert result.status == 'pending_admin'
+
+    def test_treasurer_approval_moves_to_pending_admin_without_disbursement_ledger(
+        self, group_with_treasurer, approved_loan, treasurer
+    ):
+        """
+        Treasurer approval must not create disbursement ledger entries or repayment schedules.
+        Admin approval/disbursement are separate financial events.
+        """
+        from apps.loans.services.loan_engine import LoanEngine
+        from apps.ledger.models import LedgerEntry
+
+        loan = approved_loan
+        loan.status = 'pending_treasurer'
+        loan.save(update_fields=['status'])
+
+        result = LoanEngine.approve_loan(
+            loan=loan,
+            authorizing_member=treasurer,
+            provided_pin='1234',
+        )
+
+        assert result.status == 'pending_admin'
+        assert LedgerEntry.objects.filter(related_loan=result).count() == 0
+        assert result.repayments.count() == 0
+
+    def test_disburse_approved_loan_creates_ledger_and_repayments(
+        self, approved_loan, chairperson
+    ):
+        from apps.loans.services.loan_engine import LoanEngine
+        from apps.ledger.models import LedgerEntry
+
+        approved_loan.status = 'approved'
+        approved_loan.save(update_fields=['status'])
+
+        result = LoanEngine.disburse_loan(
+            loan=approved_loan,
+            actor=chairperson,
+            disbursement_reference='MANUAL-DISB-001',
+        )
+
+        assert result.status == 'disbursed'
+        assert result.disbursed_at is not None
+        assert result.disbursement_reference == 'MANUAL-DISB-001'
+        assert LedgerEntry.objects.filter(related_loan=result).count() == 1
+        assert result.repayments.count() > 0
 
     def test_wrong_pin_raises_permission_error(self, loan_pending_chair, chairperson):
         """Providing a wrong PIN must raise PermissionError — no state change."""
@@ -63,6 +108,31 @@ class TestLoanEngine:
 
         loan_pending_chair.refresh_from_db()
         assert loan_pending_chair.status == 'pending_chair'  # Must not have changed
+
+    def test_transaction_pin_locks_after_three_failed_attempts(self, loan_pending_chair, chairperson):
+        from apps.loans.services.loan_engine import LoanEngine
+
+        for _ in range(3):
+            with pytest.raises(PermissionError, match="PIN verification failed|locked"):
+                LoanEngine.approve_loan(
+                    loan=loan_pending_chair,
+                    authorizing_member=chairperson,
+                    provided_pin='9999',
+                )
+
+        chairperson.refresh_from_db()
+        assert chairperson.transaction_pin_failed_attempts == 3
+        assert chairperson.transaction_pin_locked_at is not None
+
+        with pytest.raises(PermissionError, match="locked"):
+            LoanEngine.approve_loan(
+                loan=loan_pending_chair,
+                authorizing_member=chairperson,
+                provided_pin='1234',
+            )
+
+        loan_pending_chair.refresh_from_db()
+        assert loan_pending_chair.status == 'pending_chair'
 
     def test_wrong_role_cannot_approve(self, loan_pending_chair, user, group_member):
         """

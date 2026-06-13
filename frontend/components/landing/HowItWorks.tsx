@@ -4,7 +4,7 @@ import { useRef } from "react"
 import { useGSAP } from "@gsap/react"
 import { Users, Smartphone, RotateCcw, Landmark, ArrowRight } from "lucide-react"
 import { gsap } from "@/lib/gsap-init"
-import { TRUST_PILLARS } from "@/lib/demo-data"
+import { TRUST_PILLARS } from "@/lib/landing-data"
 
 const STEPS = [
   {

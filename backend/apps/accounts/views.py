@@ -11,7 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 import structlog
-from .serializers import RegisterSerializer, UserSerializer, KYCDocumentSerializer
+from .serializers import RegisterSerializer, UserSerializer, KYCDocumentSerializer, ProfileUpdateSerializer
 from .models import KYCDocument
 
 logger = structlog.get_logger(__name__)
@@ -30,29 +30,49 @@ class UserMeView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user).data)
 
-def generate_jwt_for_user(user):
-    """
-    Generate an RS256 signed JWT for the user.
-    """
-    now = datetime.now(timezone.utc)
-    # Using small lifetime (15 mins) for max security as Better Auth manages the refresh on Next.js
-    payload = {
-        'sub': str(user.id),
-        'role': user.role,
-        'email': user.email,
-        'iat': now,
-        'exp': now + timedelta(minutes=15),
-        'iss': 'orbisave_django',
-        'aud': 'orbisave_api',
-    }
-    # Loaded dynamically from ENV, never hardcoded.
-    private_key = getattr(settings, 'JWT_PRIVATE_KEY', None)
-    if not private_key:
-        logger.error("missing_jwt_private_key")
-        raise RuntimeError("JWT_PRIVATE_KEY is not configured.")
+from rest_framework_simplejwt.tokens import RefreshToken
 
-    token = jwt.encode(payload, private_key, algorithm='RS256')
-    return token
+COUNTRY_DATABASE_ALIASES = ['kenya', 'rwanda', 'ghana']
+
+
+def activate_approved_memberships_for_login(user):
+    """
+    Finalizes country-admin-approved chairperson roles only during fresh login.
+    This prevents stale sessions from immediately unlocking chairperson actions.
+    """
+    from apps.groups.models import GroupMember
+
+    activated = 0
+    for alias in COUNTRY_DATABASE_ALIASES:
+        qs = GroupMember.objects.using(alias).filter(
+            member=user,
+            status='pending_session_refresh',
+            group__verification_status='verified',
+        )
+        activated += qs.update(status='active')
+
+    if activated and user.role == 'member':
+        user.role = 'chairperson'
+        user.save(update_fields=['role'])
+
+    return activated
+
+
+def get_tokens_for_user(user):
+    """
+    Generate standard SimpleJWT tokens (access + refresh).
+    """
+    activate_approved_memberships_for_login(user)
+    user.refresh_from_db()
+    refresh = RefreshToken.for_user(user)
+    # Add custom claims if needed by the frontend
+    refresh['role'] = user.role
+    refresh['email'] = user.email
+    
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
 
 class TokenObtainPairView(APIView):
     """
@@ -103,8 +123,9 @@ class TokenObtainPairView(APIView):
             )
 
         try:
-            token = generate_jwt_for_user(user)
-        except RuntimeError as e:
+            tokens = get_tokens_for_user(user)
+        except Exception as e:
+            logger.error("token_generation_failed", error=str(e))
             return Response({"error": "Internal server configuration error."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Log successful login to the unmodifiable AuditLog immediately
@@ -116,7 +137,7 @@ class TokenObtainPairView(APIView):
             user_agent=request.META.get('HTTP_USER_AGENT', '')
         )
 
-        return Response({"access_token": token})
+        return Response(tokens)
 
 
 class KYCSubmitView(APIView):
@@ -192,3 +213,27 @@ class KYCStatusView(APIView):
             "rejection_reason": latest.rejection_reason if latest else None,
             "document_type":    latest.document_type if latest else None,
         })
+class ProfileUpdateView(APIView):
+    """
+    PATCH /api/accounts/profile/update/
+    Allows authenticated users to update their profile information.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        try:
+            user = request.user
+            logger.info("profile_update_attempt", user_id=str(user.id), data=request.data)
+            serializer = ProfileUpdateSerializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                updated_user = serializer.save()
+                logger.info("profile_update_success", user_id=str(user.id), seen=updated_user.onboarding_popup_seen)
+                data = UserSerializer(updated_user).data
+                from common.exceptions import success_response
+                return success_response(data, "Profile updated successfully")
+            
+            logger.warning("profile_update_failed", user_id=str(user.id), errors=serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("profile_update_exception", user_id=str(request.user.id) if request.user else "unauth")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

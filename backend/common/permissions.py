@@ -19,10 +19,14 @@ class IsGroupMember(BasePermission):
 
 class IsGroupChairperson(BasePermission):
     """
-    Must literally be the chairperson.
+    Must be an active, approved chairperson for the group.
     """
     def has_object_permission(self, request, view, obj):
-        is_chair = obj.chairperson == request.user
+        is_chair = (
+            obj.chairperson == request.user
+            and obj.verification_status == 'verified'
+            and obj.memberships.filter(member=request.user, role='chairperson', status='active').exists()
+        )
         if not is_chair:
             logger.warning("rbac_violation_chairperson", user_id=request.user.id, group_id=obj.id)
         return is_chair
@@ -42,7 +46,13 @@ class IsGroupLeader(BasePermission):
     Combinatory Role: Chairperson OR Treasurer.
     """
     def has_object_permission(self, request, view, obj):
-        return obj.chairperson == request.user or obj.treasurer == request.user
+        if obj.verification_status != 'verified':
+            return False
+        return obj.memberships.filter(
+            member=request.user,
+            role__in=['chairperson', 'treasurer'],
+            status='active',
+        ).exists()
 
 class IsPlatformAdmin(BasePermission):
     def has_permission(self, request, view):

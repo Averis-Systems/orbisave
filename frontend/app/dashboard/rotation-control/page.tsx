@@ -1,173 +1,275 @@
 "use client"
 
 import { useState } from "react"
-import { RefreshCw, ArrowRight, CheckCircle, AlertTriangle, Clock } from "lucide-react"
-import { ROTATION_SCHEDULE, MEMBERS, GROUP } from "@/lib/demo-data"
+import { useGroups } from "@/hooks/useGroups"
+import { useRotations, useRotationSchedules, useInitializeRotation, useStartNextCycle, useTriggerPayout } from "@/hooks/useRotations"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+import { RefreshCw, AlertTriangle, Clock, CheckCircle, ChevronRight, Play, Settings2, ShieldCheck, UserCheck } from "lucide-react"
+import { fmt } from "@/lib/formatters"
 
-const fmt = (n: number) => "KES " + Number(n).toLocaleString()
-const initials = (name: string) => name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+const initials = (name: string) => name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "MB"
 const AVATAR_COLORS = ["#0a2540", "#016828", "#0f3460", "#018a35", "#014d1b"]
-const avatarBg = (name: string) => { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length; return AVATAR_COLORS[Math.abs(h)] }
-
-const FULL_SCHEDULE = [
-  { position: 1,  member: "Grace Akinyi",    month: "Oct 2025", amount: 100000, status: "upcoming"  },
-  { position: 2,  member: "David Omondi",    month: "Nov 2025", amount: 100000, status: "scheduled" },
-  { position: 3,  member: "Faith Otieno",    month: "Dec 2025", amount: 100000, status: "scheduled" },
-  { position: 4,  member: "James Mwangi",    month: "Jan 2026", amount: 100000, status: "scheduled" },
-  { position: 5,  member: "Mary Wanjiku",    month: "Feb 2026", amount: 100000, status: "scheduled" },
-  { position: 6,  member: "Ann Chebet",      month: "Mar 2026", amount: 100000, status: "scheduled" },
-  { position: 7,  member: "John Kipchoge",   month: "Apr 2026", amount: 100000, status: "scheduled" },
-  { position: 8,  member: "Peter Kamau",     month: "May 2026", amount: 100000, status: "scheduled" },
-]
-
-const COMPLETED_PAYOUTS = [
-  { position: 8, member: "Charles Mutua",  date: "Sep 30, 2025", amount: 100000 },
-  { position: 7, member: "Ann Chebet",     date: "Aug 31, 2025", amount: 100000 },
-  { position: 6, member: "Peter Kamau",    date: "Jul 31, 2025", amount: 95000  },
-  { position: 5, member: "Mary Wanjiku",   date: "Jun 30, 2025", amount: 100000 },
-]
+const avatarBg = (name: string) => { let h = 0; for (const c of name || "") h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length; return AVATAR_COLORS[Math.abs(h)] }
 
 export default function RotationControlPage() {
-  const [triggerConfirm, setTriggerConfirm] = useState(false)
-  const [payoutTriggered, setPayoutTriggered] = useState(false)
+  const { data: groups, isLoading: groupsLoading } = useGroups()
+  const activeGroup = groups?.[0] || null
+  
+  const { data: cycles, isLoading: cyclesLoading } = useRotations(activeGroup?.id || null)
+  const currentCycle = cycles?.find(c => c.is_current) || cycles?.[0]
+  
+  const { data: schedules, isLoading: schedulesLoading } = useRotationSchedules(currentCycle?.id || null)
+  
+  const initialize = useInitializeRotation()
+  const nextCycle = useStartNextCycle()
+  const triggerPayout = useTriggerPayout()
+
+  const [triggerConfirm, setTriggerConfirm] = useState<{ memberId: string, memberName: string } | null>(null)
+
+  const upcomingSchedules = schedules?.filter(s => !s.is_paid_out) || []
+  const nextRecipient = upcomingSchedules[0] || null
+
+  const handleTriggerPayout = async () => {
+    if (!triggerConfirm || !currentCycle) return
+    try {
+      await triggerPayout.mutateAsync({ cycleId: currentCycle.id, memberId: triggerConfirm.memberId })
+      toast.success(`Payout successfully disbursed to ${triggerConfirm.memberName}`)
+      setTriggerConfirm(null)
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to trigger payout")
+    }
+  }
+
+  const handleNextCycle = async () => {
+    if (!activeGroup) return
+    try {
+      await nextCycle.mutateAsync(activeGroup.id)
+      toast.success("Advanced to next financial cycle")
+    } catch (err: any) {
+      toast.error("Failed to advance cycle")
+    }
+  }
+
+  const handleInitialize = async () => {
+    if (!activeGroup) return
+    try {
+      await initialize.mutateAsync(activeGroup.id)
+      toast.success("Rotation schedule initialized successfully")
+    } catch (err: any) {
+      toast.error("Failed to initialize schedule")
+    }
+  }
+
+  if (groupsLoading || cyclesLoading || schedulesLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Skeleton className="h-[600px] rounded-lg" />
+          <Skeleton className="h-[600px] rounded-lg" />
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>Rotation Control</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>Manage the payout cycle, reorder positions, and trigger disbursements</p>
-      </div>
-
-      {/* Status banner */}
-      <div style={{
-        background: "linear-gradient(135deg, #0a2540 0%, #0f3460 100%)",
-        borderRadius: 14, padding: "24px 28px", marginBottom: 24, color: "#fff",
-        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16,
-      }}>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Current Cycle Status</div>
-          <div style={{ fontSize: 22, fontWeight: 900 }}>Month {GROUP.cycleMonth} of {GROUP.totalCycles}</div>
-          <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>Next: <strong>{GROUP.nextPayoutMember}</strong> · Due in {GROUP.nextPayoutDate}</div>
+          <h1 className="text-3xl font-black text-[#0a2540] mb-2">Rotation Engine</h1>
+          <p className="text-gray-500 font-bold">Automated payout sequencing and cycle management console.</p>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 4 }}>Payout Amount</div>
-          <div style={{ fontSize: 28, fontWeight: 900 }}>{fmt(GROUP.nextPayoutAmount)}</div>
-          <div style={{ fontSize: 12, opacity: 0.65 }}>Net after 3% fee: {fmt(GROUP.nextPayoutAmount * 0.97)}</div>
+        <div className="flex items-center gap-3">
+          {!currentCycle && (
+            <button 
+              onClick={handleInitialize} 
+              className="px-6 py-3 bg-[#0a2540] text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460] transition-all flex items-center gap-2"
+            >
+               <Play size={14} /> Initialize Rotation
+            </button>
+          )}
+          <button 
+            onClick={handleNextCycle} 
+            className="px-6 py-3 bg-white border border-gray-100 text-[#0a2540] rounded-lg font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2"
+          >
+             <RefreshCw size={14} /> Advance Cycle
+          </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16 }}>
-        {/* Full schedule table */}
-        <div style={{ background: "#fff", borderRadius: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540" }}>Upcoming Schedule</div>
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>{FULL_SCHEDULE.length} remaining positions</span>
+      {/* Primary Status Card */}
+      <div className="bg-[#0a2540] rounded-lg p-8 text-white relative overflow-hidden shadow-2xl shadow-[#0a2540]/20">
+         <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <div>
+               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-4">Live Execution Window</p>
+               <h2 className="text-4xl font-black mb-4">Cycle #{currentCycle?.cycle_number || "0"}</h2>
+               <div className="flex items-center gap-4">
+                  <span className="px-3 py-1 bg-[#00ab00] rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">{currentCycle?.status || "Idle"}</span>
+                  {nextRecipient && (
+                     <div className="flex items-center gap-2 text-white/70 text-xs font-bold">
+                        <UserCheck size={14} className="text-[#00ab00]" />
+                        Recipient: <span className="text-white underline underline-offset-4 decoration-[#00ab00]">{nextRecipient.member_name}</span>
+                     </div>
+                  )}
+               </div>
+            </div>
+            <div className="md:text-right md:border-l border-white/10 md:pl-12">
+               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">Individual Payout Amount</p>
+               <p className="text-5xl font-black text-[#00ab00] mb-2">{fmt(activeGroup?.contribution_amount || 0)}</p>
+               <p className="text-sm font-bold text-white/40">Aggregated Pool: {fmt((activeGroup?.contribution_amount || 0) * (activeGroup?.member_count || 0))}</p>
+            </div>
+         </div>
+         {/* Decorative background element */}
+         <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-[#00ab00]/10 rounded-full blur-3xl pointer-events-none" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Schedule Matrix */}
+        <div className="lg:col-span-2 bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+            <h3 className="text-sm font-black text-[#0a2540] uppercase tracking-widest">Payout Sequence Matrix</h3>
+            <span className="text-[10px] font-black text-gray-400">{upcomingSchedules.length} Pendencies Remaining</span>
           </div>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#fafafa" }}>
-                {["#", "Member", "Payout Month", "Amount", "Status", "Action"].map(h => (
-                  <th key={h} style={{ padding: "10px 16px", fontSize: 11, fontWeight: 700, color: "#6b7280", textAlign: "left", borderBottom: "1px solid #f0f0f0", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {FULL_SCHEDULE.map(r => (
-                <tr key={r.position} style={{ borderBottom: "1px solid #f9f9f9", background: r.status === "upcoming" ? "#fafff9" : "#fff" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#f9faf8"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = r.status === "upcoming" ? "#fafff9" : "#fff"}
-                >
-                  <td style={{ padding: "11px 16px" }}>
-                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: r.status === "upcoming" ? "#00ab00" : "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: r.status === "upcoming" ? "#fff" : "#9ca3af" }}>{r.position}</div>
-                  </td>
-                  <td style={{ padding: "11px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarBg(r.member), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials(r.member)}</div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#0a2540" }}>{r.member}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "11px 16px", fontSize: 13, color: "#6b7280" }}>{r.month}</td>
-                  <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 700, color: "#0a2540" }}>{fmt(r.amount)}</td>
-                  <td style={{ padding: "11px 16px" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: r.status === "upcoming" ? "#e9f3ed" : "#f5f5f5", color: r.status === "upcoming" ? "#016828" : "#9ca3af" }}>
-                      {r.status === "upcoming" ? "Next" : "Scheduled"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "11px 16px" }}>
-                    {r.status === "upcoming" && (
-                      <button onClick={() => setTriggerConfirm(true)} style={{ fontSize: 11, fontWeight: 700, color: "#00ab00", background: "#e9f3ed", border: "none", padding: "5px 12px", borderRadius: 6, cursor: "pointer" }}>
-                        Trigger Payout
-                      </button>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left border-b border-gray-50">
+                  <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">#</th>
+                  <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Participant</th>
+                  <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Maturity Date</th>
+                  <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                  <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Authorization</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {schedules?.map((r, i) => (
+                  <tr key={r.id} className={`group transition-all ${(!r.is_paid_out && i === 0) ? 'bg-[#00ab00]/5' : 'hover:bg-gray-50'}`}>
+                    <td className="px-6 py-5">
+                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${
+                          r.is_paid_out ? 'bg-gray-100 text-gray-400' : (i === 0 ? 'bg-[#00ab00] text-white' : 'bg-gray-100 text-[#0a2540]')
+                       }`}>
+                          {i + 1}
+                       </div>
+                    </td>
+                    <td className="px-6 py-5">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black" style={{ background: avatarBg(r.member_name) }}>
+                             {initials(r.member_name)}
+                          </div>
+                          <p className="text-sm font-black text-[#0a2540]">{r.member_name}</p>
+                       </div>
+                    </td>
+                    <td className="px-6 py-5 text-xs font-bold text-gray-500">
+                       {new Date(r.scheduled_payout_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-6 py-5 text-sm font-black text-[#0a2540]">
+                       {fmt(activeGroup?.contribution_amount || 0)}
+                    </td>
+                    <td className="px-6 py-5">
+                       {r.is_paid_out ? (
+                          <div className="flex items-center gap-1.5 text-[#00ab00]">
+                             <CheckCircle size={14} />
+                             <span className="text-[10px] font-black uppercase tracking-widest">Settled</span>
+                          </div>
+                       ) : (
+                          <button 
+                             onClick={() => setTriggerConfirm({ memberId: r.member, memberName: r.member_name })}
+                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                                i === 0 ? 'bg-[#00ab00] text-white shadow-lg shadow-[#00ab00]/20' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-[#0a2540]'
+                             }`}
+                          >
+                             Authorize Payout
+                          </button>
+                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Right panel */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Trigger payout */}
-          <div style={{
-            background: "#fff", borderRadius: 14, padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-            border: triggerConfirm ? "1.5px solid #d6e4df" : "1px solid #f0f0f0",
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0a2540", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              <RefreshCw size={15} style={{ color: "#00ab00" }} /> Trigger Next Payout
-            </div>
-            {payoutTriggered ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <CheckCircle size={36} style={{ color: "#00ab00", marginBottom: 8 }} />
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0a2540" }}>Payout Initiated!</div>
-                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>KES 100,000 sent to {GROUP.nextPayoutMember} via M-Pesa</div>
+        {/* Control Sidepanel */}
+        <div className="space-y-8">
+           {/* Authorizer Card */}
+           <div className={`rounded-lg border p-8 transition-all duration-500 ${
+              triggerConfirm ? 'bg-white border-[#00ab00] shadow-xl shadow-[#00ab00]/5 ring-2 ring-[#00ab00]/10' : 'bg-white border-gray-100'
+           }`}>
+              <div className="flex items-center gap-3 mb-6">
+                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center border shadow-sm ${
+                    triggerConfirm ? 'bg-[#00ab00]/10 text-[#00ab00] border-[#00ab00]/20' : 'bg-gray-50 text-gray-400 border-gray-100'
+                 }`}>
+                    <ShieldCheck size={20} />
+                 </div>
+                 <h3 className="text-lg font-black text-[#0a2540]">Auth Console</h3>
               </div>
-            ) : triggerConfirm ? (
-              <div>
-                <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 8, padding: "12px", marginBottom: 14, fontSize: 12, color: "#92400e" }}>
-                  <div style={{ display: "flex", gap: 8 }}><AlertTriangle size={14} style={{ flexShrink: 0, color: "#d97706" }} />This will immediately disburse <strong>{fmt(GROUP.nextPayoutAmount)}</strong> to <strong>{GROUP.nextPayoutMember}</strong> via M-Pesa. This action cannot be undone.</div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => setPayoutTriggered(true)} style={{ flex: 1, padding: "9px", borderRadius: 7, background: "#00ab00", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirm & Disburse</button>
-                  <button onClick={() => setTriggerConfirm(false)} style={{ flex: 1, padding: "9px", borderRadius: 7, background: "#fff", color: "#6b7280", border: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                {[
-                  { label: "Recipient",    val: GROUP.nextPayoutMember },
-                  { label: "Gross Amount", val: fmt(GROUP.nextPayoutAmount) },
-                  { label: "Platform Fee", val: "3% (KES 3,000)" },
-                  { label: "Net to Member",val: fmt(GROUP.nextPayoutAmount * 0.97) },
-                ].map(r => (
-                  <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
-                    <span style={{ color: "#6b7280" }}>{r.label}</span>
-                    <span style={{ fontWeight: 700, color: "#0a2540" }}>{r.val}</span>
-                  </div>
-                ))}
-                <button onClick={() => setTriggerConfirm(true)} style={{ marginTop: 14, width: "100%", padding: "10px", borderRadius: 8, background: "#00ab00", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  Initiate Payout
-                </button>
-              </div>
-            )}
-          </div>
 
-          {/* Completed payouts */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0a2540", marginBottom: 14 }}>Completed Payouts</div>
-            {COMPLETED_PAYOUTS.map(p => (
-              <div key={p.position} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #f5f5f5" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircle size={14} style={{ color: "#00ab00", flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#0a2540" }}>{p.member}</div>
-                    <div style={{ fontSize: 10, color: "#9ca3af" }}>{p.date}</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#00ab00" }}>{fmt(p.amount)}</span>
+              {triggerConfirm ? (
+                 <div className="animate-in slide-in-from-top-4 duration-500">
+                    <p className="text-xs font-bold text-gray-500 leading-relaxed mb-6">
+                       You are authorizing an immediate disbursement to <span className="text-[#0a2540] font-black">{triggerConfirm.memberName}</span>. This payload will be committed to the immutable group ledger.
+                    </p>
+                    <div className="space-y-3">
+                       <button 
+                          onClick={handleTriggerPayout}
+                          disabled={triggerPayout.isPending}
+                          className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[#00ab00]/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                       >
+                          {triggerPayout.isPending ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                          Confirm Disbursement
+                       </button>
+                       <button 
+                          onClick={() => setTriggerConfirm(null)}
+                          className="w-full py-4 bg-gray-50 text-gray-400 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all"
+                       >
+                          Abort Action
+                       </button>
+                    </div>
+                 </div>
+              ) : (
+                 <div className="space-y-4">
+                    <p className="text-[11px] font-bold text-gray-400 leading-relaxed italic">
+                       Please select an eligible recipient from the schedule matrix to initiate the authorization sequence.
+                    </p>
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                       <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                          <span>Service Fee</span>
+                          <span className="text-[#0a2540]">3.0%</span>
+                       </div>
+                       <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                          <span>M-Pesa Surcharge</span>
+                          <span className="text-[#0a2540]">KES 22.00</span>
+                       </div>
+                    </div>
+                 </div>
+              )}
+           </div>
+
+           {/* Guidelines */}
+           <div className="bg-white rounded-lg border border-gray-100 p-8">
+              <h4 className="text-xs font-black text-[#0a2540] uppercase tracking-widest mb-6">Execution Guidelines</h4>
+              <div className="space-y-6">
+                 <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+                       <Clock size={16} />
+                    </div>
+                    <div>
+                       <p className="text-[11px] font-black text-[#0a2540] uppercase tracking-widest mb-1">Audit Check</p>
+                       <p className="text-[10px] font-bold text-gray-400 leading-relaxed">Ensure 100% contribution compliance before triggering disbursement.</p>
+                    </div>
+                 </div>
+                 <div className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 flex-shrink-0">
+                       <AlertTriangle size={16} />
+                    </div>
+                    <div>
+                       <p className="text-[11px] font-black text-[#0a2540] uppercase tracking-widest mb-1">KYC Enforcement</p>
+                       <p className="text-[10px] font-bold text-gray-400 leading-relaxed">System blocks payments to non-verified identities automatically.</p>
+                    </div>
+                 </div>
               </div>
-            ))}
-          </div>
+           </div>
         </div>
       </div>
     </div>

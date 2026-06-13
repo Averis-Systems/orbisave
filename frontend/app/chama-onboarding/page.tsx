@@ -9,7 +9,8 @@ import * as z from "zod"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { LOCATION_DATA, getLevel1, getLevel2 } from "@/lib/location-data"
-import { ShieldCheck, UserCheck, AlertCircle, Building2, MapPin, Eye, EyeOff, Check, ArrowRight, Loader2 } from "lucide-react"
+import { GROUP_TYPES, buildExistingAccountChairpersonPayload } from "@/lib/chairperson-onboarding"
+import { ShieldCheck, UserCheck, AlertCircle, Building2, MapPin, Eye, EyeOff, Check, ArrowRight, Loader2, Lock } from "lucide-react"
 import { CustomSelect } from "@/components/ui/select"
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -18,14 +19,14 @@ const STEP_META = [
   { title: "Create Your Account", desc: "Enter your professional details. Your phone number must match your country." },
   { title: "Configure Your Chama", desc: "Set up the group identity, contribution requirements, and rotation schedule." },
   { title: "Group Location", desc: "This helps us connect your group with local partners and financiers." },
-  { title: "Review & Complete", desc: "Verify your details and accept the terms of governance." }
+  { title: "Review Details", desc: "Verify your details and accept the terms of governance." },
+  { title: "Security PIN", desc: "Set a 4-digit PIN for sensitive transactions (e.g., loan approvals)." }
 ]
 const TOTAL_STEPS = STEP_META.length
-const GROUP_TYPES = ["Farmers", "Corporate", "Women Self Help", "Fishers", "Students", "Other"]
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 const accountSchema = z.object({
-  country: z.enum(["kenya", "rwanda", "ghana"] as const, { required_error: "Country is required" }),
+  country: z.enum(["kenya", "rwanda", "ghana"] as const),
   full_name: z.string().min(3, "Full name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone is required"),
@@ -47,8 +48,9 @@ const groupSchema = z.object({
   group_name: z.string().min(3, "Group name is required"),
   group_type: z.string().min(1, "Group type is required"),
   group_type_other: z.string().optional(),
-  contribution_amount: z.number({ invalid_type_error: "Amount is required" }).min(1, "Amount must be > 0"),
+  contribution_amount: z.number({ message: "Amount is required" }).min(1, "Amount must be > 0"),
   contribution_frequency: z.enum(["Daily", "Every 3 Days", "Every 5 Days", "Weekly", "Every 2 Weeks", "Monthly", "Harvest"]),
+  mandatory_savings_amount: z.number({ message: "Mandatory savings amount is required" }).min(0, "Amount cannot be negative"),
 })
 
 const locationSchema = z.object({
@@ -62,8 +64,8 @@ const reviewSchema = z.object({
 })
 
 const wizardSchema = z.intersection(
-  z.intersection(accountSchema, groupSchema),
-  z.intersection(locationSchema, reviewSchema)
+  z.intersection(z.intersection(accountSchema, groupSchema), z.intersection(locationSchema, reviewSchema)),
+  z.object({ transaction_pin: z.string().length(4, "PIN must be exactly 4 digits").regex(/^\d+$/, "PIN must be numeric") })
 )
 
 type WizardData = z.infer<typeof wizardSchema>
@@ -72,6 +74,7 @@ const defaultValues: Partial<WizardData> = {
   country: "kenya",
   group_type: "Corporate",
   contribution_frequency: "Monthly",
+  mandatory_savings_amount: 0,
 }
 
 // ─── Components ──────────────────────────────────────────────────────────────
@@ -274,6 +277,14 @@ function StepGroup() {
           onChange={(val) => setValue("contribution_frequency", val as any)}
           error={errors.contribution_frequency?.message}
         />
+        <div>
+          <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">Mandatory Savings</label>
+          <div className="flex items-center rounded-lg overflow-hidden border border-border focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent transition-all">
+            <span className="h-12 px-4 flex items-center bg-muted text-sm font-bold text-foreground border-r border-border">{currency}</span>
+            <input type="number" {...register("mandatory_savings_amount", { valueAsNumber: true })} className="flex-1 h-12 px-4 bg-muted/50 text-sm outline-none" placeholder="0.00" />
+          </div>
+          {errors.mandatory_savings_amount && <p className="text-xs text-destructive mt-1.5">{errors.mandatory_savings_amount.message}</p>}
+        </div>
       </div>
     </div>
   )
@@ -365,6 +376,10 @@ function StepReview() {
             <dt className="text-muted-foreground">Target Contribution</dt>
             <dd className="font-bold text-primary">{loc?.currency || ""} {data.contribution_amount?.toLocaleString() || 0} / {data.contribution_frequency}</dd>
           </div>
+          <div className="flex justify-between border-b border-border pb-3">
+            <dt className="text-muted-foreground">Mandatory Savings</dt>
+            <dd className="font-bold text-primary">{loc?.currency || ""} {data.mandatory_savings_amount?.toLocaleString() || 0}</dd>
+          </div>
           <div className="flex justify-between pb-1">
             <dt className="text-muted-foreground">Operating Region</dt>
             <dd className="font-medium text-foreground">{data.level2}, {data.level1}</dd>
@@ -389,6 +404,40 @@ function StepReview() {
   )
 }
 
+function StepSecurity() {
+  const { register, formState: { errors } } = useFormContext<WizardData>()
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-primary/5 border border-primary/20 p-6 rounded-xl flex gap-4 text-primary">
+        <Lock className="w-8 h-8 shrink-0" />
+        <div>
+          <h3 className="text-lg font-bold text-foreground mb-2">Transaction Security</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            The Transaction PIN is a secondary security layer required to authorize loans, payouts, and other critical financial actions. Keep this PIN private.
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-xs mx-auto text-center space-y-6">
+        <div>
+          <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-4">Set 4-Digit PIN</label>
+          <input 
+            type="password" 
+            maxLength={4}
+            {...register("transaction_pin")} 
+            className="w-full h-20 text-center text-4xl tracking-[1em] bg-muted/50 border border-border rounded-[5px] focus:ring-4 focus:ring-primary/20 focus:border-primary outline-none transition-all font-semibold"
+            placeholder="••••"
+          />
+          {errors.transaction_pin && <p className="text-xs text-destructive mt-3 font-bold">{errors.transaction_pin.message}</p>}
+        </div>
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest leading-relaxed">
+          You will be asked for this PIN whenever you <br /> approve a loan or trigger a payout.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 import { SuccessOverlay } from "@/components/ui/SuccessOverlay"
@@ -402,12 +451,13 @@ export default function ChamaOnboardingPage() {
   const [showSuccess, setShowSuccess] = useState(false)
 
   const methods = useForm<WizardData>({
-    resolver: zodResolver(
+    resolver: zodResolver((
       step === 1 ? accountSchema :
       step === 2 ? groupSchema :
       step === 3 ? locationSchema :
+      step === 4 ? reviewSchema :
       wizardSchema
-    ),
+    ) as any),
     defaultValues,
     mode: "onTouched"
   })
@@ -417,8 +467,9 @@ export default function ChamaOnboardingPage() {
   const handleNext = async () => {
     let isValid = true
     if (step === 1) isValid = await trigger(["country", "full_name", "email", "phone", "password", "confirmPassword"])
-    if (step === 2) isValid = await trigger(["group_name", "group_type", "group_type_other", "contribution_amount", "contribution_frequency"])
+    if (step === 2) isValid = await trigger(["group_name", "group_type", "group_type_other", "contribution_amount", "contribution_frequency", "mandatory_savings_amount"])
     if (step === 3) isValid = await trigger(["level1", "level2"])
+    if (step === 4) isValid = await trigger(["agreePrivacy", "agreeTerms"])
 
     if (isValid) {
       setStep(s => Math.min(TOTAL_STEPS - 1, s + 1))
@@ -431,37 +482,32 @@ export default function ChamaOnboardingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Backend Mapping Logic
-  const mapFrequencyToBackend = (uiVal: string) => {
-    if (uiVal === "Daily" || uiVal === "Every 3 Days" || uiVal === "Every 5 Days" || uiVal === "Weekly") return "weekly"
-    if (uiVal === "Every 2 Weeks") return "biweekly"
-    if (uiVal === "Monthly") return "monthly"
-    if (uiVal === "Harvest") return "harvest"
-    return "monthly"
-  }
-
   const onSubmit = async (data: WizardData) => {
     setApiError(null)
     setIsSubmittingForm(true)
+    
+    // Safety check: ensure we have all data even if the partial resolver missed something
+    const allData = { ...getValues(), ...data }
+    
     try {
       // 1. Register the Chairperson
       await api.post("/auth/register/", {
-        full_name: data.full_name,
-        email: data.email,
-        phone: data.phone,
-        password: data.password,
+        full_name: allData.full_name,
+        email: allData.email,
+        phone: allData.phone,
+        password: allData.password,
         role: "chairperson",
-        country: data.country
+        country: allData.country
       }, {
-        headers: { 'X-Country': data.country }
+        headers: { 'X-Country': allData.country }
       })
 
       // 2. Authenticate to get a fresh token
       const tokenRes = await api.post("/auth/token/", { 
-        email: data.email, 
-        password: data.password 
+        email: allData.email, 
+        password: allData.password 
       }, {
-        headers: { 'X-Country': data.country }
+        headers: { 'X-Country': allData.country }
       })
       const access = tokenRes.data.access || tokenRes.data.access_token
       
@@ -473,28 +519,28 @@ export default function ChamaOnboardingPage() {
       const profileRes = await api.get("/auth/me/", { 
         headers: { 
           Authorization: `Bearer ${access}`,
-          'X-Country': data.country
+          'X-Country': allData.country
         } 
       })
       setAuth(profileRes.data, access)
 
       // 4. Create Group with explicit headers for isolation
-      const enrichedDescription = `Type: ${data.group_type === 'Other' ? data.group_type_other : data.group_type}. Location: ${data.level2}, ${data.level1}.`
-      
-      await api.post("/groups/", {
-        name: data.group_name,
-        country: data.country,
-        contribution_amount: data.contribution_amount,
-        contribution_frequency: mapFrequencyToBackend(data.contribution_frequency),
-        contribution_day: 1,
-        rotation_savings_pct: 70,
-        loan_pool_pct: 30,
-        description: enrichedDescription
-      }, { 
+      await api.post("/groups/", buildExistingAccountChairpersonPayload(allData), { 
         headers: { 
           Authorization: `Bearer ${access}`,
-          'X-Country': data.country 
+          'X-Country': allData.country 
         } 
+      })
+
+      // 5. Set Transaction PIN
+      await api.post("/auth/transaction-pin/", {
+        pin: allData.transaction_pin,
+        password: allData.password // Verification required by backend
+      }, {
+        headers: { 
+          Authorization: `Bearer ${access}`,
+          'X-Country': allData.country 
+        }
       })
 
       setShowSuccess(true)
@@ -503,8 +549,20 @@ export default function ChamaOnboardingPage() {
       if (err.response?.data) {
         const d = err.response.data
         // Standardize error message extraction from the wrapped response
-        const errorMessage = d.message || d.detail || d.errors?.detail?.[0] || d.non_field_errors?.[0] || JSON.stringify(d)
-        setApiError(errorMessage)
+        // If it's a validation error object, try to format it nicely
+        let errorMessage = d.message || d.detail || d.errors?.detail?.[0] || d.non_field_errors?.[0]
+        
+        if (!errorMessage && typeof d === 'object') {
+          // If we have field-specific errors but no top-level message, show the first one
+          const firstKey = Object.keys(d)[0]
+          if (firstKey && Array.isArray(d[firstKey])) {
+            errorMessage = `${firstKey}: ${d[firstKey][0]}`
+          } else {
+            errorMessage = JSON.stringify(d)
+          }
+        }
+        
+        setApiError(errorMessage || "An unexpected error occurred.")
       } else {
         setApiError(err.message || "Network error. Please check your connection.")
       }
@@ -575,6 +633,7 @@ export default function ChamaOnboardingPage() {
                 {step === 2 && <StepGroup />}
                 {step === 3 && <StepLocation />}
                 {step === 4 && <StepReview />}
+                {step === 5 && <StepSecurity />}
               </div>
 
               {/* Navigation Footer */}

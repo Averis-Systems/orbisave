@@ -97,7 +97,7 @@ export default function SuperAdminDashboard() {
                     dataKey="country" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', fill: '#94a3b8' }} 
+                    tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} 
                     dy={10}
                   />
                   <YAxis hide />

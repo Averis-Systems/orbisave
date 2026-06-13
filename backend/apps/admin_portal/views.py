@@ -52,6 +52,7 @@ class AdminDashboardStatsView(APIView):
         stats = {
             'country':          user.country if not is_super else 'all',
             'total_users':      users_qs.count(),
+            'total_members':    users_qs.filter(role='member').count(),
             'verified_users':   users_qs.filter(kyc_status='verified').count(),
             'pending_kyc':      users_qs.filter(kyc_status='submitted').count(),
             'rejected_kyc':     users_qs.filter(kyc_status='rejected').count(),
@@ -142,6 +143,12 @@ class AdminKYCReviewView(APIView):
             # Activate user
             kyc_doc.user.kyc_status = 'verified'
             kyc_doc.user.save(update_fields=['kyc_status'])
+            from apps.groups.lifecycle import verify_pending_groups_for_chairperson
+            verify_pending_groups_for_chairperson(
+                kyc_doc.user,
+                verified_by=request.user,
+                note='Chairperson KYC approved.',
+            )
 
             logger.info('kyc_approved', kyc_id=str(kyc_id), admin=str(request.user.id))
             return Response({'message': 'KYC approved. User account activated.', 'kyc_status': 'verified'})

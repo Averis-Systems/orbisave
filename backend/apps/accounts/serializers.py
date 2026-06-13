@@ -4,8 +4,29 @@ from .models import User, KYCDocument
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone', 'full_name', 'role', 'country', 'kyc_status', 'created_at']
+        fields = [
+            'id', 'email', 'phone', 'full_name', 'role', 'country', 'kyc_status',
+            'gender', 'next_of_kin_name', 'next_of_kin_phone', 'disbursement_method',
+            'bank_name', 'bank_account_number', 'onboarding_popup_seen',
+            'languages', 'created_at'
+        ]
         read_only_fields = ['id', 'created_at']
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'full_name', 'gender', 'next_of_kin_name', 'next_of_kin_phone',
+            'disbursement_method', 'bank_name', 'bank_account_number',
+            'onboarding_popup_seen', 'languages',
+        ]
+
+    def validate_languages(self, value):
+        if len(value) > 2:
+            raise serializers.ValidationError("Choose at most 2 preferred languages.")
+        return value
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

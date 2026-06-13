@@ -1,124 +1,172 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle, XCircle, Clock, CreditCard, AlertCircle } from "lucide-react"
-import { LOANS, MEMBERS } from "@/lib/demo-data"
-
-const fmt = (n: number) => "KES " + Number(n).toLocaleString()
+import { Clock, CheckCircle, XCircle, CreditCard, ShieldAlert, Loader2 } from "lucide-react"
+import { useGroups } from "@/hooks/useGroups"
+import { useLoans, useApproveLoan, useRejectLoan } from "@/hooks/useLoans"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+import { fmt } from "@/lib/formatters"
 
 export default function LoanApprovalsPage() {
-  const [approved, setApproved] = useState<string[]>([])
-  const [rejected, setRejected] = useState<string[]>([])
+  const { data: groups, isLoading: groupsLoading } = useGroups()
+  const activeGroup = groups?.[0] || null
+  
+  const { data: loans, isLoading: loansLoading } = useLoans(activeGroup?.id || null)
+  const approveLoan = useApproveLoan()
+  const rejectLoan = useRejectLoan()
 
-  const pending = LOANS.filter(l => l.status === "pending")
-  const active  = LOANS.filter(l => l.status === "active")
-  const repaid  = LOANS.filter(l => l.status === "repaid")
+  const [pin, setPin] = useState("")
+
+  const pending = loans?.filter(l => l.status.startsWith('pending')) || []
+  const active  = loans?.filter(l => l.status === 'active' || l.status === 'disbursed') || []
+  const repaid  = loans?.filter(l => l.status === 'repaid') || []
+
+  const handleApprove = async (id: string) => {
+    if (!pin) {
+      toast.error("Please enter your authorization PIN")
+      return
+    }
+    try {
+      await approveLoan.mutateAsync({ id, pin })
+      toast.success("Loan approved successfully")
+      setPin("")
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to approve loan")
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    const reason = window.prompt("Reason for rejection:")
+    if (reason === null) return
+    try {
+      await rejectLoan.mutateAsync({ id, reason })
+      toast.success("Loan rejected")
+    } catch (err: any) {
+      toast.error("Failed to reject loan")
+    }
+  }
+
+  // Loading handled at content level
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>Loan Approvals</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>Review and approve member loan requests</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-black text-[#0a2540] mb-2">Loan Approvals</h1>
+        <p className="text-gray-500 font-bold">Review and authorize member loan requests within your collective.</p>
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: "Pending Review", value: pending.length, color: "#d97706", bg: "#fefce8" },
-          { label: "Active Loans",   value: active.length,  color: "#00ab00", bg: "#e9f3ed" },
-          { label: "Repaid",         value: repaid.length,  color: "#6b7280", bg: "#f9fafb" },
+          { label: "Pending Review", value: pending.length, color: "text-orange-500", bg: "bg-orange-50" },
+          { label: "Active Portfolio",   value: active.length,  color: "text-[#00ab00]", bg: "bg-green-50" },
+          { label: "Fully Repaid",         value: repaid.length,  color: "text-gray-400", bg: "bg-gray-50" },
         ].map(s => (
-          <div key={s.label} style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{s.label}</div>
-            <div style={{ fontSize: 34, fontWeight: 800, color: s.color }}>{s.value}</div>
+          <div key={s.label} className="bg-white rounded-lg p-6 border border-gray-100 shadow-sm">
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">{s.label}</div>
+            <div className={`text-4xl font-black ${s.color}`}>{s.value}</div>
           </div>
         ))}
       </div>
 
-      {/* Pending loans */}
+      {/* PIN Input */}
       {pending.length > 0 && (
-        <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            <Clock size={16} style={{ color: "#d97706" }} /> Pending Approval
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {pending.map(loan => {
-              const isApproved = approved.includes(loan.id)
-              const isRejected = rejected.includes(loan.id)
-              return (
-                <div key={loan.id} style={{
-                  border: `1px solid ${isApproved ? "#d6e4df" : isRejected ? "#fee2e2" : "#f0f0f0"}`,
-                  borderRadius: 10, padding: "16px 18px",
-                  background: isApproved ? "#e9f3ed" : isRejected ? "#fff5f5" : "#fafafa",
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540" }}>{loan.member}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>{loan.purpose} · {loan.id} · Requested {loan.requested}</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: "#0a2540" }}>{fmt(loan.amount)}</div>
-                      <div style={{ fontSize: 11, color: "#9ca3af" }}>{loan.term} · {loan.interest}% interest</div>
-                    </div>
-                  </div>
-                  {(loan as any).collateral && (
-                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>Collateral: {(loan as any).collateral}</div>
-                  )}
-                  {!isApproved && !isRejected ? (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => setApproved(a => [...a, loan.id])} style={{
-                        flex: 1, padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 700,
-                        background: "#00ab00", color: "#fff", border: "none", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      }}>
-                        <CheckCircle size={14} /> Approve
-                      </button>
-                      <button onClick={() => setRejected(r => [...r, loan.id])} style={{
-                        flex: 1, padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: 700,
-                        background: "#fff", color: "#e53e3e", border: "1px solid #e53e3e", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      }}>
-                        <XCircle size={14} /> Decline
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 13, fontWeight: 700, color: isApproved ? "#00ab00" : "#e53e3e" }}>
-                      {isApproved ? "✓ Approved — awaiting treasurer co-sign" : "✗ Declined"}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
+         <div className="bg-[#0a2540] p-8 rounded-lg border border-navy-mid text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+            <div className="flex items-center gap-4">
+               <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-[#00ab00]">
+                  <ShieldAlert size={24} />
+               </div>
+               <div>
+                  <h3 className="font-black text-lg text-white">Authorization Required</h3>
+                  <p className="text-sm text-white/50 font-bold">Enter your leader PIN to authorize these approvals.</p>
+               </div>
+            </div>
+            <input 
+              type="password" 
+              placeholder="PIN"
+              maxLength={4}
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-center text-2xl font-black tracking-[0.5em] focus:ring-2 focus:ring-[#00ab00] outline-none w-full md:w-48 placeholder:text-white/20"
+            />
+         </div>
       )}
 
-      {/* Active loans */}
-      <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-          <CreditCard size={16} style={{ color: "#00ab00" }} /> Active Loans
+      {/* Pending loans */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+           <Clock size={18} className="text-orange-500" />
+           <h3 className="text-sm font-black text-[#0a2540] uppercase tracking-widest">Pending Requests</h3>
         </div>
-        {active.map(loan => {
-          const repaidPct = Math.round(((loan as any).repaid / loan.amount) * 100)
-          return (
-            <div key={loan.id} style={{ padding: "14px 0", borderBottom: "1px solid #f5f5f5" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0a2540" }}>{loan.member}</div>
-                  <div style={{ fontSize: 11, color: "#6b7280" }}>{loan.purpose} · Due {(loan as any).due}</div>
+
+        {pending.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4">
+            {pending.map(loan => (
+              <div key={loan.id} className="bg-white rounded-lg p-8 border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+                  <div>
+                    <h4 className="text-xl font-black text-[#0a2540] mb-1">{loan.borrower_name}</h4>
+                    <p className="text-sm text-gray-400 font-bold">{loan.purpose} · <span className="text-[#0a2540]">{loan.term_weeks} weeks</span></p>
+                    <p className="text-[10px] text-gray-300 font-black uppercase tracking-tighter mt-2">ID: {loan.id}</p>
+                  </div>
+                  <div className="text-left lg:text-right">
+                    <p className="text-2xl font-black text-[#0a2540]">{fmt(loan.amount)}</p>
+                    <p className="text-xs font-bold text-[#00ab00] uppercase tracking-widest">{loan.interest_rate_monthly}% Monthly Interest</p>
+                  </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#0a2540" }}>{fmt(loan.amount)}</div>
-                  <div style={{ fontSize: 11, color: "#00ab00" }}>{fmt((loan as any).repaid)} repaid</div>
+                
+                <div className="flex gap-4 border-t border-gray-50 pt-8">
+                  <button 
+                    onClick={() => handleApprove(loan.id)}
+                    disabled={approveLoan.isPending}
+                    className="flex-1 py-4 bg-[#00ab00] text-white rounded-xl font-black text-sm hover:bg-[#008a00] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <CheckCircle size={16} /> {approveLoan.isPending ? 'Processing...' : 'Authorize Approval'}
+                  </button>
+                  <button 
+                    onClick={() => handleReject(loan.id)}
+                    disabled={rejectLoan.isPending}
+                    className="flex-1 py-4 bg-white border border-red-200 text-red-500 rounded-xl font-black text-sm hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <XCircle size={16} /> Decline
+                  </button>
                 </div>
               </div>
-              <div style={{ height: 6, borderRadius: 99, background: "#f0f0f0", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 99, background: "#00ab00", width: `${repaidPct}%` }} />
+            ))}
+          </div>
+        ) : (
+           <div className="py-20 text-center bg-white rounded-lg border border-dashed border-gray-100 text-gray-300">
+              <p className="font-bold text-sm">No pending loan requests to review.</p>
+           </div>
+        )}
+      </div>
+
+      {/* Portfolio */}
+      <div className="bg-white rounded-lg p-8 border border-gray-100 shadow-sm relative min-h-[200px]">
+        {loansLoading && (
+           <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-[1px] z-10">
+              <Loader2 className="w-10 h-10 animate-spin text-[#00ab00] opacity-20" />
+           </div>
+        )}
+        <div className="flex items-center gap-2 mb-8">
+           <CreditCard size={18} className="text-[#0a2540]" />
+           <h3 className="text-sm font-black text-[#0a2540] uppercase tracking-widest">Active Portfolio</h3>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {active.length > 0 ? active.map(loan => (
+            <div key={loan.id} className="py-6 flex justify-between items-center group">
+              <div>
+                <p className="font-black text-[#0a2540] group-hover:text-[#00ab00] transition-colors">{loan.borrower_name}</p>
+                <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-tighter">{loan.status} · {loan.purpose}</p>
               </div>
-              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{repaidPct}% repaid</div>
+              <div className="text-right">
+                <p className="text-lg font-black text-[#0a2540]">{fmt(loan.amount)}</p>
+                <p className="text-[10px] font-black text-[#00ab00] uppercase tracking-widest">{loan.term_weeks} Weeks</p>
+              </div>
             </div>
-          )
-        })}
+          )) : !loansLoading && <div className="text-center py-12 text-gray-300 italic text-sm font-bold">No active loans in the group portfolio.</div>}
+        </div>
       </div>
     </div>
   )

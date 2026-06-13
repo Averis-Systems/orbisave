@@ -9,5 +9,8 @@ urlpatterns = [
     path('api/v1/contributions/', include('apps.contributions.urls')),
     path('api/v1/payouts/', include('apps.payouts.urls')),
     path('api/v1/loans/', include('apps.loans.urls')),
+    path('api/v1/meetings/', include('apps.meetings.urls')),
+    path('api/v1/notifications/', include('apps.notifications.urls')),
+    path('api/v1/analytics/', include('apps.analytics.urls')),
     path('api/v1/admin-portal/', include('apps.admin_portal.urls')),
 ]

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
+from decimal import Decimal
 from .models import Contribution, Penalty
 
 
@@ -15,7 +16,7 @@ class ContributionInitiateSerializer(serializers.Serializer):
     ALLOWED_METHODS = ['mpesa', 'airtel', 'mtn_momo', 'bank']
 
     amount = serializers.DecimalField(
-        max_digits=14, decimal_places=2, min_value='1.00',
+        max_digits=14, decimal_places=2, min_value=Decimal('1.00'),
         error_messages={
             'min_value': 'Contribution amount must be at least 1.00.',
             'invalid': 'Enter a valid monetary amount.',
@@ -41,7 +42,6 @@ class ContributionInitiateSerializer(serializers.Serializer):
         return cleaned
 
     def validate_amount(self, value):
-        from decimal import Decimal
         if value <= Decimal('0'):
             raise serializers.ValidationError('Amount must be greater than zero.')
         return value

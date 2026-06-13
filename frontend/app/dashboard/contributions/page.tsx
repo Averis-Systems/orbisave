@@ -1,129 +1,182 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { Send, ArrowDown, ArrowUp, CheckCircle, AlertCircle } from "lucide-react"
-import { MEMBERS, CONTRIBUTIONS_HISTORY, GROUP } from "@/lib/demo-data"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-
-const fmt = (n: number) => "KES " + Number(n).toLocaleString()
-const paidCount = MEMBERS.filter(m => m.paid && m.status === "active").length
-const activeCount = MEMBERS.filter(m => m.status === "active").length
+import { useGroups } from "@/hooks/useGroups"
+import { useMembers } from "@/hooks/useMembers"
+import { useContributions } from "@/hooks/useContributions"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+import { fmt } from "@/lib/formatters"
+import { ArrowUp, ArrowDown, Send, Activity, Calendar, Zap } from "lucide-react"
 
 export default function ContributionsPage() {
-  const router = useRouter()
+  const { data: groups, isLoading: groupsLoading } = useGroups()
+  const activeGroup = groups?.[0] || null
+  
+  const { data: members, isLoading: membersLoading } = useMembers(activeGroup?.id || null)
+  const { data: contributions, isLoading: contribsLoading } = useContributions(activeGroup?.id || null)
+
+  const activeMembers = members?.filter(m => m.status === 'active') || []
+  const confirmedContribs = contributions?.filter(c => c.status === 'confirmed') || []
+  
+  const paidMemberIds = new Set(confirmedContribs.map(c => c.member_name))
+
+  const paidCount = activeMembers.filter(m => paidMemberIds.has(m.member_name)).length
+  const activeCount = activeMembers.length
+
+  const handleBulkPush = async () => {
+    toast.info("Triggering automated collection for pending members...")
+  }
+
+  if (groupsLoading || membersLoading || contribsLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="space-y-2">
+           <Skeleton className="h-8 w-64" />
+           <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-lg" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-[500px] rounded-lg" />
+          <Skeleton className="h-[500px] rounded-lg" />
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", margin: 0 }}>Contributions</h1>
-        <p style={{ fontSize: 13, color: "#4a5c6a", margin: "4px 0 0" }}>Track monthly savings and collection progress</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-black text-[#0a2540] mb-2">Pool Collections</h1>
+        <p className="text-gray-500 font-bold">Monitor cycle savings and real-time contribution progress.</p>
       </div>
 
-      {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Collected (Oct)", value: fmt(paidCount * 5000), sub: `${paidCount} of ${activeCount} members`, color: "#00ab00", up: true },
-          { label: "Outstanding",    value: fmt((activeCount - paidCount) * 5000), sub: `${activeCount - paidCount} pending`, color: "#e53e3e", up: false },
-          { label: "Monthly Target", value: fmt(GROUP.totalMembers * GROUP.monthlyContribution), sub: `${GROUP.totalMembers} × KES 5,000`, color: "#0a2540", up: false },
-          { label: "Collection Rate",value: `${Math.round((paidCount / activeCount) * 100)}%`, sub: "This month", color: "#00ab00", up: true },
-        ].map(c => (
-          <div key={c.label} style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{c.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#0a2540", marginBottom: 4 }}>{c.value}</div>
-            <div style={{ fontSize: 12, color: c.color, display: "flex", alignItems: "center", gap: 4 }}>
-              {c.up ? <ArrowUp size={11} /> : null}{c.sub}
+          { label: "Total Collected", value: fmt(confirmedContribs.reduce((acc, c) => acc + Number(c.amount), 0)), sub: `${paidCount} of ${activeCount} members paid`, color: "text-[#00ab00]", up: true, icon: Zap },
+          { label: "Outstanding",    value: fmt((activeCount - paidCount) * (activeGroup?.contribution_amount || 0)), sub: `${activeCount - paidCount} pending`, color: "text-red-500", up: false, icon: ArrowDown },
+          { label: "Cycle Target", value: fmt(activeCount * (activeGroup?.contribution_amount || 0)), sub: `${activeCount} × ${fmt(activeGroup?.contribution_amount || 0)}`, color: "text-[#0a2540]", up: false, icon: Activity },
+          { label: "Collection Rate",value: `${activeCount > 0 ? Math.round((paidCount / activeCount) * 100) : 0}%`, sub: "Cycle Efficiency", color: "text-[#00ab00]", up: true, icon: ArrowUp },
+        ].map((c, i) => (
+          <div key={i} className="bg-white rounded-lg p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex justify-between items-center">
+              {c.label}
+              <c.icon size={12} className={c.color} />
+            </div>
+            <div className="text-2xl font-black text-[#0a2540] mb-1">{c.value}</div>
+            <div className={`text-[10px] font-bold ${c.color} flex items-center gap-1`}>
+               {c.sub}
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {/* Member status list */}
-        <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#0a2540" }}>October 2025 — Status</div>
-            <button style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
-              background: "#00ab00", color: "#fff", border: "none", borderRadius: 7,
-              fontSize: 12, fontWeight: 700, cursor: "pointer",
-            }}>
-              <Send size={12} /> Bulk STK Push
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Collection Tracker */}
+        <div className="lg:col-span-7 bg-white rounded-lg p-8 border border-gray-100 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div>
+               <h3 className="text-sm font-black text-[#0a2540] uppercase tracking-widest mb-1">Cycle Tracking</h3>
+               <p className="text-xs text-gray-400 font-bold">Real-time member payment status</p>
+            </div>
+            <button 
+              onClick={handleBulkPush}
+              className="flex items-center gap-2 px-6 py-3 bg-[#00ab00] text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-md hover:bg-[#008a00] transition-all"
+            >
+              <Send size={14} /> STK Push All
             </button>
           </div>
 
-          {/* Progress bar */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-              <span>Collection progress</span><span>{paidCount}/{activeCount}</span>
+          <div className="mb-10 p-6 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex justify-between items-end mb-3">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Progress</span>
+              <span className="text-lg font-black text-[#0a2540]">{paidCount}<span className="text-gray-300 mx-1">/</span>{activeCount}</span>
             </div>
-            <div style={{ height: 8, borderRadius: 99, background: "#f0f0f0", overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 99, background: "#00ab00", width: `${(paidCount / activeCount) * 100}%`, transition: "width 0.5s" }} />
+            <div className="h-3 rounded-full bg-gray-200 overflow-hidden">
+              <div 
+                className="h-full bg-[#00ab00] rounded-full transition-all duration-1000 ease-out" 
+                style={{ width: `${activeCount > 0 ? (paidCount / activeCount) * 100 : 0}%` }} 
+              />
             </div>
           </div>
 
-          {/* Member rows */}
-          <div>
-            {MEMBERS.filter(m => m.status === "active").map(mem => (
-              <div key={mem.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f9f9f9" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: mem.paid ? "#00ab00" : "#e5e7eb", flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, color: "#0a2540" }}>{mem.name}</span>
+          <div className="space-y-4 divide-y divide-gray-50">
+            {activeMembers.map(mem => {
+              const hasPaid = paidMemberIds.has(mem.member_name)
+              return (
+                <div key={mem.id} className="flex items-center justify-between pt-4 first:pt-0 group">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full ${hasPaid ? 'bg-[#00ab00] shadow-[0_0_8px_#00ab00]' : 'bg-gray-200'}`} />
+                    <span className="text-sm font-black text-[#0a2540] group-hover:text-[#00ab00] transition-colors">{mem.member_name}</span>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <span className={`text-xs font-black ${hasPaid ? 'text-[#0a2540]' : 'text-gray-300'}`}>
+                      {hasPaid ? fmt(activeGroup?.contribution_amount || 0) : "—"}
+                    </span>
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border ${
+                      hasPaid ? 'bg-green-50 text-[#00ab00] border-green-100' : 'bg-gray-50 text-gray-400 border-gray-100'
+                    }`}>
+                      {hasPaid ? "Confirmed" : "Pending"}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: mem.paid ? "#00ab00" : "#9ca3af" }}>
-                    {mem.paid ? "KES 5,000" : "—"}
-                  </span>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 99,
-                    background: mem.paid ? "#e9f3ed" : "#f9fafb",
-                    color: mem.paid ? "#016828" : "#9ca3af",
-                  }}>{mem.paid ? "Paid" : "Pending"}</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
-        {/* Right column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Trend chart */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0a2540", marginBottom: 4 }}>Collection Trend</div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>Feb – Oct 2025</div>
-            <ResponsiveContainer width="100%" height={160}>
-              <AreaChart data={CONTRIBUTIONS_HISTORY} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="cgrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00ab00" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#00ab00" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={v => v / 1000 + "k"} />
-                <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }} />
-                <Area type="monotone" dataKey="target" stroke="#e5e7eb" strokeDasharray="4 4" fill="none" strokeWidth={1} />
-                <Area type="monotone" dataKey="collected" stroke="#00ab00" fill="url(#cgrad)" strokeWidth={2.5} dot={{ fill: "#00ab00", r: 3 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+        {/* Right Panel */}
+        <div className="lg:col-span-5 space-y-8">
+          {/* Feed */}
+          <div className="bg-white rounded-lg p-8 border border-gray-100 shadow-sm">
+            <h3 className="text-sm font-black text-[#0a2540] uppercase tracking-widest mb-8 flex items-center gap-2">
+               <Zap size={16} className="text-[#00ab00]" /> Live Feed
+            </h3>
+            <div className="space-y-6">
+               {contributions?.slice(0, 5).map(c => (
+                  <div key={c.id} className="flex items-center justify-between group">
+                     <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-green-50 group-hover:text-[#00ab00] transition-all">
+                           <Zap size={16} />
+                        </div>
+                        <div>
+                           <p className="text-sm font-black text-[#0a2540]">{c.member_name}</p>
+                           <p className="text-[10px] text-gray-400 font-bold">{new Date(c.confirmed_at || c.initiated_at || c.scheduled_date).toLocaleTimeString()}</p>
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        <p className={`text-sm font-black ${c.status === 'confirmed' ? 'text-[#0a2540]' : 'text-gray-300'}`}>{fmt(c.amount)}</p>
+                        <p className="text-[9px] uppercase font-black tracking-tighter opacity-40">{c.status}</p>
+                     </div>
+                  </div>
+               ))}
+               {contributions?.length === 0 && (
+                  <div className="py-12 text-center text-gray-300 italic font-bold text-xs">No activity logged yet.</div>
+               )}
+            </div>
           </div>
 
-          {/* Schedule */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0a2540", marginBottom: 4 }}>Schedule</div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 14 }}>STK push auto-triggers on the 5th of each month</div>
-            {[
-              { label: "Frequency",        val: "Monthly (5th)" },
-              { label: "Amount / member",  val: "KES 5,000" },
-              { label: "Payment method",   val: "M-Pesa STK Push" },
-              { label: "Grace period",     val: "5 days" },
-              { label: "Late penalty",     val: "KES 200" },
-            ].map(r => (
-              <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #f5f5f5", fontSize: 12 }}>
-                <span style={{ color: "#6b7280" }}>{r.label}</span>
-                <span style={{ fontWeight: 600, color: "#0a2540" }}>{r.val}</span>
-              </div>
-            ))}
+          {/* Configuration */}
+          <div className="bg-[#0a2540] rounded-lg p-8 text-white shadow-xl">
+             <div className="flex items-center gap-2 mb-8">
+                <Calendar size={18} className="text-[#00ab00]" />
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">Pool Configuration</h3>
+             </div>
+             <div className="space-y-4">
+               {[
+                 { label: "Frequency",        val: activeGroup?.contribution_frequency },
+                 { label: "Amount",           val: fmt(activeGroup?.contribution_amount || 0) },
+                 { label: "Currency",         val: activeGroup?.currency },
+                 { label: "Interest",         val: "3.5% Mo." },
+               ].map((r, i) => (
+                 <div key={i} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-white/30">{r.label}</span>
+                   <span className="text-xs font-black text-white capitalize">{r.val}</span>
+                 </div>
+               ))}
+             </div>
           </div>
         </div>
       </div>

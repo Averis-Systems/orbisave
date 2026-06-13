@@ -69,11 +69,13 @@ const config = {
         ink: "#0f1924",
       },
       borderRadius: {
-        // Hard cap at 8px
-        lg: "8px",
-        md: "6px",
+        // Hard cap at 5px for cards and containers
+        "2xl": "5px",
+        xl: "5px",
+        lg: "5px",
+        md: "5px",
         sm: "4px",
-        DEFAULT: "8px",
+        DEFAULT: "5px",
       },
       boxShadow: {
         // No shadows — override to empty

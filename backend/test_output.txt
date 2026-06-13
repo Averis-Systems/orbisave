@@ -1,3 +1,0 @@
-System check identified no issues (0 silenced).
-C:\Users\ADMIN\Desktop\Orbisave App\orbisave\backend\venv\Lib\site-packages\rest_framework\fields.py:992: UserWarning: min_value should be a Decimal instance.
-  warnings.warn("min_value should be a Decimal instance.")

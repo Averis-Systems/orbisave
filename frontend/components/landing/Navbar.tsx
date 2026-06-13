@@ -15,7 +15,7 @@ const NAV_LINKS = [
   { label: "Grow Your Farm", href: "/input-financing" },
 ]
 
-export function Navbar() {
+export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
   const navRef = useRef<HTMLElement>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -66,25 +66,29 @@ export function Navbar() {
           >
             <div
               className="w-8 h-8 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:rotate-6"
-              style={{ background: "#00ab00", borderRadius: "6px" }}
+              style={{ background: "#00ab00", borderRadius: "5px" }}
             >
-              <span className="text-white font-black text-sm leading-none">O</span>
+              <span className="text-white font-semibold text-sm leading-none">O</span>
             </div>
             <span
-              className="text-lg font-bold tracking-tight transition-colors duration-200"
-              style={{ color: "#0a2540" }}
+              className={`text-lg font-bold tracking-tight transition-colors duration-200 ${
+                !scrolled && variant === "dark" ? "text-white" : "text-[#0a2540]"
+              }`}
             >
               OrbiSave
             </span>
           </Link>
 
-          {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-1">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
-                className="nav-item px-4 py-2 text-sm font-semibold text-[#0f1924] hover:text-[#00ab00] transition-colors duration-200 rounded-[6px] hover:bg-[#e9f3ed]"
+                className={`nav-item px-4 py-2 text-sm font-semibold transition-colors duration-200 rounded-[5px] ${
+                  !scrolled && variant === "dark" 
+                    ? "text-white/80 hover:text-white hover:bg-white/10" 
+                    : "text-[#0f1924] hover:text-[#00ab00] hover:bg-[#e9f3ed]"
+                }`}
               >
                 {link.label}
               </Link>
@@ -96,7 +100,7 @@ export function Navbar() {
             {isMounted && isAuthenticated ? (
               <Link href="/dashboard">
                 <Button
-                  className="h-9 px-5 text-sm font-semibold text-white rounded-[6px] flex items-center gap-1.5 group border-0"
+                  className="h-9 px-5 text-sm font-semibold text-white rounded-[5px] flex items-center gap-1.5 group border-0"
                   style={{ background: "#00ab00" }}
                 >
                   Dashboard
@@ -108,14 +112,18 @@ export function Navbar() {
                 <Link href="/login">
                   <Button
                     variant="ghost"
-                    className="h-9 px-4 text-sm font-semibold text-[#0a2540] hover:text-[#0a2540] hover:bg-[#e9f3ed] rounded-[6px]"
+                    className={`h-9 px-4 text-sm font-semibold rounded-[5px] transition-colors ${
+                      !scrolled && variant === "dark"
+                        ? "text-white hover:text-white hover:bg-white/10"
+                        : "text-[#0a2540] hover:text-[#0a2540] hover:bg-[#e9f3ed]"
+                    }`}
                   >
                     Log in
                   </Button>
                 </Link>
                 <Link href="/onboarding">
                   <Button
-                    className="h-9 px-5 text-sm font-semibold text-white rounded-[6px] flex items-center gap-1.5 group border-0"
+                    className="h-9 px-5 text-sm font-semibold text-white rounded-[5px] flex items-center gap-1.5 group border-0"
                     style={{ background: "#00ab00" }}
                   >
                     Get Started
@@ -128,7 +136,11 @@ export function Navbar() {
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden p-2 rounded-[6px] text-[#0a2540] hover:bg-[#e9f3ed] transition-colors"
+            className={`md:hidden p-2 rounded-[5px] transition-colors ${
+              !scrolled && variant === "dark"
+                ? "text-white hover:bg-white/10"
+                : "text-[#0a2540] hover:bg-[#e9f3ed]"
+            }`}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
           >
@@ -161,7 +173,7 @@ export function Navbar() {
           <div className="flex items-center justify-between px-5 h-16 border-b border-[#d6e4df]">
             <span className="font-bold text-[#0a2540]">Menu</span>
             <button
-              className="p-1.5 rounded-[6px] hover:bg-[#e9f3ed] transition-colors"
+              className="p-1.5 rounded-[5px] hover:bg-[#e9f3ed] transition-colors"
               onClick={() => setMobileOpen(false)}
             >
               <X className="w-4 h-4 text-[#0a2540]" />
@@ -172,7 +184,7 @@ export function Navbar() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="px-4 py-3 text-sm font-semibold text-[#0f1924] hover:text-[#00ab00] hover:bg-[#e9f3ed] rounded-[6px] transition-colors"
+                className="px-4 py-3 text-sm font-semibold text-[#0f1924] hover:text-[#00ab00] hover:bg-[#e9f3ed] rounded-[5px] transition-colors"
                 onClick={() => setMobileOpen(false)}
               >
                 {link.label}
@@ -182,7 +194,7 @@ export function Navbar() {
               {isMounted && isAuthenticated ? (
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
                   <Button
-                    className="w-full h-10 text-sm font-semibold text-white rounded-[6px] gap-2 border-0"
+                    className="w-full h-10 text-sm font-semibold text-white rounded-[5px] gap-2 border-0"
                     style={{ background: "#00ab00" }}
                   >
                     Dashboard <ArrowRight className="w-3.5 h-3.5 icon-arrow" />
@@ -193,14 +205,14 @@ export function Navbar() {
                   <Link href="/login" onClick={() => setMobileOpen(false)}>
                     <Button
                       variant="outline"
-                      className="w-full h-10 text-sm font-semibold text-[#0a2540] border-[#d6e4df] rounded-[6px]"
+                      className="w-full h-10 text-sm font-semibold text-[#0a2540] border-[#d6e4df] rounded-[5px]"
                     >
                       Log in
                     </Button>
                   </Link>
                   <Link href="/onboarding" onClick={() => setMobileOpen(false)}>
                     <Button
-                      className="w-full h-10 text-sm font-semibold text-white rounded-[6px] gap-2 border-0"
+                      className="w-full h-10 text-sm font-semibold text-white rounded-[5px] gap-2 border-0"
                       style={{ background: "#00ab00" }}
                     >
                       Get Started <ArrowRight className="w-3.5 h-3.5 icon-arrow" />

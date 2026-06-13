@@ -6,9 +6,11 @@
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { TextPlugin } from "gsap/TextPlugin"
+import { MotionPathPlugin } from "gsap/MotionPathPlugin"
+import { ScrollToPlugin } from "gsap/ScrollToPlugin"
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger, TextPlugin)
+  gsap.registerPlugin(ScrollTrigger, TextPlugin, MotionPathPlugin, ScrollToPlugin)
 }
 
-export { gsap, ScrollTrigger, TextPlugin }
+export { gsap, ScrollTrigger, TextPlugin, MotionPathPlugin, ScrollToPlugin }
