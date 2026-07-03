@@ -1,0 +1,21 @@
+{
+  "name": "orbisave",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OrbiSave monorepo — member app (frontend), super-admin console (apps/console), country-admin manager (apps/manager), Django backend (backend)",
+  "scripts": {
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:console": "npm --prefix apps/console run lint",
+    "lint:manager": "npm --prefix apps/manager run lint",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:console": "npm --prefix apps/console run build",
+    "build:manager": "npm --prefix apps/manager run build",
+    "test:frontend": "npm --prefix frontend exec vitest run",
+    "guard:ledger": "node scripts/check-ledger-writes.mjs",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
+  }
+}

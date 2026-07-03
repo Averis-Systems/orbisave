@@ -13,6 +13,19 @@ DATABASES['kenya'] = DATABASES['default']
 DATABASES['rwanda'] = DATABASES['default']
 DATABASES['ghana'] = DATABASES['default']
 
+# Hermetic test infrastructure: no Redis or other external services required.
+# Cache semantics (set/get/delete, on-commit invalidation) are identical through
+# Django's cache API, so wallet-cache tests remain meaningful.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'orbisave-tests',
+    }
+}
+CHANNEL_LAYERS = {
+    'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}
+}
+
 # Run Celery tasks synchronously in tests
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True

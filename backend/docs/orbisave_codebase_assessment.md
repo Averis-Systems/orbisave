@@ -1,4 +1,12 @@
 # OrbiSave Codebase Assessment
+
+> ⚠️ **SUPERSEDED — HISTORICAL DOCUMENT ONLY.**
+> This assessment is from **March 2026** and no longer reflects the codebase: the ~14 "critical" bugs
+> listed below (field-name mismatches, PIN-checks-login-password, missing webhook signature checks,
+> hardcoded running balances, etc.) were **all fixed** in subsequent work. For current system state,
+> read `docs/orbisave_system_design_and_production_readiness_plan_2026-07-03.md` at the repo root
+> and `FEATURES.md`. Do not act on findings in this file without verifying against current code.
+
 > As of March 2026 — Full stack review across backend, frontend, packages, docs, and config.
 
 ---
