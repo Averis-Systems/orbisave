@@ -4,7 +4,21 @@ from common.models import BaseModel
 
 # Maximum allowable monthly interest rate — anti-exploitation cap.
 # Group treasurers cannot set rates above this, protecting borrowers.
-MAX_LOAN_INTEREST_RATE_MONTHLY = 30  # 30% per month hard cap
+MAX_LOAN_INTEREST_RATE_MONTHLY = 30
+
+
+def get_country_interest_policy(group):
+    if not group:
+        return None
+    try:
+        from apps.admin_portal.models import CountryPolicy
+
+        return CountryPolicy.objects.filter(
+            country=group.country,
+            is_active=True,
+        ).first()
+    except Exception:
+        return None
 
 class Loan(BaseModel):
     STATUS = [
@@ -47,11 +61,15 @@ class Loan(BaseModel):
         Satisfies Financial Engine Checklist §7: System enforces upper cap (anti-exploitation).
         """
         if self.interest_rate_monthly is not None:
-            if self.interest_rate_monthly > MAX_LOAN_INTEREST_RATE_MONTHLY:
+            policy = get_country_interest_policy(self.group)
+            cap = policy.max_loan_interest_rate_monthly if policy else MAX_LOAN_INTEREST_RATE_MONTHLY
+            cap_source = policy.central_bank_name if policy else 'platform fallback policy'
+
+            if self.interest_rate_monthly > cap:
                 raise ValidationError(
                     f"Interest rate {self.interest_rate_monthly}% exceeds the maximum "
-                    f"allowed rate of {MAX_LOAN_INTEREST_RATE_MONTHLY}% per month. "
-                    "Contact your platform administrator to adjust rate limits."
+                    f"allowed rate of {cap}% per month for {cap_source}. "
+                    "Contact your platform administrator to adjust country policy limits."
                 )
             if self.interest_rate_monthly < 0:
                 raise ValidationError("Interest rate cannot be negative.")

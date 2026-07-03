@@ -2,6 +2,13 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import Cookies from 'js-cookie'
 
+const getAuthCookieOptions = () => ({
+  secure: typeof window !== 'undefined' ? window.location.protocol === 'https:' : process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  expires: 7,
+  path: '/',
+})
+
 interface User {
   id: string
   email: string
@@ -24,7 +31,7 @@ interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
-  setAuth: (user: User, token: string) => void
+  setAuth: (user: User, token: string, refreshToken?: string) => void
   setUser: (user: User) => void
   logout: () => void
   updateKycStatus: (status: User['kyc_status']) => void
@@ -36,14 +43,17 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      setAuth: (user, token) => {
+      setAuth: (user, token, refreshToken) => {
         // Also set token in cookie for middleware/SSR access if needed
-        Cookies.set('access_token', token, { secure: true, sameSite: 'strict', expires: 7 })
+        const cookieOptions = getAuthCookieOptions()
+        Cookies.set('access_token', token, cookieOptions)
+        if (refreshToken) Cookies.set('refresh_token', refreshToken, cookieOptions)
         set({ user, token, isAuthenticated: true })
       },
       setUser: (user) => set({ user }),
       logout: () => {
-        Cookies.remove('access_token')
+        Cookies.remove('access_token', { path: '/' })
+        Cookies.remove('refresh_token', { path: '/' })
         set({ user: null, token: null, isAuthenticated: false })
       },
       updateKycStatus: (status) =>

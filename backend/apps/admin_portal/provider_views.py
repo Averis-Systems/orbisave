@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import serializers
 
-from apps.payments.models import BankProvider, ProviderApiLog
+from apps.payments.models import BankProvider, PaymentProviderAccount, ProviderApiLog
 from .views import IsSuperAdmin
 import structlog
 
@@ -19,10 +19,25 @@ logger = structlog.get_logger(__name__)
 
 # ── Serializers ──────────────────────────────────────────────────────────────
 
+class PaymentProviderAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentProviderAccount
+        fields = [
+            'id', 'label', 'account_type', 'account_number', 'account_name',
+            'country_code', 'currency', 'bank_code', 'branch_code', 'is_active',
+            'is_default_for_collections', 'is_default_for_disbursements',
+            'is_default_for_reconciliation', 'metadata', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
 class BankProviderSerializer(serializers.ModelSerializer):
     configured_by_name = serializers.CharField(
         source='configured_by.full_name', read_only=True, default=None
     )
+    accounts = PaymentProviderAccountSerializer(many=True, required=False)
+    has_api_secret = serializers.SerializerMethodField()
+    has_webhook_secret = serializers.SerializerMethodField()
 
     class Meta:
         model = BankProvider
@@ -32,6 +47,7 @@ class BankProviderSerializer(serializers.ModelSerializer):
             'base_url', 'webhook_url', 'webhook_secret',
             'supports_collections', 'supports_disbursements', 'supports_mobile_money',
             'supported_mobile_methods',
+            'accounts', 'has_api_secret', 'has_webhook_secret',
             'configured_by_name', 'last_tested_at', 'last_test_status',
             'last_test_message', 'notes', 'created_at', 'updated_at',
         ]
@@ -42,6 +58,53 @@ class BankProviderSerializer(serializers.ModelSerializer):
             'api_secret':     {'write_only': True},
             'webhook_secret': {'write_only': True},
         }
+
+    def get_has_api_secret(self, obj):
+        return bool(obj.api_secret)
+
+    def get_has_webhook_secret(self, obj):
+        return bool(obj.webhook_secret)
+
+    def validate(self, attrs):
+        provider_code = attrs.get('provider_code', getattr(self.instance, 'provider_code', ''))
+        country = attrs.get('country', getattr(self.instance, 'country', ''))
+        if provider_code == 'jenga_ke' and country != 'kenya':
+            raise serializers.ValidationError({'country': 'jenga_ke can only be configured for Kenya.'})
+        return attrs
+
+    def _save_accounts(self, provider, accounts):
+        if accounts is None:
+            return
+        keep_ids = []
+        for account_data in accounts:
+            account_id = account_data.pop('id', None)
+            if account_id:
+                account = provider.accounts.get(id=account_id)
+                for key, value in account_data.items():
+                    setattr(account, key, value)
+                account.save()
+            else:
+                account = provider.accounts.create(**account_data)
+            keep_ids.append(account.id)
+
+        if keep_ids:
+            provider.accounts.exclude(id__in=keep_ids).update(is_active=False)
+
+    def create(self, validated_data):
+        accounts = validated_data.pop('accounts', [])
+        provider = super().create(validated_data)
+        self._save_accounts(provider, accounts)
+        return provider
+
+    def update(self, instance, validated_data):
+        accounts = validated_data.pop('accounts', None)
+        if validated_data.get('api_secret') == '':
+            validated_data.pop('api_secret')
+        if validated_data.get('webhook_secret') == '':
+            validated_data.pop('webhook_secret')
+        provider = super().update(instance, validated_data)
+        self._save_accounts(provider, accounts)
+        return provider
 
 
 class ProviderApiLogSerializer(serializers.ModelSerializer):

@@ -11,6 +11,7 @@ Resolution order:
   3. Raise a descriptive error if none configured.
 """
 import logging
+from django.db.utils import NotSupportedError
 from .base import PaymentProvider
 
 logger = logging.getLogger(__name__)
@@ -32,10 +33,18 @@ def get_payment_provider(country: str, method: str = None) -> PaymentProvider:
 
         if method:
             # Prefer a provider that explicitly supports this mobile method
-            provider_record = (
-                qs.filter(supported_mobile_methods__contains=method).first()
-                or qs.first()
-            )
+            try:
+                provider_record = qs.filter(supported_mobile_methods__contains=method).first()
+            except NotSupportedError:
+                provider_record = next(
+                    (
+                        provider
+                        for provider in qs
+                        if method in (provider.supported_mobile_methods or [])
+                    ),
+                    None,
+                )
+            provider_record = provider_record or qs.first()
         else:
             provider_record = qs.first()
 

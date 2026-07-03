@@ -8,7 +8,7 @@ export interface Contribution {
   actual_amount: number | null
   currency: string
   method: string
-  status: 'scheduled' | 'initiated' | 'pending' | 'confirmed' | 'failed'
+  status: 'scheduled' | 'initiated' | 'pending' | 'confirmed' | 'failed' | 'disputed'
   scheduled_date: string
   initiated_at: string | null
   confirmed_at: string | null

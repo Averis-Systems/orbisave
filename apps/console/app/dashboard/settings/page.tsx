@@ -51,7 +51,7 @@ export default function PlatformSettingsPage() {
       await api.patch(`/superadmin/settings/${id}/`, { value })
       toast.success('System: Parameter updated successfully.')
     } catch (err) {
-      toast.error('Protocol Error: Parameter update failed.')
+      toast.error('Configuration update failed.')
     } finally {
       setSaving(null)
     }

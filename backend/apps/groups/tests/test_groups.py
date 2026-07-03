@@ -40,7 +40,7 @@ def group(auth_client):
     GroupMember.objects.create(group=grp, member=auth_client.user, role='chairperson', rotation_position=1)
     return grp
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases=["default", "kenya"])
 class TestGroupRBAC:
     def test_group_creation(self, auth_client):
         response = auth_client.post('/api/v1/groups/', {
@@ -59,9 +59,10 @@ class TestGroupRBAC:
         }, format='json')
         assert response.status_code == status.HTTP_201_CREATED
         
-        # Verify user was fundamentally upgraded to Chairperson logic
+        # Group creation starts chairperson approval without globally promoting
+        # the platform user until KYC/group activation gates complete.
         auth_client.user.refresh_from_db()
-        assert auth_client.user.role == 'chairperson'
+        assert auth_client.user.role == 'member'
 
     def test_unauthorized_member_cannot_manage_group(self, auth_client, group):
         # Create secondary unauthorized user

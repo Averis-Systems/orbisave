@@ -99,7 +99,7 @@ export default function ProviderHub() {
             <Database className="w-3 h-3 fill-current" />
             Infrastructure Gateway
           </div>
-          <h1 className="text-5xl font-bold text-navy tracking-tight">Provider Hub</h1>
+          <h1 className="text-5xl font-bold text-navy tracking-tight">Payment Providers</h1>
           <p className="text-slate-500 text-lg mt-3 max-w-xl font-medium">Manage jurisdictional banking rails and mobile money integrations globally.</p>
         </div>
         <Link 

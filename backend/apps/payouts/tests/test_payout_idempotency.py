@@ -124,8 +124,18 @@ class TestPayoutIdempotency:
             group=group, recipient=user, cycle=rotation_cycle
         ).count() == 1
 
-        # Strict Ledger check: only ONE ledger entry for this payout
-        assert LedgerEntry.objects.using("kenya").filter(related_payout=payout1).count() == 1
+        # Banking ledger check: one balanced event group with rotation debit,
+        # platform fee credit, and provider-settlement credit.
+        entries = LedgerEntry.objects.using("kenya").filter(related_payout=payout1)
+        assert entries.count() == 3
+        assert set(entries.values_list("account_stream", "direction")) == {
+            ("rotation", "debit"),
+            ("company_revenue", "credit"),
+            ("provider_settlement", "credit"),
+        }
+
+        event_groups = {entry.event_group_id for entry in entries}
+        assert len(event_groups) == 1
 
     @patch('apps.payouts.services.get_payment_provider')
     def test_failed_payout_can_be_retried(

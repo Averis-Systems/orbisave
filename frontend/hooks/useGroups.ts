@@ -20,6 +20,7 @@ export interface Group {
     total: number
     rotation_pool: number
     loan_pool: number
+    mandatory_savings?: number
     currency: string
   }
   chairperson_name: string

@@ -109,13 +109,13 @@ export function RotationVisualizer() {
 
         <div className="grid lg:grid-cols-2 gap-12 items-start">
 
-          {/* Left: Pool SVG */}
+          {/* Left: rotation savings SVG */}
           <div className="viz-pool-wrap flex flex-col items-center">
             <div className="relative w-full" style={{ maxWidth: "460px" }}>
               <svg
                 viewBox="0 0 440 440"
                 className="w-full"
-                aria-label="Rotation pool visualization"
+                aria-label="Rotation savings visualization"
               >
                 {/* Ring */}
                 <circle cx={SVG_CX} cy={SVG_CY} r="170" fill="none" stroke="rgba(10,37,64,0.07)" strokeWidth="1" strokeDasharray="3 8" />
@@ -185,7 +185,7 @@ export function RotationVisualizer() {
               </svg>
             </div>
 
-            {/* Pool stat chips */}
+            {/* Rotation stat chips */}
             <div className="flex gap-3 w-full max-w-[460px] mt-1">
               {[
                 { label: "Members",      value: "6",        color: "#0a2540" },

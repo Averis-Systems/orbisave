@@ -6,10 +6,10 @@ import { gsap, ScrollTrigger } from "@/lib/gsap-init"
 import { ShieldCheck, Zap, BarChart3, Building2 } from "lucide-react"
 
 const STATS = [
-  { value: "KES 3B+", label: "Processed annually" },
-  { value: "50K+",    label: "Groups onboarded" },
-  { value: "3",       label: "Countries active" },
-  { value: "99.8%",   label: "Collection rate" },
+  { value: "Trust", label: "Bank-backed custody" },
+  { value: "Ledger", label: "Group wallet records" },
+  { value: "3", label: "Launch jurisdictions" },
+  { value: "Mobile", label: "Money automation" },
 ]
 
 const PILLARS = [

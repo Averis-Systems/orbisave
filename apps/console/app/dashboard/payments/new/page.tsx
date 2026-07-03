@@ -28,15 +28,52 @@ export default function NewProvider() {
     api_key: '',
     api_secret: '',
     merchant_code: '',
-    base_url: 'https://uat.jengahq.io',
+    base_url: 'https://uat.finserve.africa',
     webhook_url: '',
     webhook_secret: '',
     extra_config: {
       currency: 'KES',
       country_code: 'KE',
-      trust_account_number: '',
       rsa_private_key_pem: ''
-    }
+    },
+    accounts: [
+      {
+        label: 'Collections',
+        account_type: 'collection',
+        account_number: '',
+        account_name: 'OrbiSave Collections',
+        country_code: 'KE',
+        currency: 'KES',
+        bank_code: '68',
+        is_default_for_collections: true,
+        is_default_for_disbursements: false,
+        is_default_for_reconciliation: true,
+      },
+      {
+        label: 'Payouts',
+        account_type: 'payout',
+        account_number: '',
+        account_name: 'OrbiSave Payouts',
+        country_code: 'KE',
+        currency: 'KES',
+        bank_code: '68',
+        is_default_for_collections: false,
+        is_default_for_disbursements: true,
+        is_default_for_reconciliation: false,
+      },
+      {
+        label: 'Settlement / Clearing',
+        account_type: 'settlement',
+        account_number: '',
+        account_name: 'OrbiSave Settlement',
+        country_code: 'KE',
+        currency: 'KES',
+        bank_code: '68',
+        is_default_for_collections: false,
+        is_default_for_disbursements: false,
+        is_default_for_reconciliation: false,
+      },
+    ]
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,6 +98,15 @@ export default function NewProvider() {
         ...prev.extra_config,
         [key]: value
       }
+    }))
+  }
+
+  const handleAccountChange = (index: number, key: string, value: string | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      accounts: prev.accounts.map((account, accountIndex) => (
+        accountIndex === index ? { ...account, [key]: value } : account
+      ))
     }))
   }
 
@@ -130,7 +176,11 @@ export default function NewProvider() {
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Environment</label>
                 <select 
                   value={formData.environment}
-                  onChange={e => setFormData({...formData, environment: e.target.value})}
+                  onChange={e => setFormData({
+                    ...formData,
+                    environment: e.target.value,
+                    base_url: e.target.value === 'live' ? 'https://api.finserve.africa' : 'https://uat.finserve.africa',
+                  })}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-navy focus:ring-2 focus:ring-primary/20 outline-none"
                 >
                   <option value="sandbox">Sandbox (UAT)</option>
@@ -201,7 +251,7 @@ export default function NewProvider() {
                 Jenga HQ Extra Config
               </h3>
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Currency</label>
                     <input 
@@ -220,15 +270,107 @@ export default function NewProvider() {
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-navy outline-none"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Trust Account No.</label>
-                    <input 
-                      required
-                      type="text" 
-                      value={formData.extra_config.trust_account_number}
-                      onChange={e => handleExtraChange('trust_account_number', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-navy outline-none"
-                    />
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-navy">Equity / Jenga Accounts</h4>
+                    <p className="text-xs text-slate-400 mt-1">Configure sandbox now; swap to live account numbers later without a deployment.</p>
+                  </div>
+                  <div className="space-y-4">
+                    {formData.accounts.map((account, index) => (
+                      <div key={account.account_type} className="border border-slate-100 rounded-lg p-5 bg-slate-50/50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Label</label>
+                            <input
+                              type="text"
+                              value={account.label}
+                              onChange={e => handleAccountChange(index, 'label', e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Account Type</label>
+                            <select
+                              value={account.account_type}
+                              onChange={e => handleAccountChange(index, 'account_type', e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-navy outline-none"
+                            >
+                              <option value="collection">Collection</option>
+                              <option value="payout">Payout</option>
+                              <option value="trust">Trust / Custody</option>
+                              <option value="settlement">Settlement / Clearing</option>
+                              <option value="wallet">Jenga Wallet</option>
+                              <option value="reconciliation">Reconciliation</option>
+                              <option value="fee">Fee / Revenue</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Account Number</label>
+                            <input
+                              required={index < 2}
+                              type="text"
+                              value={account.account_number}
+                              onChange={e => handleAccountChange(index, 'account_number', e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-navy outline-none"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Account Name</label>
+                            <input
+                              type="text"
+                              value={account.account_name}
+                              onChange={e => handleAccountChange(index, 'account_name', e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Country Code</label>
+                            <input
+                              type="text"
+                              value={account.country_code}
+                              onChange={e => handleAccountChange(index, 'country_code', e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-navy outline-none"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Bank Code</label>
+                            <input
+                              type="text"
+                              value={account.bank_code}
+                              onChange={e => handleAccountChange(index, 'bank_code', e.target.value)}
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-navy outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-4 mt-4">
+                          <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={account.is_default_for_collections}
+                              onChange={e => handleAccountChange(index, 'is_default_for_collections', e.target.checked)}
+                            />
+                            Collections default
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={account.is_default_for_disbursements}
+                              onChange={e => handleAccountChange(index, 'is_default_for_disbursements', e.target.checked)}
+                            />
+                            Payout default
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={account.is_default_for_reconciliation}
+                              onChange={e => handleAccountChange(index, 'is_default_for_reconciliation', e.target.checked)}
+                            />
+                            Reconciliation default
+                          </label>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="space-y-2">

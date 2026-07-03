@@ -1,4 +1,6 @@
 import structlog
+from django.contrib.auth.hashers import check_password
+from django.utils import timezone
 from rest_framework import views, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,6 +9,30 @@ from apps.groups.models import GroupMember, Group, RotationCycle, RotationSchedu
 from apps.payouts.services import PayoutService
 
 logger = structlog.get_logger(__name__)
+
+
+def _verify_transaction_pin(user, provided_pin):
+    if not provided_pin:
+        raise ValueError("Transaction PIN is required to authorise this payout.")
+    if not str(provided_pin).isdigit() or not 4 <= len(str(provided_pin)) <= 6:
+        raise ValueError("PIN must contain 4 to 6 digits.")
+    if not user.transaction_pin:
+        raise PermissionError("Transaction PIN has not been set by this user.")
+    if user.is_transaction_pin_locked:
+        raise PermissionError("Transaction PIN is locked. Please request a PIN reset.")
+    if not check_password(str(provided_pin), user.transaction_pin):
+        user.transaction_pin_failed_attempts += 1
+        update_fields = ['transaction_pin_failed_attempts']
+        if user.transaction_pin_failed_attempts >= 3:
+            user.transaction_pin_locked_at = timezone.now()
+            update_fields.append('transaction_pin_locked_at')
+        user.save(update_fields=update_fields)
+        logger.warning("payout_execution_invalid_pin", user_id=user.id)
+        raise PermissionError("Transaction PIN verification failed.")
+    if user.transaction_pin_failed_attempts:
+        user.transaction_pin_failed_attempts = 0
+        user.save(update_fields=['transaction_pin_failed_attempts'])
+
 
 class PayoutExecutionView(views.APIView):
     """
@@ -34,6 +60,13 @@ class PayoutExecutionView(views.APIView):
         )
         if not is_leader:
             return Response({"error": "Only active verified group leaders can execute payouts."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            _verify_transaction_pin(request.user, request.data.get('pin'))
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionError as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
 
         cycle = RotationCycle.objects.using(db_alias).filter(
             group=group,

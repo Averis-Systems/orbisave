@@ -185,7 +185,7 @@ export default function Home() {
               viewBox="0 0 480 480"
               className="w-full h-full"
               style={{ maxWidth: "520px" }}
-              aria-label="OrbiSave rotation pool visualization"
+              aria-label="OrbiSave rotation savings visualization"
             >
               {/* Background rings */}
               <circle cx="240" cy="240" r="185" fill="none" stroke="rgba(10,37,64,0.06)" strokeWidth="1" strokeDasharray="4 8" />
@@ -215,8 +215,8 @@ export default function Home() {
 
               {/* Central vault — navy */}
               <circle cx="240" cy="240" r="52" fill="#0a2540" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
-              <text x="240" y="227" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="sans-serif" fontWeight="700" letterSpacing="1.5">COLLECTIVE VAULT</text>
-              <text x="240" y="249" textAnchor="middle" fill="#ffffff" fontSize="18" fontFamily="sans-serif" fontWeight="900" letterSpacing="-0.5">KES 1.2M</text>
+              <text x="240" y="227" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="sans-serif" fontWeight="700" letterSpacing="1.5">GROUP WALLET</text>
+              <text x="240" y="249" textAnchor="middle" fill="#ffffff" fontSize="15" fontFamily="sans-serif" fontWeight="900">LIVE LEDGER</text>
               <text x="240" y="263" textAnchor="middle" fill="rgba(0,171,0,0.85)" fontSize="7.5" fontFamily="sans-serif" fontWeight="700" letterSpacing="1">6 MEMBERS · CYCLE 3</text>
 
               {/* Payout member ring */}

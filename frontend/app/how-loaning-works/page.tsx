@@ -29,7 +29,7 @@ const LOAN_STEPS = [
     number: "02",
     icon: Unlock,
     iconCls: "ls-icon-2",
-    title: "The leader opens the pool",
+    title: "The leader enables the loan pool",
     body: "The leader uses their own secret PIN to agree. This is a private number that only they know. The app records this so everyone knows the leader agreed.",
     detail: "Leader PIN · Recorded forever",
     bg: "#e8edf3",
@@ -201,13 +201,13 @@ export default function HowLoaningWorks() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl mb-14">
             <div className="inline-flex items-center text-xs font-bold tracking-[0.15em] uppercase mb-4 px-3 py-1.5" style={{ color: "#0a2540", background: "#ffffff", borderRadius: "4px", border: "1px solid #d6e4df" }}>
-              Borrowing from the Pool
+              Borrowing from the Loan Pool
             </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4" style={{ color: "#0a2540" }}>
               How do I get a loan?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Any member can request a loan. The money comes from your group's own pool — not from a bank. Two leaders must say yes before the money moves.
+              Any member can request a loan. The money comes from your group's own loan pool — not from a bank. Two leaders must say yes before the money moves.
             </p>
           </div>
 

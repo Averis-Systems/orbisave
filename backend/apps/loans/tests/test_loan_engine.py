@@ -92,7 +92,8 @@ class TestLoanEngine:
         assert result.status == 'disbursed'
         assert result.disbursed_at is not None
         assert result.disbursement_reference == 'MANUAL-DISB-001'
-        assert LedgerEntry.objects.filter(related_loan=result).count() == 1
+        entry = LedgerEntry.objects.get(related_loan=result)
+        assert entry.account_stream == 'loaning'
         assert result.repayments.count() > 0
 
     def test_wrong_pin_raises_permission_error(self, loan_pending_chair, chairperson):
@@ -170,4 +171,35 @@ class TestLoanEngine:
         )
 
         with pytest.raises(ValidationError, match="exceeds the maximum"):
+            loan.full_clean()
+
+    def test_country_policy_interest_cap_overrides_legacy_fallback(self, group, user, group_member):
+        """
+        Country policy caps should be controlled by platform policy, not a
+        hardcoded universal rate. Kenya can therefore enforce a lower cap.
+        """
+        from apps.admin_portal.models import CountryPolicy
+        from apps.loans.models import Loan
+        from django.core.exceptions import ValidationError
+
+        CountryPolicy.objects.create(
+            country='kenya',
+            currency='KES',
+            central_bank_name='Central Bank of Kenya',
+            max_loan_interest_rate_monthly=Decimal('8.00'),
+            recommended_loan_interest_rate_monthly=Decimal('3.00'),
+            is_active=True,
+        )
+
+        loan = Loan(
+            group=group,
+            borrower=user,
+            amount=Decimal('10000.00'),
+            currency='KES',
+            interest_rate_monthly=Decimal('9.00'),
+            term_weeks=12,
+            purpose='Above Kenya policy cap',
+        )
+
+        with pytest.raises(ValidationError, match="Central Bank of Kenya"):
             loan.full_clean()

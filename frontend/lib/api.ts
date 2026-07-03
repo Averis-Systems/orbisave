@@ -4,6 +4,13 @@ import Cookies from 'js-cookie'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
+const getAuthCookieOptions = () => ({
+  secure: typeof window !== 'undefined' ? window.location.protocol === 'https:' : process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  expires: 7,
+  path: '/',
+})
+
 export const api = axios.create({
   baseURL: API_URL.endsWith('/') ? API_URL : `${API_URL}/`,
   headers: {
@@ -91,9 +98,10 @@ api.interceptors.response.use(
         const { data } = await axios.post(`${API_URL}/auth/token/refresh/`, { refresh: refreshToken })
         const { access, refresh: new_refresh_token } = data
 
-        Cookies.set('access_token', access, { secure: true, sameSite: 'strict', expires: 7 })
+        const cookieOptions = getAuthCookieOptions()
+        Cookies.set('access_token', access, cookieOptions)
         if (new_refresh_token) {
-          Cookies.set('refresh_token', new_refresh_token, { secure: true, sameSite: 'strict', expires: 7 })
+          Cookies.set('refresh_token', new_refresh_token, cookieOptions)
         }
         
         const currentUser = useAuthStore.getState().user
@@ -109,7 +117,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         useAuthStore.getState().logout()
-        Cookies.remove('refresh_token')
+        Cookies.remove('refresh_token', { path: '/' })
         if (typeof window !== 'undefined') {
           window.location.href = '/login'
         }

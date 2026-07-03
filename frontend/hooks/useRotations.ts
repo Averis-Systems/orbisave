@@ -74,8 +74,8 @@ export function useStartNextCycle() {
 export function useTriggerPayout() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ cycleId, memberId }: { cycleId: string, memberId: string }) => {
-      const { data } = await api.post(`/groups/rotations/${cycleId}/trigger_payout/`, { member_id: memberId })
+    mutationFn: async ({ cycleId, memberId, pin }: { cycleId: string, memberId: string, pin?: string }) => {
+      const { data } = await api.post(`/groups/rotations/${cycleId}/trigger_payout/`, { member_id: memberId, pin })
       return data
     },
     onSuccess: (_, { cycleId }) => {

@@ -1,114 +1,158 @@
 """
-Jenga HQ (Equity Bank) Payment Provider
-==========================================
-Covers Kenya + Rwanda via a single API integration.
-Equity Bank natively connects to M-Pesa (Kenya) and MoMo (Rwanda),
-so one Jenga integration handles both mobile money and bank transfers
-— no separate M-Pesa Daraja integration needed.
+JengaHQ / Equity Bank provider adapter.
 
-API Docs: https://developer.jengahq.io/
-Sandbox:  https://uat.jengahq.io
-Live:     https://api.jengahq.io
-
-Auth: API Key in header + RSA SHA256 request signing.
+The adapter follows the public Jenga Developer Hub contracts. It is deliberately
+thin: Jenga is treated as the external rail and reconciliation evidence source,
+while OrbiSave's ledger remains the product accounting source of truth.
 """
+import base64
 import hashlib
 import hmac
 import json
 import logging
 import time
-import base64
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
 import requests
+from django.utils import timezone
 
 from apps.payments.base import PaymentProvider
 
 logger = logging.getLogger(__name__)
 
+UAT_BASE_URL = "https://uat.finserve.africa"
+LIVE_BASE_URL = "https://api.finserve.africa"
+
 
 class JengaProvider(PaymentProvider):
-    """
-    Jenga HQ payment provider (Equity Bank Kenya & Rwanda).
-
-    Instantiated dynamically from the DB-stored BankProvider record —
-    credentials are loaded at runtime, never hardcoded.
-
-    Key Jenga flows used by OrbiSave:
-    ──────────────────────────────────
-    Collections  → Send Money (receive from member) via mobile money prompt
-    Disbursements → EFT Credit Transfer or Mobile Money Send
-    Account Inquiry → check trust account balance
-    Webhooks → Jenga fires callbacks to our /webhooks/jenga/ endpoint
-    """
-
     def __init__(self, provider_record):
-        """
-        Args:
-            provider_record: apps.payments.models.BankProvider instance
-        """
         self.record = provider_record
         self.api_key = provider_record.api_key
         self.api_secret = provider_record.api_secret
         self.merchant_code = provider_record.merchant_code
-        self.base_url = provider_record.base_url.rstrip('/')
-        self.extra = provider_record.extra_config  # dict
+        self.extra = provider_record.extra_config or {}
+        self.base_url = (provider_record.base_url or self._default_base_url()).rstrip("/")
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Auth helpers
-    # ─────────────────────────────────────────────────────────────────────────
+    def _default_base_url(self):
+        return LIVE_BASE_URL if self.record.environment == "live" else UAT_BASE_URL
+
+    def account(self, purpose: str):
+        """
+        Resolve the account configured for a provider purpose.
+
+        Supported purposes: collection, payout, reconciliation, trust,
+        settlement, wallet, fee. Legacy extra_config fallback keeps older local
+        records usable until migrated through the admin console.
+        """
+        qs = self.record.accounts.filter(is_active=True)
+        if purpose == "collection":
+            account = qs.filter(is_default_for_collections=True).first() or qs.filter(account_type="collection").first()
+        elif purpose == "payout":
+            account = qs.filter(is_default_for_disbursements=True).first() or qs.filter(account_type="payout").first()
+        elif purpose == "reconciliation":
+            account = qs.filter(is_default_for_reconciliation=True).first() or qs.filter(account_type="reconciliation").first()
+            account = account or qs.filter(is_default_for_collections=True).first()
+        else:
+            account = qs.filter(account_type=purpose).first()
+
+        if account:
+            return account
+
+        legacy_number = self.extra.get(f"{purpose}_account_number") or self.extra.get("trust_account_number")
+        if legacy_number:
+            return _LegacyAccount(
+                account_number=legacy_number,
+                account_name=self.extra.get("account_name", "OrbiSave"),
+                country_code=self.extra.get("country_code", "KE"),
+                currency=self.extra.get("currency", "KES"),
+            )
+        raise ValueError(f"No active Jenga {purpose} account configured for provider {self.record.id}.")
+
+    def signature_payload(self, kind: str, **kwargs) -> str:
+        formulas = {
+            "account_balance": ["country_code", "account_number"],
+            "mini_statement": ["country_code", "account_number"],
+            "full_statement": ["account_number", "country_code", "to_date"],
+            "opening_closing_balance": ["account_number", "country_code", "date"],
+            "account_inquiry": ["country_code", "account_number"],
+            "account_validate": ["country_code", "account_number", "account_full_name"],
+            "transaction_details": ["reference"],
+            "mpesa_account_stk": [
+                "merchant_account",
+                "reference",
+                "mobile_number",
+                "telco",
+                "amount",
+                "currency",
+            ],
+            "mpesa_wallet_stk": [
+                "order_reference",
+                "payment_currency",
+                "msisdn",
+                "payment_amount",
+            ],
+            "send_mobile_wallet": ["amount", "currency", "reference", "source_account"],
+            "within_equity": ["source_account", "amount", "currency", "reference"],
+            "pesalink": ["amount", "currency", "reference", "destination_name", "source_account"],
+            "rtgs": ["reference", "date", "source_account", "destination_account", "amount"],
+        }
+        try:
+            fields = formulas[kind]
+        except KeyError as exc:
+            raise ValueError(f"Unsupported Jenga signature payload kind '{kind}'.") from exc
+        missing = [field for field in fields if kwargs.get(field) is None]
+        if missing:
+            raise ValueError(f"Missing Jenga signature field(s): {', '.join(missing)}")
+        return "".join(str(kwargs[field]) for field in fields)
 
     def _get_token(self) -> str:
-        """Obtain a Bearer token from Jenga's auth endpoint."""
-        url = f"{self.base_url}/authentication/api/genericauth/token/v2"
+        url = f"{self.base_url}/authentication/api/v3/authenticate/merchant"
         resp = requests.post(
             url,
             headers={
-                'Api-Key': self.api_key,
-                'Content-Type': 'application/json',
+                "Api-Key": self.api_key,
+                "Content-Type": "application/json",
             },
-            json={'merchantCode': self.merchant_code, 'consumerSecret': self.api_secret},
+            json={
+                "merchantCode": self.merchant_code,
+                "consumerSecret": self.api_secret,
+            },
             timeout=15,
         )
         resp.raise_for_status()
-        return resp.json()['accessToken']
+        return resp.json()["accessToken"]
 
     def _sign_request(self, payload_string: str) -> str:
-        """
-        Jenga requires RSA-SHA256 signature on the request body.
-        The private key is stored in extra_config['rsa_private_key_pem'].
-        """
-        try:
-            from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.asymmetric import padding
-            from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
 
-            pem = self.extra.get('rsa_private_key_pem', '').encode()
-            private_key = serialization.load_pem_private_key(
-                pem, password=None, backend=default_backend()
-            )
-            signature = private_key.sign(
-                payload_string.encode(),
-                padding.PKCS1v15(),
-                hashes.SHA256(),
-            )
-            return base64.b64encode(signature).decode()
-        except Exception as exc:
-            logger.error("Jenga RSA signing failed: %s", exc)
-            return ""
+        pem = (self.extra.get("rsa_private_key_pem") or "").encode()
+        if not pem:
+            raise ValueError("Missing Jenga RSA private key PEM in provider extra_config.")
+        private_key = serialization.load_pem_private_key(
+            pem,
+            password=None,
+            backend=default_backend(),
+        )
+        signature = private_key.sign(
+            payload_string.encode(),
+            padding.PKCS1v15(),
+            hashes.SHA256(),
+        )
+        return base64.b64encode(signature).decode()
 
     def _headers(self, token: str, signature: str = "") -> Dict[str, str]:
         return {
-            'Authorization': f'Bearer {token}',
-            'Api-Key': self.api_key,
-            'signature': signature,
-            'Content-Type': 'application/json',
+            "Authorization": f"Bearer {token}",
+            "Api-Key": self.api_key,
+            "Signature": signature,
+            "Content-Type": "application/json",
         }
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Collections (receive from member)
-    # ─────────────────────────────────────────────────────────────────────────
+    def _amount(self, amount: Decimal) -> str:
+        return f"{Decimal(str(amount)).quantize(Decimal('0.01')):.2f}"
 
     def initiate_collection(
         self,
@@ -118,58 +162,68 @@ class JengaProvider(PaymentProvider):
         description: str,
     ) -> Dict[str, Any]:
         """
-        Triggers a mobile money collection (M-Pesa STK push in Kenya,
-        MoMo request-to-pay in Rwanda) through Jenga.
+        Initiate account-based M-Pesa/Equitel STK or USSD push.
 
-        Returns:
-            {
-                "status": "pending_async",
-                "provider_reference": "<jenga_ref>",
-                "raw": { ... }
-            }
+        Jenga acknowledges the request first; final contribution credit must wait
+        for callback/IPN or transaction query finality.
         """
+        account = self.account("collection")
+        currency = account.currency or self.extra.get("currency", "KES")
+        country_code = account.country_code or self.extra.get("country_code", "KE")
+        telco = self.extra.get("default_telco", "Safaricom")
+        amount_text = self._amount(amount)
         token = self._get_token()
         payload = {
-            "merchantCode": self.merchant_code,
-            "currency": self.extra.get('currency', 'KES'),
-            "amount": str(amount),
-            "mobileNumber": phone,
-            "narration": description[:100],
-            "reference": reference,
-            "callbackUrl": self.record.webhook_url,
+            "merchant": {
+                "countryCode": country_code,
+                "accountNumber": account.account_number,
+                "name": account.account_name or self.record.name,
+            },
+            "payment": {
+                "ref": reference,
+                "mobileNumber": phone,
+                "telco": telco,
+                "amount": amount_text,
+                "currency": currency,
+                "date": self.extra.get("request_date", ""),
+                "callBackUrl": self.record.webhook_url,
+                "pushType": self.extra.get("push_type", "STK"),
+                "description": description[:100],
+            },
         }
-        payload_str = json.dumps(payload, separators=(',', ':'))
-        signature = self._sign_request(payload_str)
-
-        url = f"{self.base_url}/transaction/v2/mobilemoneycollection"
-        try:
-            resp = requests.post(
-                url,
-                headers=self._headers(token, signature),
-                json=payload,
-                timeout=30,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            provider_ref = (
-                data.get('transactionReference')
-                or data.get('providerTransactionId')
-                or reference
-            )
-            self._log_api_call('POST', url, payload, resp.status_code, data, True)
-            return {
-                'status': 'pending_async',
-                'provider_reference': provider_ref,
-                'raw': data,
-            }
-        except requests.HTTPError as exc:
-            self._log_api_call('POST', url, payload, exc.response.status_code,
-                               {}, False, str(exc))
-            raise
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Disbursements (pay out to member)
-    # ─────────────────────────────────────────────────────────────────────────
+        signature_payload = self.signature_payload(
+            "mpesa_account_stk",
+            merchant_account=account.account_number,
+            reference=reference,
+            mobile_number=phone,
+            telco=telco,
+            amount=amount_text,
+            currency=currency,
+        )
+        signature = self._sign_request(signature_payload)
+        url = f"{self.base_url}/v3-apis/payment-api/v3.0/stkussdpush/initiate"
+        resp = requests.post(url, headers=self._headers(token, signature), json=payload, timeout=30)
+        data = self._record_response("POST", url, payload, resp)
+        status_norm = self._normalize_submission_status(data)
+        self._record_provider_transaction(
+            direction="inbound",
+            channel="mpesa_account_stk",
+            amount=amount_text,
+            currency=currency,
+            internal_reference=reference,
+            provider_reference=data.get("reference") or reference,
+            provider_transaction_id=data.get("transactionId", ""),
+            source_account=phone,
+            destination_account=account.account_number,
+            status=status_norm,
+            request_payload=payload,
+            response_payload=data,
+        )
+        return {
+            "status": "pending_async" if status_norm == "provider_processing" else status_norm,
+            "provider_reference": data.get("transactionId") or data.get("reference") or reference,
+            "raw": data,
+        }
 
     def initiate_disbursement(
         self,
@@ -178,139 +232,341 @@ class JengaProvider(PaymentProvider):
         reference: str,
         remarks: str,
     ) -> Dict[str, Any]:
-        """
-        Sends money to a member's mobile wallet or bank account via Jenga.
-        """
+        account = self.account("payout")
+        currency = account.currency or self.extra.get("currency", "KES")
+        country_code = account.country_code or self.extra.get("country_code", "KE")
+        wallet_name = self.extra.get("default_wallet_name", "Mpesa")
+        amount_text = self._amount(amount)
         token = self._get_token()
         payload = {
             "source": {
-                "countryCode": self.extra.get('country_code', 'KE'),
-                "name": self.extra.get('account_name', 'OrbiSave Trust'),
-                "accountNumber": self.extra.get('trust_account_number', ''),
+                "countryCode": country_code,
+                "name": account.account_name or self.record.name,
+                "accountNumber": account.account_number,
             },
             "destination": {
                 "type": "mobile",
-                "countryCode": self.extra.get('country_code', 'KE'),
-                "name": remarks,
+                "countryCode": country_code,
+                "name": remarks[:80],
                 "mobileNumber": phone,
+                "walletName": wallet_name,
             },
-            "amount": {
-                "currencyCode": self.extra.get('currency', 'KES'),
-                "amount": str(amount),
+            "transfer": {
+                "type": "MobileWallet",
+                "amount": amount_text,
+                "currencyCode": currency,
+                "reference": reference,
+                "date": self.extra.get("request_date", ""),
+                "description": remarks[:100],
+                "callbackUrl": self.record.webhook_url,
             },
-            "description": remarks[:100],
-            "reference": reference,
-            "callbackUrl": self.record.webhook_url,
         }
-        payload_str = json.dumps(payload, separators=(',', ':'))
-        signature = self._sign_request(payload_str)
-
-        url = f"{self.base_url}/transaction/v2/remittance"
-        try:
-            resp = requests.post(
-                url,
-                headers=self._headers(token, signature),
-                json=payload,
-                timeout=30,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            self._log_api_call('POST', url, payload, resp.status_code, data, True)
-            return {
-                'status': 'success',
-                'provider_reference': data.get('transactionId', reference),
-                'raw': data,
-            }
-        except requests.HTTPError as exc:
-            self._log_api_call('POST', url, payload, exc.response.status_code,
-                               {}, False, str(exc))
-            raise
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Account / Trust Account
-    # ─────────────────────────────────────────────────────────────────────────
+        signature_payload = self.signature_payload(
+            "send_mobile_wallet",
+            amount=amount_text,
+            currency=currency,
+            reference=reference,
+            source_account=account.account_number,
+        )
+        signature = self._sign_request(signature_payload)
+        url = f"{self.base_url}/v3-apis/transaction-api/v3.0/remittance/sendmobile"
+        resp = requests.post(url, headers=self._headers(token, signature), json=payload, timeout=30)
+        data = self._record_response("POST", url, payload, resp)
+        status_norm = self._normalize_submission_status(data)
+        self._record_provider_transaction(
+            direction="outbound",
+            channel="mobile_wallet",
+            amount=amount_text,
+            currency=currency,
+            internal_reference=reference,
+            provider_reference=data.get("reference") or reference,
+            provider_transaction_id=data.get("transactionId", ""),
+            source_account=account.account_number,
+            destination_account=phone,
+            status=status_norm,
+            request_payload=payload,
+            response_payload=data,
+        )
+        return {
+            "status": status_norm,
+            "provider_reference": data.get("transactionId") or data.get("reference") or reference,
+            "raw": data,
+        }
 
     def get_account_balance(self, account_number: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Fetches the trust account balance from Equity Bank via Jenga.
-        account_number defaults to extra_config['trust_account_number'].
-        """
+        account = self.account("reconciliation")
+        acc = account_number or account.account_number
+        country_code = account.country_code
         token = self._get_token()
-        acc = account_number or self.extra.get('trust_account_number', '')
-        country_code = self.extra.get('country_code', 'KE')
-        payload_str = f"{country_code}{acc}"
-        signature = self._sign_request(payload_str)
-
-        url = f"{self.base_url}/account/v2/accounts/balances/{country_code}/{acc}"
-        resp = requests.get(
-            url,
-            headers=self._headers(token, signature),
-            timeout=15,
+        signature = self._sign_request(
+            self.signature_payload("account_balance", country_code=country_code, account_number=acc)
         )
-        resp.raise_for_status()
-        return resp.json()
+        url = f"{self.base_url}/v3-apis/account-api/v3.0/accounts/balances/{country_code}/{acc}"
+        resp = requests.get(url, headers=self._headers(token, signature), timeout=15)
+        return self._record_response("GET", url, {}, resp)
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Webhook parsing + verification
-    # ─────────────────────────────────────────────────────────────────────────
+    def get_opening_closing_balance(self, *, account_number: Optional[str] = None, business_date: str) -> Dict[str, Any]:
+        account = self.account("reconciliation")
+        acc = account_number or account.account_number
+        country_code = account.country_code
+        token = self._get_token()
+        signature = self._sign_request(
+            self.signature_payload(
+                "opening_closing_balance",
+                account_number=acc,
+                country_code=country_code,
+                date=business_date,
+            )
+        )
+        url = f"{self.base_url}/v3-apis/account-api/v3.0/accounts/accountBalance/query"
+        payload = {"accountId": acc, "countryCode": country_code, "date": business_date}
+        resp = requests.post(url, headers=self._headers(token, signature), json=payload, timeout=20)
+        return self._record_response("POST", url, payload, resp)
+
+    def get_full_statement(
+        self,
+        *,
+        account_number: Optional[str] = None,
+        from_date: str,
+        to_date: str,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        account = self.account("reconciliation")
+        acc = account_number or account.account_number
+        country_code = account.country_code
+        token = self._get_token()
+        signature = self._sign_request(
+            self.signature_payload(
+                "full_statement",
+                account_number=acc,
+                country_code=country_code,
+                to_date=to_date,
+            )
+        )
+        url = f"{self.base_url}/v3-apis/account-api/v3.0/accounts/fullStatement"
+        payload = {
+            "countryCode": country_code,
+            "accountNumber": acc,
+            "fromDate": from_date,
+            "toDate": to_date,
+            "limit": limit,
+        }
+        resp = requests.post(url, headers=self._headers(token, signature), json=payload, timeout=30)
+        return self._record_response("POST", url, payload, resp)
+
+    def query_transaction_details(self, reference: str) -> Dict[str, Any]:
+        token = self._get_token()
+        signature = self._sign_request(self.signature_payload("transaction_details", reference=reference))
+        url = f"{self.base_url}/v3-apis/transaction-api/v3.0/transactions/details/{reference}"
+        resp = requests.get(url, headers=self._headers(token, signature), timeout=15)
+        return self._record_response("GET", url, {}, resp)
 
     def parse_callback(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Normalises Jenga webhook payload into the standard OrbiSave format:
-        { status, transaction_id, amount, reason }
-        """
-        status_raw = payload.get('transactionStatus', payload.get('status', '')).lower()
-        success = status_raw in ('success', 'completed', '0')
+        status_value = str(
+            payload.get("transactionStatus")
+            or payload.get("status")
+            or payload.get("code")
+            or payload.get("stateCode")
+            or ""
+        ).strip()
+        normalized = self._normalize_final_status(status_value)
+        transaction_id = (
+            payload.get("transactionReference")
+            or payload.get("transactionId")
+            or payload.get("reference")
+            or payload.get("paymentReference")
+            or ""
+        )
+        amount = (
+            payload.get("amount")
+            or payload.get("transactionAmount")
+            or payload.get("orderAmount")
+            or payload.get("paymentAmount")
+            or "0.00"
+        )
         return {
-            'status': 'success' if success else 'failed',
-            'transaction_id': (
-                payload.get('transactionReference')
-                or payload.get('transactionId', '')
-            ),
-            'amount': str(payload.get('amount', payload.get('transactionAmount', '0'))),
-            'reason': payload.get('description', payload.get('message', '')),
-            'raw': payload,
+            "status": normalized,
+            "transaction_id": transaction_id,
+            "amount": str(amount),
+            "reason": payload.get("description") or payload.get("message") or payload.get("remarks") or "",
+            "raw": payload,
         }
 
     def verify_webhook_signature(self, request) -> bool:
         """
-        Verifies Jenga HMAC-SHA256 signature on incoming webhooks.
-        Header: X-Jenga-Signature: sha256=<hex_digest>
+        Support current HMAC integrations and Jenga IPN Basic Auth.
         """
-        secret = self.record.webhook_secret.encode()
-        header_sig = request.headers.get('X-Jenga-Signature', '')
-        if not header_sig.startswith('sha256='):
-            return False
-        expected = hmac.new(secret, request.body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(f"sha256={expected}", header_sig)
+        header_sig = request.headers.get("X-Jenga-Signature", "")
+        if header_sig.startswith("sha256=") and self.record.webhook_secret:
+            expected = hmac.new(
+                self.record.webhook_secret.encode(),
+                request.body,
+                hashlib.sha256,
+            ).hexdigest()
+            return hmac.compare_digest(f"sha256={expected}", header_sig)
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Connection test (called from Provider Hub "Test Connection" button)
-    # ─────────────────────────────────────────────────────────────────────────
+        auth = request.headers.get("Authorization", "")
+        username = self.extra.get("ipn_username")
+        password = self.record.webhook_secret or self.extra.get("ipn_password")
+        if auth.startswith("Basic ") and username and password:
+            try:
+                decoded = base64.b64decode(auth.split(" ", 1)[1]).decode()
+            except Exception:
+                return False
+            return hmac.compare_digest(decoded, f"{username}:{password}")
+
+        return False
 
     def test_connection(self) -> Dict[str, Any]:
-        """
-        Light connectivity check — obtains a token and returns latency.
-        """
         start = time.time()
         try:
-            token = self._get_token()
+            self._get_token()
             latency = int((time.time() - start) * 1000)
             return {
-                'success': True,
-                'latency_ms': latency,
-                'message': f"Authentication successful. Token obtained in {latency}ms.",
+                "success": True,
+                "latency_ms": latency,
+                "message": f"Authentication successful. Token obtained in {latency}ms.",
             }
         except Exception as exc:
             return {
-                'success': False,
-                'latency_ms': int((time.time() - start) * 1000),
-                'message': str(exc),
+                "success": False,
+                "latency_ms": int((time.time() - start) * 1000),
+                "message": str(exc),
             }
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Internal logging
-    # ─────────────────────────────────────────────────────────────────────────
+    def record_callback(self, payload: Dict[str, Any], parsed: Dict[str, Any]):
+        from apps.payments.models import ProviderCallback, ProviderTransaction
+
+        checksum = self._checksum(payload)
+        tx = None
+        reference = (
+            payload.get("reference")
+            or payload.get("paymentReference")
+            or parsed.get("transaction_id")
+            or ""
+        )
+        if reference:
+            tx = ProviderTransaction.objects.filter(
+                provider=self.record,
+                internal_reference=reference,
+            ).first()
+            if tx is None:
+                tx = ProviderTransaction.objects.filter(
+                    provider=self.record,
+                    provider_transaction_id=parsed.get("transaction_id", ""),
+                ).first()
+
+        callback, created = ProviderCallback.objects.get_or_create(
+            provider=self.record,
+            payload_checksum=checksum,
+            defaults={
+                "provider_transaction": tx,
+                "callback_type": payload.get("callbackType", ""),
+                "provider_reference": reference,
+                "payload": payload,
+                "normalized_status": parsed.get("status", ""),
+                "is_duplicate": False,
+            },
+        )
+        if not created and not callback.is_duplicate:
+            callback.is_duplicate = True
+            callback.save(update_fields=["is_duplicate", "updated_at"])
+        return callback
+
+    def _normalize_submission_status(self, data: Dict[str, Any]) -> str:
+        code = str(data.get("code", "")).strip()
+        if code in {"-1", "0"}:
+            return "provider_processing"
+        if data.get("status") is True and data.get("data", {}).get("status") == "SUCCESS":
+            return "success"
+        if str(data.get("status", "")).lower() in {"failed", "false"}:
+            return "failed"
+        return "pending_async"
+
+    def _normalize_final_status(self, value: str) -> str:
+        normalized = value.lower()
+        success_values = {"success", "successful", "completed", "paid", "3", "2"}
+        failed_values = {"failed", "failure", "1"}
+        cancelled_values = {"cancelled", "canceled", "5", "6"}
+        rejected_values = {"rejected", "7"}
+        pending_values = {"pending", "processing", "0", "-1"}
+        settlement_exception_values = {"4"}
+
+        if normalized in success_values:
+            return "success"
+        if normalized in failed_values:
+            return "failed"
+        if normalized in cancelled_values:
+            return "cancelled"
+        if normalized in rejected_values:
+            return "rejected"
+        if normalized in settlement_exception_values:
+            return "settlement_exception"
+        if normalized in pending_values:
+            return "pending"
+        return "manual_review"
+
+    def _record_provider_transaction(
+        self,
+        *,
+        direction,
+        channel,
+        amount,
+        currency,
+        internal_reference,
+        provider_reference,
+        provider_transaction_id,
+        source_account,
+        destination_account,
+        status,
+        request_payload,
+        response_payload,
+    ):
+        from apps.payments.models import ProviderTransaction
+
+        ProviderTransaction.objects.update_or_create(
+            internal_reference=internal_reference,
+            defaults={
+                "provider": self.record,
+                "direction": direction,
+                "channel": channel,
+                "country": self.record.country,
+                "currency": currency,
+                "amount": Decimal(str(amount)),
+                "provider_reference": provider_reference or "",
+                "provider_transaction_id": provider_transaction_id or "",
+                "source_account": source_account or "",
+                "destination_account": destination_account or "",
+                "status": status,
+                "raw_request_checksum": self._checksum(request_payload),
+                "raw_response_checksum": self._checksum(response_payload),
+                "submitted_at": timezone.now(),
+                "metadata": {
+                    "environment": self.record.environment,
+                    "provider_code": self.record.provider_code,
+                },
+            },
+        )
+
+    def _checksum(self, payload: Dict[str, Any]) -> str:
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+        ).hexdigest()
+
+    def _record_response(self, method: str, url: str, payload: dict, resp):
+        try:
+            resp.raise_for_status()
+            data = resp.json()
+            self._log_api_call(method, url, payload, resp.status_code, data, True)
+            return data
+        except requests.HTTPError as exc:
+            response_body = {}
+            try:
+                response_body = resp.json()
+            except Exception:
+                pass
+            self._log_api_call(method, url, payload, resp.status_code, response_body, False, str(exc))
+            raise
 
     def _log_api_call(
         self,
@@ -320,16 +576,17 @@ class JengaProvider(PaymentProvider):
         response_code: int,
         response_body: dict,
         success: bool,
-        error_message: str = '',
+        error_message: str = "",
     ):
         try:
             from apps.payments.models import ProviderApiLog
-            # Strip credentials from logs
-            safe_body = {k: v for k, v in request_body.items()
-                         if k not in ('consumerSecret', 'apiSecret')}
+
+            safe_body = json.loads(json.dumps(request_body))
+            for key in ("consumerSecret", "apiSecret", "api_secret", "rsa_private_key_pem"):
+                safe_body.pop(key, None)
             ProviderApiLog.objects.create(
                 provider=self.record,
-                direction='outbound',
+                direction="outbound",
                 endpoint=url,
                 method=method,
                 request_body=safe_body,
@@ -338,5 +595,13 @@ class JengaProvider(PaymentProvider):
                 success=success,
                 error_message=error_message,
             )
-        except Exception as e:
-            logger.warning("Failed to write ProviderApiLog: %s", e)
+        except Exception as exc:
+            logger.warning("Failed to write ProviderApiLog: %s", exc)
+
+
+class _LegacyAccount:
+    def __init__(self, *, account_number, account_name, country_code, currency):
+        self.account_number = account_number
+        self.account_name = account_name
+        self.country_code = country_code
+        self.currency = currency

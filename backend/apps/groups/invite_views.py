@@ -75,7 +75,7 @@ class GroupInviteCreateView(views.APIView):
             metadata={'channel': channel, 'address': address}
         )
         
-        return success_response(data={"token": token}, message="Invite heavily securely dispatched.", status_code=201)
+        return success_response(data={"token": token}, message="Invite created and queued for delivery.", status_code=201)
 
 
 class GroupInvitePublicView(views.APIView):
@@ -106,7 +106,7 @@ class GroupInvitePublicView(views.APIView):
 
     def post(self, request, token):
         """
-        Accept invite strictly via active authenticated target recipient.
+        Accept an invite for the authenticated user.
         """
         if not request.user.is_authenticated:
             return Response({"error": "Authentication universally required."}, status=status.HTTP_401_UNAUTHORIZED)
@@ -128,7 +128,7 @@ class GroupInvitePublicView(views.APIView):
         member_count = group.memberships.filter(status='active').count()
         
         if member_count >= group.max_members:
-            return Response({"error": "Target collective strictly reached maximum capacity constraints."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "This group has reached maximum capacity."}, status=status.HTTP_403_FORBIDDEN)
             
         # Already a member handling
         if group.memberships.filter(member=request.user, status__in=['active', 'pending_approval', 'pending_session_refresh']).exists():
@@ -162,4 +162,4 @@ class GroupInvitePublicView(views.APIView):
             ip_address=request.META.get('REMOTE_ADDR')
         )
         
-        return success_response(data={"group_id": group.id}, message="Invite fundamentally accepted and collective strictly entered.")
+        return success_response(data={"group_id": group.id}, message="Invite accepted. Membership is pending activation.")

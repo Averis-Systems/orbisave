@@ -71,7 +71,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
       case 'intro':
         return (
           <div className="text-center py-6">
-            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-green-50 rounded-lg flex items-center justify-center mx-auto mb-6">
               <ShieldCheck size={40} className="text-[#00ab00]" />
             </div>
             <h2 className="text-2xl font-black text-[#0a2540] mb-3">Identity Verification</h2>
@@ -137,7 +137,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 onChange={(e) => handleFileUpload(e, 'front')}
               />
-              <div className={`aspect-[3/2] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all ${
+              <div className={`aspect-[3/2] rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all ${
                 frontImage ? 'border-[#00ab00] bg-green-50' : 'border-gray-200 group-hover:border-[#00ab00]/50'
               }`}>
                 {frontImage ? (
@@ -148,7 +148,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
                   </>
                 ) : (
                   <>
-                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center">
                       <Upload size={20} className="text-gray-400" />
                     </div>
                     <span className="text-sm font-bold text-gray-400">Click or drag to upload</span>
@@ -180,7 +180,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 onChange={(e) => handleFileUpload(e, 'back')}
               />
-              <div className={`aspect-[3/2] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all ${
+              <div className={`aspect-[3/2] rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all ${
                 backImage ? 'border-[#00ab00] bg-green-50' : 'border-gray-200 group-hover:border-[#00ab00]/50'
               }`}>
                 {backImage ? (
@@ -191,7 +191,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
                   </>
                 ) : (
                   <>
-                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center">
                       <Upload size={20} className="text-gray-400" />
                     </div>
                     <span className="text-sm font-bold text-gray-400">Click or drag to upload</span>
@@ -231,7 +231,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 onChange={(e) => handleFileUpload(e, 'selfie')}
               />
-              <div className={`aspect-square max-w-[280px] mx-auto rounded-full border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all overflow-hidden ${
+              <div className={`aspect-square max-w-[280px] mx-auto rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all overflow-hidden ${
                 selfieImage ? 'border-[#00ab00] bg-green-50' : 'border-gray-200 group-hover:border-[#00ab00]/50'
               }`}>
                 {selfieImage ? (
@@ -243,7 +243,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
                   </div>
                 ) : (
                   <>
-                    <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center">
                       <Camera size={28} className="text-gray-400" />
                     </div>
                     <span className="text-sm font-bold text-gray-400 text-center px-6">Tap to open camera or upload</span>
@@ -343,7 +343,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
       case 'success':
         return (
           <div className="text-center py-10">
-            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-green-50 rounded-lg flex items-center justify-center mx-auto mb-6">
               <CheckCircle size={40} className="text-[#00ab00]" />
             </div>
             <h2 className="text-2xl font-black text-[#0a2540] mb-3">Submission Received!</h2>
@@ -370,16 +370,16 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
       />
       
       {/* Modal Container */}
-      <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl animate-in fade-in zoom-in duration-300 dark:bg-gray-950">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-white/10">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#00ab00]" />
-            <span className="text-[10px] font-black text-[#0a2540] tracking-widest uppercase">Safe & Secure Verification</span>
+            <div className="h-2 w-2 rounded bg-[#00ab00]" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#0a2540] dark:text-white">Safe & Secure Verification</span>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-[#0a2540] dark:hover:bg-white/10 dark:hover:text-white"
           >
             <X size={20} />
           </button>
@@ -392,7 +392,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
 
         {/* Progress bar */}
         {step !== 'success' && (
-          <div className="h-1 bg-gray-50">
+          <div className="h-1 bg-gray-50 dark:bg-white/10">
             <div 
               className="h-full bg-[#00ab00] transition-all duration-500"
               style={{ 

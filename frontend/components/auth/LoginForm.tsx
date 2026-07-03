@@ -39,10 +39,11 @@ export function LoginForm() {
         password: data.password,
       })
       const access = response.data.access_token || response.data.access
+      const refresh = response.data.refresh_token || response.data.refresh
       const profileRes = await api.get("/auth/me/", {
         headers: { Authorization: `Bearer ${access}` },
       })
-      setAuth(profileRes.data, access)
+      setAuth(profileRes.data, access, refresh)
       router.push("/dashboard")
     } catch (err: any) {
       if (err.response?.status === 401) {

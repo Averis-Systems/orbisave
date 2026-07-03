@@ -33,6 +33,139 @@ class SystemConfiguration(BaseModel):
         return f"{self.key} ({self.category})"
 
 
+class KYCProviderConfiguration(BaseModel):
+    """
+    Super-admin managed identity provider credentials.
+
+    Secret values are write-only through the API and represented as masked
+    booleans in read responses. This keeps Didit wiring ready without exposing
+    raw credentials back to the console.
+    """
+    PROVIDER_CHOICES = [
+        ('didit', 'Didit'),
+        ('custom', 'Custom / Other'),
+    ]
+    ENVIRONMENT_CHOICES = [('sandbox', 'Sandbox'), ('live', 'Live')]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('testing', 'Testing'),
+        ('error', 'Error'),
+    ]
+
+    name = models.CharField(max_length=150)
+    provider_code = models.CharField(max_length=30, choices=PROVIDER_CHOICES, default='didit')
+    environment = models.CharField(max_length=10, choices=ENVIRONMENT_CHOICES, default='sandbox')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
+    base_url = models.URLField(blank=True, default='https://verification.didit.me')
+    workflow_id = models.CharField(max_length=120, blank=True)
+    client_id = models.CharField(max_length=255, blank=True)
+    client_secret = models.TextField(blank=True)
+    webhook_url = models.URLField(blank=True)
+    webhook_secret = models.TextField(blank=True)
+    allowed_events = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    configured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='configured_kyc_providers',
+    )
+    last_tested_at = models.DateTimeField(null=True, blank=True)
+    last_test_status = models.CharField(max_length=20, blank=True)
+    last_test_message = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'kyc_provider_configuration'
+        ordering = ['provider_code', 'environment', 'name']
+        unique_together = [('provider_code', 'environment')]
+
+    def __str__(self):
+        return f"{self.name} [{self.provider_code}/{self.environment}]"
+
+
+class MeetingProviderConfiguration(BaseModel):
+    """
+    Super-admin managed meeting provider credentials.
+
+    OrbiSave uses Daily.co as the single embedded meeting provider. Raw
+    provider credentials stay in the console and are never returned by read APIs.
+    """
+    PROVIDER_CHOICES = [
+        ('daily', 'Daily.co'),
+    ]
+    ENVIRONMENT_CHOICES = [('sandbox', 'Sandbox'), ('live', 'Live')]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('testing', 'Testing'),
+        ('error', 'Error'),
+    ]
+
+    name = models.CharField(max_length=150)
+    provider_code = models.CharField(max_length=30, choices=PROVIDER_CHOICES, default='daily')
+    environment = models.CharField(max_length=10, choices=ENVIRONMENT_CHOICES, default='sandbox')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
+    base_url = models.URLField(blank=True, default='https://api.daily.co/v1')
+    api_key = models.TextField(blank=True)
+    webhook_url = models.URLField(blank=True)
+    webhook_secret = models.TextField(blank=True)
+    allowed_events = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    configured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='configured_meeting_providers',
+    )
+    last_tested_at = models.DateTimeField(null=True, blank=True)
+    last_test_status = models.CharField(max_length=20, blank=True)
+    last_test_message = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'meeting_provider_configuration'
+        ordering = ['provider_code', 'environment', 'name']
+        unique_together = [('provider_code', 'environment')]
+
+    def __str__(self):
+        return f"{self.name} [{self.provider_code}/{self.environment}]"
+
+
+class CountryPolicy(BaseModel):
+    """
+    Super-admin managed country policy guardrails.
+
+    Loan interest caps are policy data because national guidance changes over
+    time. Group-voted rates must remain below the active country cap.
+    """
+    COUNTRIES = [('kenya', 'Kenya'), ('rwanda', 'Rwanda'), ('ghana', 'Ghana')]
+
+    country = models.CharField(max_length=10, choices=COUNTRIES, unique=True)
+    currency = models.CharField(max_length=5)
+    central_bank_name = models.CharField(max_length=150)
+    max_loan_interest_rate_monthly = models.DecimalField(max_digits=5, decimal_places=2)
+    recommended_loan_interest_rate_monthly = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    source_url = models.URLField(blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='updated_country_policies',
+    )
+
+    class Meta:
+        db_table = 'country_policy'
+        ordering = ['country']
+
+    def __str__(self):
+        return f"{self.country} policy cap ({self.max_loan_interest_rate_monthly}% monthly)"
+
+
 class AdminEmailVerification(BaseModel):
     PURPOSE_CHOICES = [
         ('admin_registration', 'Admin Registration'),

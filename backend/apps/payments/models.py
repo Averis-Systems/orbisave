@@ -94,6 +94,55 @@ class BankProvider(BaseModel):
         return self.status == 'active'
 
 
+class PaymentProviderAccount(BaseModel):
+    """
+    Bank or wallet account attached to a provider configuration.
+
+    Jenga can expose multiple useful accounts for the same integration:
+    collection, payout, trust/custody, settlement/clearing, wallet, and
+    reconciliation accounts. Keeping them typed prevents hidden assumptions in
+    provider code and lets the admin console rotate sandbox/live account maps.
+    """
+    ACCOUNT_TYPES = [
+        ('collection', 'Collection'),
+        ('payout', 'Payout'),
+        ('trust', 'Trust / Custody'),
+        ('settlement', 'Settlement / Clearing'),
+        ('wallet', 'Jenga Wallet'),
+        ('reconciliation', 'Reconciliation'),
+        ('fee', 'Fee / Revenue'),
+    ]
+
+    provider = models.ForeignKey(BankProvider, on_delete=models.PROTECT, related_name='accounts')
+    label = models.CharField(max_length=120)
+    account_type = models.CharField(max_length=30, choices=ACCOUNT_TYPES)
+    account_number = models.CharField(max_length=100)
+    account_name = models.CharField(max_length=160, blank=True)
+    country_code = models.CharField(max_length=5, default='KE')
+    currency = models.CharField(max_length=5, default='KES')
+    bank_code = models.CharField(max_length=20, blank=True)
+    branch_code = models.CharField(max_length=20, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_default_for_collections = models.BooleanField(default=False)
+    is_default_for_disbursements = models.BooleanField(default=False)
+    is_default_for_reconciliation = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'payment_provider_account'
+        ordering = ['provider', 'account_type', 'label']
+        unique_together = [('provider', 'account_number', 'account_type')]
+        indexes = [
+            models.Index(fields=['provider', 'account_type', 'is_active']),
+            models.Index(fields=['provider', 'is_default_for_collections']),
+            models.Index(fields=['provider', 'is_default_for_disbursements']),
+            models.Index(fields=['provider', 'is_default_for_reconciliation']),
+        ]
+
+    def __str__(self):
+        return f"{self.provider.name} {self.account_type}: {self.account_number}"
+
+
 class ProviderApiLog(BaseModel):
     """
     Append-only log of every API call made through each provider.
@@ -114,3 +163,113 @@ class ProviderApiLog(BaseModel):
     class Meta:
         db_table = 'payment_provider_api_log'
         ordering = ['-created_at']
+
+
+class ProviderTransaction(BaseModel):
+    """
+    Provider-facing transaction state machine.
+
+    This is not the product ledger. It records the external Jenga/Equity
+    processing state that must later reconcile to immutable ledger event groups.
+    """
+    DIRECTIONS = [('inbound', 'Inbound'), ('outbound', 'Outbound')]
+    STATUSES = [
+        ('created', 'Created'),
+        ('request_signed', 'Request Signed'),
+        ('submitted', 'Submitted'),
+        ('acknowledged', 'Acknowledged'),
+        ('pending_customer_action', 'Pending Customer Action'),
+        ('provider_processing', 'Provider Processing'),
+        ('awaiting_third_party_settlement', 'Awaiting Third Party Settlement'),
+        ('settled', 'Settled'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+        ('rejected', 'Rejected'),
+        ('settlement_exception', 'Settlement Exception'),
+        ('reversed', 'Reversed'),
+        ('manual_review', 'Manual Review'),
+    ]
+
+    provider = models.ForeignKey(BankProvider, on_delete=models.PROTECT, related_name='transactions')
+    direction = models.CharField(max_length=10, choices=DIRECTIONS)
+    channel = models.CharField(max_length=40)
+    country = models.CharField(max_length=10)
+    currency = models.CharField(max_length=5)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    fee_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    internal_reference = models.CharField(max_length=255, unique=True)
+    provider_reference = models.CharField(max_length=255, blank=True)
+    provider_transaction_id = models.CharField(max_length=255, blank=True)
+    source_account = models.CharField(max_length=100, blank=True)
+    destination_account = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=40, choices=STATUSES, default='created')
+    linked_model = models.CharField(max_length=80, blank=True)
+    linked_object_id = models.CharField(max_length=80, blank=True)
+    raw_request_checksum = models.CharField(max_length=64, blank=True)
+    raw_response_checksum = models.CharField(max_length=64, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    final_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'payment_provider_transaction'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['provider', 'status']),
+            models.Index(fields=['provider_reference']),
+            models.Index(fields=['provider_transaction_id']),
+            models.Index(fields=['country', 'channel', 'status']),
+        ]
+
+
+class ProviderCallback(BaseModel):
+    provider = models.ForeignKey(BankProvider, on_delete=models.PROTECT, related_name='callbacks')
+    provider_transaction = models.ForeignKey(
+        ProviderTransaction,
+        on_delete=models.PROTECT,
+        related_name='callbacks',
+        null=True,
+        blank=True,
+    )
+    callback_type = models.CharField(max_length=80, blank=True)
+    provider_reference = models.CharField(max_length=255, blank=True)
+    payload_checksum = models.CharField(max_length=64)
+    payload = models.JSONField(default=dict, blank=True)
+    normalized_status = models.CharField(max_length=40, blank=True)
+    is_duplicate = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'payment_provider_callback'
+        ordering = ['-created_at']
+        unique_together = [('provider', 'payload_checksum')]
+
+
+class ProviderStatementLine(BaseModel):
+    provider = models.ForeignKey(BankProvider, on_delete=models.PROTECT, related_name='statement_lines')
+    account_number = models.CharField(max_length=100)
+    transaction_id = models.CharField(max_length=255, blank=True)
+    reference = models.CharField(max_length=255, blank=True)
+    serial = models.CharField(max_length=255, blank=True)
+    posted_date_time = models.CharField(max_length=80, blank=True)
+    transaction_date = models.DateField(null=True, blank=True)
+    description = models.TextField(blank=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    direction = models.CharField(max_length=10, choices=[('credit', 'Credit'), ('debit', 'Debit')])
+    running_balance = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=5, blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    matched_status = models.CharField(
+        max_length=30,
+        choices=[('unmatched', 'Unmatched'), ('matched', 'Matched'), ('exception', 'Exception')],
+        default='unmatched',
+    )
+
+    class Meta:
+        db_table = 'payment_provider_statement_line'
+        ordering = ['-posted_date_time', '-created_at']
+        indexes = [
+            models.Index(fields=['provider', 'account_number']),
+            models.Index(fields=['transaction_id']),
+            models.Index(fields=['reference']),
+            models.Index(fields=['matched_status']),
+        ]

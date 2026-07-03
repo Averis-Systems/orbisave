@@ -47,10 +47,10 @@ export default function GlobalDashboard() {
   }, [])
 
   const mainStats = [
-    { label: 'Global Groups', value: stats?.total_groups || 0, icon: Globe, detail: '+12% from last month' },
-    { label: 'Total Members', value: 1420, icon: Users, detail: 'Across all regions' },
-    { label: 'Platform Admins', value: 3, icon: ShieldCheck, detail: 'Authorized staff' },
-    { label: 'Net Liquidity', value: '$84,200', icon: CreditCard, detail: 'Total pool value' },
+    { label: 'Global Groups', value: stats?.total_groups || 0, icon: Globe, detail: 'Across active countries' },
+    { label: 'Groups Pending Review', value: stats?.pending_review || 0, icon: Users, detail: 'Awaiting platform review' },
+    { label: 'Verified Groups', value: stats?.verified || 0, icon: ShieldCheck, detail: 'Approved for operations' },
+    { label: 'Trust Account Totals', value: 'Not connected', icon: CreditCard, detail: 'Pending reconciliation API' },
   ]
 
   return (
@@ -63,7 +63,7 @@ export default function GlobalDashboard() {
             Global Infrastructure
           </div>
           <h1 className="text-5xl font-bold text-navy tracking-tight">System Oversight</h1>
-          <p className="text-slate-500 text-lg mt-3 max-w-xl font-medium">Monitoring cross-jurisdictional financial coordination and administrative integrity.</p>
+          <p className="text-slate-500 text-lg mt-3 max-w-xl font-medium">Monitoring cross-country group operations, trust account readiness, and administrative integrity.</p>
         </div>
         <div className="flex gap-3">
           <button className="px-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-navy hover:bg-slate-50 transition-all shadow-sm">
@@ -146,24 +146,15 @@ export default function GlobalDashboard() {
           <div className="bg-navy rounded-lg p-10 text-white relative overflow-hidden shadow-2xl shadow-navy/20">
             <div className="relative z-10 space-y-8">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold tracking-tight">Active Shards</h3>
+              <h3 className="text-xl font-bold tracking-tight">Provider Monitoring</h3>
                 <Activity className="w-5 h-5 text-primary" />
               </div>
               
               <div className="space-y-4">
-                {[
-                  { name: 'M-Pesa Gateway', loc: 'Kenya Shard', status: 'optimal' },
-                  { name: 'MTN Gateway', loc: 'Ghana/Rwanda', status: 'optimal' },
-                  { name: 'Auth Cluster', loc: 'Global Edge', status: 'optimal' },
-                ].map((shard) => (
-                  <div key={shard.name} className="p-5 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-colors">
-                    <div>
-                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">{shard.loc}</p>
-                      <p className="text-sm font-bold text-white/90">{shard.name}</p>
-                    </div>
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  </div>
-                ))}
+                <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-sm font-bold text-white/90">Provider health metrics are not connected yet.</p>
+                  <p className="mt-2 text-xs text-white/40">M-Pesa, MTN MoMo, Airtel, and bank API status will appear here after monitoring endpoints are wired.</p>
+                </div>
               </div>
 
               <div className="pt-6">

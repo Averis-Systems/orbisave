@@ -3,7 +3,7 @@
 import { AlertCircle, Vote, Info, Users, CheckCircle, Bell, CheckSquare, Loader2 } from "lucide-react"
 import { useGroups } from "@/hooks/useGroups"
 import { useNotifications } from "@/hooks/useNotifications"
-import { Skeleton } from "@/components/ui/skeleton"
+import { AppStatePanel } from "@/components/states/AppState"
 
 const iconMap: Record<string, any> = {
   alert:    { Icon: AlertCircle, color: "text-red-500",    bg: "bg-red-50" },
@@ -15,7 +15,7 @@ const iconMap: Record<string, any> = {
 }
 
 export default function NotificationsPage() {
-  const { data: groups } = useGroups()
+  const { data: groups, isLoading: groupsLoading } = useGroups()
   const activeGroup = groups?.[0] || null
   
   const { data: notifications, isLoading } = useNotifications(activeGroup?.id || null)
@@ -24,13 +24,28 @@ export default function NotificationsPage() {
   const read = notifications?.filter(n => n.read_at) || []
 
   // Loading handled at content level
+  if (!groupsLoading && !activeGroup) {
+    return <AppStatePanel stateKey="groups.empty" />
+  }
+
+  if (!isLoading && !unread.length && !read.length) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="mb-2 text-3xl font-black text-[#0a2540]">Notifications</h1>
+          <p className="font-bold text-gray-500">Stay updated with your group activity and alerts.</p>
+        </div>
+        <AppStatePanel stateKey="notifications.empty" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-[#0a2540] mb-2">Notifications</h1>
-          <p className="text-gray-500 font-bold">Stay updated with your pool activity and alerts.</p>
+          <p className="text-gray-500 font-bold">Stay updated with your group activity and alerts.</p>
         </div>
         {unread.length > 0 && (
           <button className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#00ab00] hover:bg-green-50 px-4 py-2 rounded-lg transition-all">
@@ -106,9 +121,7 @@ export default function NotificationsPage() {
                 </div>
               )
             }) : !isLoading && (
-               <div className="py-20 text-center text-gray-300 font-bold text-sm">
-                  No previous notifications.
-               </div>
+               <AppStatePanel compact stateKey="notifications.empty" className="m-5" />
             )}
           </div>
         </div>

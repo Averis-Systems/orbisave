@@ -6,10 +6,16 @@ export interface Member {
   member: string
   member_name: string
   member_email: string
-  role: 'member' | 'chairperson' | 'treasurer'
-  status: 'active' | 'suspended' | 'exited'
+  role: 'member' | 'chairperson' | 'treasurer' | 'secretary'
+  status: 'pending_approval' | 'pending_session_refresh' | 'active' | 'suspended' | 'exited' | 'deceased'
   joined_at: string
   rotation_position: number
+}
+
+export interface CreateInvitePayload {
+  groupId: string
+  email?: string
+  phone?: string
 }
 
 export function useMembers(groupId: string | null) {
@@ -45,6 +51,20 @@ export function useReinstateMember() {
     },
     onSuccess: (_, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: ['members', groupId] })
+    }
+  })
+}
+
+export function useCreateGroupInvite() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ groupId, email, phone }: CreateInvitePayload) => {
+      const { data } = await api.post(`/groups/${groupId}/invites/`, { email, phone })
+      return data
+    },
+    onSuccess: (_, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: ['members', groupId] })
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
     }
   })
 }

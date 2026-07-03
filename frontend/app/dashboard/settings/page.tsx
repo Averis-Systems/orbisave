@@ -6,8 +6,8 @@ import Link from "next/link"
 const SETTING_CARDS = [
   {
     icon: Settings2,
-    title: "Protocol Configuration",
-    desc: "Global rules, contribution thresholds, grace periods and penalty governance.",
+    title: "Group Rules",
+    desc: "Contribution thresholds, grace periods, penalties, and group governance rules.",
     href: "/dashboard/settings",
     color: "bg-[#0a2540]",
   },
@@ -20,8 +20,8 @@ const SETTING_CARDS = [
   },
   {
     icon: CreditCard,
-    title: "Liquidity Pool Settings",
-    desc: "Enable/disable the loan pool, define interest yields, and eligibility criteria.",
+    title: "Loan Pool Settings",
+    desc: "Enable or disable member lending, define interest yields, and set eligibility criteria.",
     href: "/dashboard/settings/loans",
     color: "bg-orange-500",
   },
@@ -30,7 +30,7 @@ const SETTING_CARDS = [
     title: "Governance & Quorum",
     desc: "Meeting schedules, attendance requirements, and consensus voting rules.",
     href: "/dashboard/settings/meetings",
-    color: "bg-blue-600",
+    color: "bg-[#0a2540]",
   },
 ]
 
@@ -77,16 +77,16 @@ export default function SettingsPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2">
           {[
-            { label: "Group Instance",       val: "Kisumu Agri Collective" },
-            { label: "Base Contribution",    val: "KES 5,000" },
-            { label: "Settlement Frequency", val: "5th of each month" },
-            { label: "Default Grace Window", val: "5 days" },
-            { label: "Infraction Penalty",   val: "KES 200" },
-            { label: "Liquidity Pool",       val: "ACTIVE — KES 45,000" },
-            { label: "Interest Rate Flat",   val: "10%" },
-            { label: "Maximum Tenure",       val: "12 Weeks" },
-            { label: "Sequencing Mode",      val: "Chronological" },
-            { label: "Consensus Quorum",     val: "60% Threshold" },
+            { label: "Active Group", val: "Select a group" },
+            { label: "Base Contribution", val: "Not connected" },
+            { label: "Settlement Frequency", val: "Not connected" },
+            { label: "Default Grace Window", val: "Not connected" },
+            { label: "Infraction Penalty", val: "Not connected" },
+            { label: "Loan Pool", val: "Not connected" },
+            { label: "Interest Rate", val: "Not connected" },
+            { label: "Maximum Tenure", val: "Not connected" },
+            { label: "Rotation Mode", val: "Not connected" },
+            { label: "Consensus Quorum", val: "Not connected" },
           ].map(r => (
             <div key={r.label} className="flex justify-between items-center py-4 border-b border-gray-50 last:border-0 md:even:border-b md:last:border-b-0">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{r.label}</span>
@@ -97,10 +97,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Security Banner */}
-      <div className="bg-blue-50 rounded-lg p-6 border border-blue-100 flex items-center gap-4">
-         <ShieldCheck size={24} className="text-blue-600 flex-shrink-0" />
-         <p className="text-[11px] font-bold text-blue-800 leading-relaxed">
-            All configuration changes require a 2/3 majority vote via the meetings portal before they are committed to the live environment. Internal protocols are protected by 256-bit AES encryption.
+      <div className="bg-[#ecfdf3] rounded-lg p-6 border border-[#bfe8c4] flex items-center gap-4">
+         <ShieldCheck size={24} className="text-[#00ab00] flex-shrink-0" />
+         <p className="text-[11px] font-bold text-[#0a2540] leading-relaxed">
+            Sensitive group rule changes should require quorum approval through meetings before they are committed. Live enforcement status will appear here once group settings are connected.
          </p>
       </div>
     </div>

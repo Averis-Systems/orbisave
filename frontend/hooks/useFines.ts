@@ -4,11 +4,11 @@ import { api } from '@/lib/api'
 export interface Fine {
   id: string
   amount: number
-  status: 'pending' | 'paid' | 'waived'
+  status: 'pending' | 'paid' | 'waived' | 'applied'
   rule_type: string
   penalty_type: string
   paid_at: string | null
-  member_name: string
+  member_name?: string
 }
 
 export function useFines(groupId: string | null) {

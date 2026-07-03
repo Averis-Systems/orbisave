@@ -11,9 +11,9 @@ export function PoolGrowthChart() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#0d2416" }}>Monthly Collection Trend</div>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>Feb – Oct 2025</div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>Contribution history</div>
         </div>
-        <div style={{ fontSize: 12, color: G[500], fontWeight: 600 }}>Target: KES 100,000</div>
+        <div style={{ fontSize: 12, color: G[500], fontWeight: 600 }}>Target from group settings</div>
       </div>
       <ResponsiveContainer width="100%" height={180}>
         <AreaChart data={CONTRIBUTIONS_HISTORY} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

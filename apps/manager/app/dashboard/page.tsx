@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/store/auth'
 import { 
   Users, 
   ShieldCheck, 
@@ -30,6 +31,16 @@ import {
   Bar
 } from 'recharts'
 
+const currencyByCountry: Record<string, string> = {
+  kenya: 'KES',
+  rwanda: 'RWF',
+  ghana: 'GHS',
+}
+
+function formatCurrency(amount: number | undefined, currency: string) {
+  return `${currency} ${Number(amount || 0).toLocaleString()}`
+}
+
 interface Analytics {
   summary: {
     total_groups: number
@@ -51,6 +62,7 @@ interface Analytics {
 export default function DashboardOverview() {
   const [data, setData] = useState<Analytics | null>(null)
   const [loading, setLoading] = useState(true)
+  const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
     async function fetchAnalytics() {
@@ -67,12 +79,13 @@ export default function DashboardOverview() {
   }, [])
 
   const stats = data?.summary
+  const currency = currencyByCountry[user?.country || 'kenya'] || 'KES'
 
   const mainStats = [
-    { label: 'Managed Groups', value: stats?.total_groups || 0, icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Managed Groups', value: stats?.total_groups || 0, icon: Users, color: 'text-[#00ab00]', bg: 'bg-[#e9f3ed]' },
     { label: 'Active Loans', value: stats?.active_loans || 0, icon: Banknote, color: 'text-emerald-500', bg: 'bg-emerald-50' },
     { label: 'KYC Pending', value: stats?.kyc_pending || 0, icon: ShieldCheck, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { label: 'Contributions (MTD)', value: `$${stats?.total_contributions_this_month.toLocaleString() || '0'}`, icon: Landmark, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+    { label: 'Contributions (MTD)', value: formatCurrency(stats?.total_contributions_this_month, currency), icon: Landmark, color: 'text-[#00ab00]', bg: 'bg-[#e9f3ed]' },
   ]
 
   return (
@@ -80,8 +93,8 @@ export default function DashboardOverview() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold text-navy tracking-tight">Regional Command</h1>
-          <p className="text-slate-500 text-lg mt-2 font-medium">Real-time jurisdictional oversight and financial health monitoring.</p>
+          <h1 className="text-4xl font-bold text-navy tracking-tight">Country Operations</h1>
+          <p className="text-slate-500 text-lg mt-2 font-medium">Country-scoped oversight for groups, members, contributions, KYC, and loan approvals.</p>
         </div>
         <div className="flex gap-3">
           <div className="relative">
@@ -142,8 +155,8 @@ export default function DashboardOverview() {
                 <AreaChart data={data?.monthly_contribution_trend || []}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#00ab00" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#00ab00" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -165,7 +178,7 @@ export default function DashboardOverview() {
                   <Area 
                     type="monotone" 
                     dataKey="contributions" 
-                    stroke="#3b82f6" 
+                    stroke="#00ab00" 
                     strokeWidth={3}
                     fillOpacity={1} 
                     fill="url(#colorValue)" 
@@ -191,8 +204,8 @@ export default function DashboardOverview() {
                 </Link>
               )}
               {stats && stats.pending_admin_loans > 0 && (
-                <Link href="/dashboard/loans" className="flex items-center gap-6 p-6 bg-blue-50/30 border border-blue-100 hover:bg-white hover:shadow-xl rounded-lg group transition-all">
-                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-blue-500 shadow-sm border border-blue-50">
+                <Link href="/dashboard/loans" className="flex items-center gap-6 p-6 bg-[#e9f3ed]/50 border border-[#d6e4df] hover:bg-white hover:shadow-xl rounded-lg group transition-all">
+                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-[#00ab00] shadow-sm border border-[#d6e4df]">
                     <AlertCircle className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -260,15 +273,9 @@ export default function DashboardOverview() {
           <div className="bg-white rounded-lg border border-slate-100 p-8 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
             <h3 className="text-sm font-bold text-navy mb-6 uppercase tracking-widest">Recent Activity</h3>
             <div className="space-y-6">
-              {[1,2,3].map(i => (
-                <div key={i} className="flex gap-4">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-navy">Group "Zion Savings" verified</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">2 hours ago</p>
-                  </div>
-                </div>
-              ))}
+              <div className="py-8 text-center">
+                <p className="text-sm font-semibold text-slate-400">Recent activity will appear after audit events are connected.</p>
+              </div>
             </div>
             <button className="w-full mt-8 py-3 bg-slate-50 text-slate-400 font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all">
               View Full Audit

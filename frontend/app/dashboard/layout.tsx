@@ -3,405 +3,483 @@
 import { useAuthStore } from "@/store/auth"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
-  LayoutDashboard, Users, CreditCard, Settings, LogOut,
-  Bell, LineChart, Menu, AlertTriangle, User,
-  Shield, Video, CheckCircle, ChevronDown, Plus, ShieldCheck,
-  Building2, RefreshCw, Wallet, Settings2, UserCheck
+  Bell,
+  CheckCircle,
+  ChevronDown,
+  Info,
+  LogOut,
+  Menu,
+  Moon,
+  Plus,
+  Search,
+  Settings as SettingsIcon,
+  Sun,
+  X,
+  UserCircle,
 } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
 import { KYCModal } from "@/components/dashboard/KYCModal"
 import { GuidedOnboardingModal } from "@/components/dashboard/GuidedOnboardingModal"
+import { AppStateNotice } from "@/components/states/AppState"
 import { useGroups } from "@/hooks/useGroups"
 import { useNotifications } from "@/hooks/useNotifications"
+import { getUserDashboardNavItems, type DashboardNavSection } from "@/lib/dashboard-reference"
 
-// ─── Brand Colors ──────────────────────────────────────────────────────────
-const B = {
-  navy:        "#0a2540",
-  navyLight:   "#0f3460",
-  green:       "#00ab00",
-  greenLight:  "#e9f3ed",
-  greenMuted:  "#d6e4df",
-  white:       "#ffffff",
-  offWhite:    "#f7f9f8",
-  textMuted:   "#4a5c6a",
-  border:      "rgba(255,255,255,0.07)",
+function useDashboardSidebar() {
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+
+  return {
+    isExpanded,
+    isMobileOpen,
+    isHovered,
+    setIsHovered,
+    toggleSidebar: () => setIsExpanded((current) => !current),
+    toggleMobileSidebar: () => setIsMobileOpen((current) => !current),
+    closeMobileSidebar: () => setIsMobileOpen(false),
+  }
 }
 
-// ─── Sidebar state hook ─────────────────────────────────────────────────────
-function useSidebarState() {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
+function useDashboardTheme() {
+  const [theme, setTheme] = useState<"light" | "dark">("light")
+
   useEffect(() => {
-    setIsMounted(true)
-    const stored = localStorage.getItem("orbisave_sidebar_collapsed")
-    if (stored !== null) setIsCollapsed(stored === "true")
+    const storedTheme = localStorage.getItem("orbisave_dashboard_theme")
+    const initialTheme = storedTheme === "dark" ? "dark" : "light"
+    setTheme(initialTheme)
+    document.documentElement.classList.toggle("dark", initialTheme === "dark")
   }, [])
-  const toggle = () => setIsCollapsed(prev => {
-    const next = !prev
-    localStorage.setItem("orbisave_sidebar_collapsed", String(next))
-    return next
-  })
-  return { isCollapsed, toggle, isMounted }
+
+  const toggleTheme = () => {
+    setTheme((current) => {
+      const nextTheme = current === "dark" ? "light" : "dark"
+      document.documentElement.classList.toggle("dark", nextTheme === "dark")
+      localStorage.setItem("orbisave_dashboard_theme", nextTheme)
+      return nextTheme
+    })
+  }
+
+  return { theme, toggleTheme }
 }
 
-// ─── Navigation structure ───────────────────────────────────────────────────
-const getNavigation = (role: string, hasLoanPool: boolean) => {
-  const isAdmin = role === "chairperson" || role === "treasurer"
-
-  return [
-    {
-      title: "Main",
-      flat: true,
-      items: [
-        { name: "Overview",  href: "/dashboard",          icon: LayoutDashboard },
-        { name: "My Group",  href: "/dashboard/my-group", icon: Building2 },
-      ],
-    },
-    {
-      title: "Financing",
-      flat: true,
-      items: [
-        { name: "Contributions", href: "/dashboard/contributions", icon: Wallet },
-        ...(hasLoanPool ? [
-          { name: "My Loans", href: "/dashboard/my-loans", icon: CreditCard },
-        ] : []),
-      ],
-    },
-    ...(isAdmin ? [{
-      title: "Management",
-      flat: false,
-      items: [
-        { name: "Members",      href: "/dashboard/members",  icon: Users },
-        { name: "Loan Approvals", href: "/dashboard/loan-approvals", icon: UserCheck, badge: 2 },
-        { name: "Rotations",    href: "/dashboard/rotations", icon: RefreshCw },
-        { name: "Meetings",     href: "/dashboard/meetings",  icon: Video },
-      ],
-    }] : []),
-    {
-      title: "System",
-      flat: true,
-      items: [
-        { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: 3 },
-        { name: "Personal Profile", href: "/dashboard/profile", icon: User },
-        ...(isAdmin ? [
-          { name: "Group Settings", href: "/dashboard/settings", icon: Settings },
-        ] : []),
-        ...(role === 'platform_admin' || role === 'super_admin' ? [
-          { name: "Staff Portal", href: "/staff-portal", icon: Shield, badge: "Admin" }
-        ] : []),
-      ],
-    },
-  ]
+function isRouteActive(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === "/dashboard" || pathname === "/dashboard/overview"
+  }
+  return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-// ─── NavItem ────────────────────────────────────────────────────────────────
-function NavItem({ item, isCollapsed, sidebarMounted, pathname }: any) {
-  const isActive = pathname === item.href ||
-    (pathname.startsWith(item.href + "/") && item.href !== "/dashboard")
-  const Icon = item.icon
+function SidebarNav({
+  sections,
+  pathname,
+  isExpanded,
+  isHovered,
+  isMobileOpen,
+}: {
+  sections: DashboardNavSection[]
+  pathname: string
+  isExpanded: boolean
+  isHovered: boolean
+  isMobileOpen: boolean
+}) {
+  const showText = isExpanded || isHovered || isMobileOpen
+  const items = sections.flatMap((section) => section.items)
+
   return (
-    <Link
-      href={item.href}
-      title={isCollapsed && sidebarMounted ? item.name : undefined}
-      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all group ${
-        isActive ? 'bg-[#00ab00] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-      } ${isCollapsed && sidebarMounted ? 'justify-center px-0' : ''}`}
+    <nav className="flex-1 overflow-y-auto pb-4 no-scrollbar">
+      <ul className="flex flex-col gap-1">
+        {items.map((item) => {
+          const active = isRouteActive(pathname, item.href)
+          const Icon = item.icon
+
+          return (
+            <li key={item.name}>
+              <Link
+                href={item.href}
+                className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-[#e9f3ed] text-[#00ab00]"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                } ${showText ? "justify-start" : "lg:justify-center"}`}
+                title={!showText ? item.name : undefined}
+              >
+                <Icon
+                  size={20}
+                  className={active ? "text-[#00ab00]" : "text-gray-500 group-hover:text-gray-700 dark:group-hover:text-white"}
+                />
+                {showText && <span className="truncate">{item.name}</span>}
+                {showText && item.badge && (
+                  <span
+                    className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium uppercase ${
+                      active ? "bg-[#d6e4df] text-[#00ab00]" : "bg-[#e9f3ed] text-[#00ab00]"
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
+  )
+}
+
+function AppSidebar({
+  sections,
+  pathname,
+  isExpanded,
+  isMobileOpen,
+  isHovered,
+  setIsHovered,
+  activeGroupName,
+}: {
+  sections: DashboardNavSection[]
+  pathname: string
+  isExpanded: boolean
+  isMobileOpen: boolean
+  isHovered: boolean
+  setIsHovered: (value: boolean) => void
+  activeGroupName?: string
+}) {
+  const showText = isExpanded || isHovered || isMobileOpen
+
+  return (
+    <aside
+      className={`fixed left-0 top-0 z-50 mt-16 flex h-screen flex-col border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900 dark:text-white lg:mt-0 ${
+        showText ? "w-[260px]" : "w-[84px]"
+      } ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      onMouseEnter={() => !isExpanded && setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <Icon size={18} className={`${isActive ? 'text-white' : 'text-[#00ab00]'} shrink-0`} />
-      {!(isCollapsed && sidebarMounted) && (
-        <span className={`text-sm font-bold truncate flex-1 ${isActive ? '' : 'group-hover:translate-x-1 transition-transform'}`}>
-          {item.name}
-        </span>
+      <div className={`flex py-8 ${showText ? "justify-start" : "lg:justify-center"}`}>
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ab00] text-sm font-bold text-white">
+            OS
+          </span>
+          {showText && (
+            <span className="leading-none">
+              <span className="block text-xl font-semibold text-gray-900 dark:text-white">
+                Orbi<span className="text-[#00ab00]">Save</span>
+              </span>
+            </span>
+          )}
+        </Link>
+      </div>
+
+      {showText && activeGroupName && (
+        <div className="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/70">
+          <p className="mb-1 text-xs font-medium uppercase text-gray-400">Active Group</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="truncate text-sm font-semibold text-gray-800 dark:text-white">{activeGroupName}</p>
+            <CheckCircle size={16} className="text-[#12b76a]" />
+          </div>
+        </div>
       )}
-      {!(isCollapsed && sidebarMounted) && item.badge && (
-        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${
-          item.badge === "Admin" ? 'bg-[#00ab00] text-white' : 'bg-red-500 text-white'
-        }`}>
-          {item.badge}
-        </span>
+
+      <SidebarNav
+        sections={sections}
+        pathname={pathname}
+        isExpanded={isExpanded}
+        isHovered={isHovered}
+        isMobileOpen={isMobileOpen}
+      />
+
+      {showText && (
+        <div className="mb-20 mt-auto py-3">
+          <Link
+            href="/dashboard/settings"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-3 py-2.5 text-sm font-medium text-white hover:bg-[#009200]"
+          >
+            <Plus size={18} />
+            Create Group
+          </Link>
+        </div>
       )}
-    </Link>
+    </aside>
   )
 }
 
-// ─── NavSection ─────────────────────────────────────────────────────────────
-function NavSection({ section, isCollapsed, sidebarMounted, pathname }: any) {
-  const [open, setOpen] = useState(true)
+function AppHeader({
+  isMobileOpen,
+  toggleSidebar,
+  toggleMobileSidebar,
+  unreadCount,
+  userName,
+  userEmail,
+  role,
+  theme,
+  toggleTheme,
+  logout,
+}: {
+  isMobileOpen: boolean
+  toggleSidebar: () => void
+  toggleMobileSidebar: () => void
+  unreadCount: number
+  userName: string
+  userEmail?: string
+  role: string
+  theme: "light" | "dark"
+  toggleTheme: () => void
+  logout: () => void
+}) {
+  const router = useRouter()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
 
-  if (isCollapsed && sidebarMounted) {
-    return (
-      <div className="mb-4 space-y-1">
-        {section.items.map((item: any) => (
-          <NavItem key={item.name} item={item} isCollapsed={isCollapsed} sidebarMounted={sidebarMounted} pathname={pathname} />
-        ))}
-      </div>
-    )
-  }
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
-  if (section.flat) {
-    return (
-      <div className="mb-8">
-        <div className="px-4 mb-2">
-           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">{section.title}</h3>
-        </div>
-        <div className="space-y-1">
-          {section.items.map((item: any) => (
-            <NavItem key={item.name} item={item} isCollapsed={isCollapsed} sidebarMounted={sidebarMounted} pathname={pathname} />
-          ))}
-        </div>
-      </div>
-    )
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleToggle = () => {
+    if (window.innerWidth >= 1024) {
+      toggleSidebar()
+    } else {
+      toggleMobileSidebar()
+    }
   }
 
   return (
-    <div className="mb-8">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center justify-between w-full px-4 mb-2 group"
-      >
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 group-hover:text-white/50 transition-colors">{section.title}</span>
-        <ChevronDown size={12} className={`text-white/20 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="space-y-1">
-          {section.items.map((item: any) => (
-            <NavItem key={item.name} item={item} isCollapsed={isCollapsed} sidebarMounted={sidebarMounted} pathname={pathname} />
-          ))}
+    <header className="sticky top-0 z-40 flex w-full border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:border-b">
+      <div className="flex grow flex-col items-center justify-between lg:flex-row lg:px-6">
+        <div className="flex w-full items-center justify-between gap-2 border-b border-gray-200 px-3 py-3 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
+          <button
+            className="z-40 flex h-14 w-14 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800"
+            onClick={handleToggle}
+            aria-label="Toggle sidebar"
+          >
+            {isMobileOpen ? <X size={22} /> : <Menu size={24} />}
+          </button>
+
+          <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#00ab00] text-xs font-bold text-white">
+              OS
+            </span>
+            <span className="font-semibold text-gray-900 dark:text-white">OrbiSave</span>
+          </Link>
+
+          <div className="hidden lg:block">
+            <form>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
+                  <Search size={20} className="text-gray-500" />
+                </span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Search or type command..."
+                  className="h-14 w-[520px] rounded-xl border border-gray-200 bg-transparent py-2.5 pl-12 pr-16 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#77cc77] focus:outline-none focus:ring-4 focus:ring-[#00ab00]/10 dark:border-gray-800 dark:text-white dark:placeholder:text-gray-500"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  <span>Ctrl</span>
+                  <span>K</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      )}
-    </div>
+
+        <div className="flex w-full items-center justify-end gap-3 px-5 py-4 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.1),0_2px_4px_-2px_rgba(16,24,40,0.06)] lg:w-auto lg:px-0 lg:shadow-none">
+          <button
+            onClick={toggleTheme}
+            className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+            aria-label="Toggle dark mode"
+          >
+            {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
+          </button>
+          <button
+            onClick={() => router.push("/dashboard/notifications")}
+            className="relative flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+            aria-label="Notifications"
+          >
+            <Bell size={22} />
+            {unreadCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white bg-[#ff7a30] dark:border-gray-900" />
+            )}
+          </button>
+
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setProfileOpen((open) => !open)}
+              className="flex items-center gap-3 rounded-full pl-1 text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+              aria-expanded={profileOpen}
+              aria-haspopup="menu"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e9f3ed] text-sm font-semibold text-[#00ab00]">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="hidden max-w-[160px] truncate text-sm font-semibold sm:block">{userName}</span>
+              <ChevronDown size={18} className={`transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {profileOpen && (
+              <div
+                className="absolute right-0 top-[calc(100%+18px)] w-[360px] rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_20px_40px_rgba(16,24,40,0.12)] dark:border-gray-800 dark:bg-gray-900"
+                role="menu"
+              >
+                <div className="mb-5">
+                  <p className="truncate text-base font-semibold text-gray-800 dark:text-white">{userName}</p>
+                  <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">{userEmail || role.replace(/_/g, " ")}</p>
+                </div>
+                <div className="space-y-1">
+                  <Link
+                    href="/dashboard/profile"
+                    className="flex items-center gap-4 rounded-lg px-3 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    role="menuitem"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <UserCircle size={22} className="text-gray-500" />
+                    Edit profile
+                  </Link>
+                  <Link
+                    href="/dashboard/settings"
+                    className="flex items-center gap-4 rounded-lg px-3 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    role="menuitem"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <SettingsIcon size={22} className="text-gray-500" />
+                    Account settings
+                  </Link>
+                  <Link
+                    href="/dashboard/support"
+                    className="flex items-center gap-4 rounded-lg px-3 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    role="menuitem"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <Info size={22} className="text-gray-500" />
+                    Support
+                  </Link>
+                </div>
+                <div className="my-4 h-px bg-gray-200 dark:bg-gray-800" />
+                <button
+                  onClick={logout}
+                  className="flex w-full items-center gap-4 rounded-lg px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                  role="menuitem"
+                >
+                  <LogOut size={22} className="text-gray-500" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
   )
 }
 
-// ─── Main Layout ────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, logout } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
-
   const [isMounted, setIsMounted] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
-  const [switcherOpen, setSwitcherOpen] = useState(false)
   const [isKycModalOpen, setIsKycModalOpen] = useState(false)
-  const switcherRef = useRef<HTMLDivElement>(null)
+  const sidebar = useDashboardSidebar()
+  const dashboardTheme = useDashboardTheme()
 
-  const { isCollapsed, toggle, isMounted: sidebarMounted } = useSidebarState()
-  
-  const { data: groups, isLoading: groupsLoading, isError: groupsError } = useGroups()
-  const activeGroup = groups?.find(g => g.id === activeGroupId) || groups?.[0] || null
-
+  const { data: groups } = useGroups()
+  const activeGroup = groups?.[0] || null
   const { data: notifications } = useNotifications(activeGroup?.id || null)
-  const unreadCount = notifications?.filter(n => !n.read_at).length || 0
+  const unreadCount = notifications?.filter((notification) => !notification.read_at).length || 0
 
-  useEffect(() => {
-    setIsMounted(true)
-    const handleClick = (e: MouseEvent) => {
-      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
-        setSwitcherOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [])
+  useEffect(() => setIsMounted(true), [])
 
   useEffect(() => {
     if (isMounted && !isAuthenticated) router.replace("/login")
   }, [isMounted, isAuthenticated, router])
 
-  if (!isMounted) return null
+  const navSections = useMemo(() => {
+    if (!user) return []
+    return getUserDashboardNavItems(user.role, (activeGroup?.wallet?.loan_pool ?? 0) > 0)
+  }, [activeGroup?.wallet?.loan_pool, user])
 
-  if (!isAuthenticated || !user) {
-    return null
-  }
+  if (!isMounted || !isAuthenticated || !user) return null
 
-  const navSections = activeGroup 
-    ? getNavigation(user.role, (activeGroup.wallet?.loan_pool ?? 0) > 0)
-    : getNavigation(user.role, false)
+  const mainContentMargin = sidebar.isMobileOpen
+    ? "ml-0"
+    : sidebar.isExpanded || sidebar.isHovered
+      ? "lg:ml-[260px]"
+      : "lg:ml-[84px]"
 
   const showKycBanner = user.kyc_status !== "verified"
-  const sidebarW = isCollapsed && sidebarMounted ? 80 : 280
 
   return (
-    <div className="min-h-screen bg-[#f7f9f8] flex">
-      {/* Sidebar */}
-      <aside 
-        style={{ width: sidebarW }}
-        className={`fixed top-0 left-0 bottom-0 z-40 bg-[#0a2540] flex flex-col transition-all duration-300 shadow-2xl border-r border-white/5 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-      >
-        {/* Sidebar Header */}
-        <div className={`p-6 border-b border-white/5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-           {!isCollapsed && (
-             <div className="flex flex-col">
-                <span className="text-xl font-black text-white tracking-tight"><span className="text-[#00ab00]">Orbi</span>Save</span>
-                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Chama Engine v2</span>
-             </div>
-           )}
-           <button 
-             onClick={toggle}
-             className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
-           >
-              <Menu size={16} />
-           </button>
-        </div>
+    <div className="dashboard-shell min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white xl:flex">
+      <AppSidebar
+        sections={navSections}
+        pathname={pathname}
+        isExpanded={sidebar.isExpanded}
+        isMobileOpen={sidebar.isMobileOpen}
+        isHovered={sidebar.isHovered}
+        setIsHovered={sidebar.setIsHovered}
+        activeGroupName={activeGroup?.name}
+      />
 
-        {/* Group Switcher */}
-        {!isCollapsed && activeGroup && (
-          <div className="px-4 py-6" ref={switcherRef}>
-             <button 
-               onClick={() => setSwitcherOpen(!switcherOpen)}
-               className="w-full bg-white/5 border border-white/5 rounded-lg p-4 text-left group hover:bg-white/10 transition-all relative"
-             >
-                <p className="text-[9px] font-black uppercase tracking-widest text-[#00ab00] mb-1">Active Pool</p>
-                <div className="flex items-center justify-between">
-                   <span className="text-sm font-bold text-white truncate pr-4">{activeGroup.name}</span>
-                   <ChevronDown size={14} className={`text-white/30 transition-transform ${switcherOpen ? 'rotate-180' : ''}`} />
-                </div>
-                
-                {switcherOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f3460] border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                     <div className="p-2 space-y-1">
-                        {groups?.map(g => (
-                          <button 
-                            key={g.id} 
-                            onClick={() => { setActiveGroupId(g.id); setSwitcherOpen(false) }}
-                            className={`w-full text-left p-3 rounded-md text-xs font-bold transition-colors flex items-center justify-between ${
-                              activeGroup.id === g.id ? 'bg-[#00ab00] text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'
-                            }`}
-                          >
-                            {g.name}
-                            {activeGroup.id === g.id && <CheckCircle size={12} />}
-                          </button>
-                        ))}
-                        <button 
-                          onClick={() => router.push("/dashboard/settings")}
-                          className="w-full text-left p-3 rounded-md text-xs font-black text-[#00ab00] border-t border-white/5 mt-1 hover:bg-white/5 transition-colors flex items-center gap-2"
-                        >
-                           <Plus size={14} /> Create New Pool
-                        </button>
-                     </div>
-                  </div>
-                )}
-             </button>
-          </div>
-        )}
+      {sidebar.isMobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-gray-900/50 lg:hidden"
+          onClick={sidebar.closeMobileSidebar}
+          aria-hidden="true"
+        />
+      )}
 
-        {/* Nav Content */}
-        <nav className="flex-1 overflow-y-auto px-4 py-4 scrollbar-hide">
-           {navSections.map(section => (
-             <NavSection
-               key={section.title}
-               section={section}
-               isCollapsed={isCollapsed}
-               sidebarMounted={sidebarMounted}
-               pathname={pathname}
-             />
-           ))}
-        </nav>
+      <div className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}>
+        <AppHeader
+          isMobileOpen={sidebar.isMobileOpen}
+          toggleSidebar={sidebar.toggleSidebar}
+          toggleMobileSidebar={sidebar.toggleMobileSidebar}
+          unreadCount={unreadCount}
+          userName={user.full_name}
+          userEmail={user.email}
+          role={user.role}
+          theme={dashboardTheme.theme}
+          toggleTheme={dashboardTheme.toggleTheme}
+          logout={() => {
+            logout()
+            router.push("/login")
+          }}
+        />
 
-        {/* User Footer */}
-        <div className={`p-6 border-t border-white/5 bg-black/10 flex items-center ${isCollapsed ? 'justify-center' : 'gap-4'}`}>
-           <div className="w-10 h-10 rounded-lg bg-[#00ab00] flex items-center justify-center text-white font-black shrink-0 shadow-lg shadow-[#00ab00]/20">
-              {user.full_name?.charAt(0).toUpperCase()}
-           </div>
-           {!isCollapsed && (
-             <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-white truncate">{user.full_name}</p>
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-tighter truncate">{user.role}</p>
-             </div>
-           )}
-           {!isCollapsed && (
-             <button 
-               onClick={() => { logout(); router.push("/login") }}
-               className="text-white/20 hover:text-red-400 transition-colors"
-             >
-                <LogOut size={16} />
-             </button>
-           )}
-        </div>
-      </aside>
-
-      {/* Main Container */}
-      <div 
-        className="flex-1 flex flex-col transition-all duration-300"
-        style={{ paddingLeft: sidebarW }}
-      >
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-[#d6e4df] flex items-center px-8 sticky top-0 z-30 justify-between">
-           <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden text-[#0a2540]"
-              >
-                <Menu size={20} />
-              </button>
-              <div>
-                 <h2 className="text-lg font-black text-[#0a2540] capitalize tracking-tight">
-                    {pathname === "/dashboard" ? "Overview" : pathname.split("/").pop()?.replace(/-/g, " ")}
-                 </h2>
-              </div>
-           </div>
-
-           <div className="flex items-center gap-6">
-              <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-[#e9f3ed] border border-[#d6e4df] rounded-lg">
-                 <ShieldCheck size={14} className="text-[#00ab00]" />
-                 <span className="text-[10px] font-black text-[#0a2540] uppercase tracking-widest">{activeGroup?.currency || 'KES'} Escrow Protected</span>
-              </div>
-
-              <button 
-                onClick={() => router.push("/dashboard/notifications")}
-                className="w-10 h-10 rounded-lg border border-[#d6e4df] flex items-center justify-center text-[#4a5c6a] hover:bg-gray-50 transition-all relative"
-              >
-                 <Bell size={18} />
-                 {unreadCount > 0 && (
-                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white">
-                      {unreadCount}
-                   </span>
-                 )}
-              </button>
-           </div>
-        </header>
-
-        {/* KYC Alert */}
         {showKycBanner && (
-          <div className="bg-[#0a2540] px-8 py-3 flex items-center justify-between border-b border-[#00ab00]/20 animate-in slide-in-from-top duration-500">
-             <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-[#00ab00]/10 flex items-center justify-center">
-                   {user.kyc_status === 'submitted' ? (
-                      <div className="w-4 h-4 border-2 border-[#00ab00] border-t-transparent rounded-full animate-spin" />
-                   ) : (
-                      <AlertTriangle size={16} className="text-[#00ab00]" />
-                   )}
-                </div>
-                <p className="text-xs font-bold text-white/80">
-                   {user.kyc_status === 'submitted' 
-                     ? "KYC in Review — Your account is being verified by regional compliance staff."
-                     : "Identity Verification Required — Complete your KYC to unlock global pool services."}
-                </p>
-             </div>
-             {user.kyc_status !== 'submitted' && (
-               <button 
-                 onClick={() => setIsKycModalOpen(true)}
-                 className="px-6 py-2 bg-[#00ab00] text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-[#008a00] transition-all shadow-lg shadow-[#00ab00]/20"
-               >
-                  Verify Now
-               </button>
-             )}
+          <div className="border-b border-[#d6e4df] bg-[#f7fbf8] px-4 py-3 dark:border-gray-800 dark:bg-gray-900 md:px-6">
+            <div className="mx-auto max-w-[1536px]">
+              <AppStateNotice
+                stateKey={user.kyc_status === "submitted" ? "kyc.submitted" : "kyc.pending"}
+                onAction={user.kyc_status === "submitted" ? undefined : () => setIsKycModalOpen(true)}
+              />
+            </div>
           </div>
         )}
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-8 max-w-7xl w-full mx-auto">
-           {children}
-        </main>
-
-        <KYCModal isOpen={isKycModalOpen} onClose={() => setIsKycModalOpen(false)} />
-        <GuidedOnboardingModal />
+        <main className="mx-auto max-w-[1536px] p-4 md:p-6">{children}</main>
       </div>
+
+      <KYCModal isOpen={isKycModalOpen} onClose={() => setIsKycModalOpen(false)} />
+      <GuidedOnboardingModal />
     </div>
   )
 }

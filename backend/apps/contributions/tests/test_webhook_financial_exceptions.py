@@ -75,6 +75,40 @@ def _create_initiated_contribution():
     return contribution
 
 
+def test_success_webhook_allocates_contribution_across_wallet_streams(monkeypatch):
+    monkeypatch.setattr(
+        "apps.contributions.views.get_payment_provider",
+        lambda country, method: AlwaysValidProvider(),
+    )
+    contribution = _create_initiated_contribution()
+    group = contribution.group
+    group.mandatory_savings_amount = Decimal("500.00")
+    group.save(using="kenya", update_fields=["mandatory_savings_amount"])
+
+    response = APIClient().post(
+        "/api/v1/contributions/webhook/kenya/mpesa/",
+        {
+            "status": "success",
+            "transaction_id": contribution.provider_reference,
+            "amount": "5000.00",
+            "reason": "Provider settled successfully",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    contribution.refresh_from_db(using="kenya")
+    assert contribution.status == "confirmed"
+
+    entries = {
+        entry.account_stream: entry
+        for entry in LedgerEntry.objects.using("kenya").filter(related_contribution=contribution)
+    }
+    assert entries["savings"].amount == Decimal("500.00")
+    assert entries["loaning"].amount == Decimal("1350.00")
+    assert entries["rotation"].amount == Decimal("3150.00")
+
+
 def test_success_webhook_with_amount_mismatch_is_frozen_in_suspense(monkeypatch):
     monkeypatch.setattr(
         "apps.contributions.views.get_payment_provider",

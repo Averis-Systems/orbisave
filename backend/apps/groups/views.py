@@ -162,7 +162,6 @@ class GroupViewSet(viewsets.ModelViewSet):
                 status='pending_approval',
                 rotation_position=1
             )
-
             log_audit(
                 action='group_created', 
                 actor=self.request.user, 
@@ -300,8 +299,8 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return [IsAuthenticated(), IsGroupChairperson()]
 
     def get_queryset(self):
-        # N+1 protection: select_related the concrete member object.
-        return super().get_queryset().filter(group_id=self.kwargs['group_pk']).select_related('member')
+        # User records live in the platform database; avoid cross-database joins.
+        return super().get_queryset().filter(group_id=self.kwargs['group_pk']).select_related('group')
 
     @action(detail=True, methods=['post'])
     def remove(self, request, group_pk=None, pk=None):

@@ -11,6 +11,34 @@ body {
   @apply bg-[#f8fafc] text-[#0a2540];
 }
 
+.dark body {
+  @apply bg-gray-950 text-white;
+}
+
+.dark .dashboard-shell .bg-white {
+  @apply bg-gray-900;
+}
+
+.dark .dashboard-shell .text-navy,
+.dark .dashboard-shell .text-gray-900,
+.dark .dashboard-shell .text-gray-800 {
+  @apply text-white;
+}
+
+.dark .dashboard-shell .border-gray-200,
+.dark .dashboard-shell .border-slate-100 {
+  @apply border-gray-800;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .glass {
   @apply bg-white/80 backdrop-blur-md border border-white/20;
 }

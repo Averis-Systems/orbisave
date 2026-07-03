@@ -5,9 +5,9 @@ from django.utils import timezone as tz
 from rest_framework import views, status, viewsets, mixins
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db import transaction, models
+from django.db import transaction, models, connections
 from django.db.models import F
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from contextlib import contextmanager
 from threading import Lock
@@ -15,7 +15,7 @@ from rest_framework.decorators import action
 from .models import Contribution, Penalty
 from .serializers import ContributionInitiateSerializer, ContributionStatusSerializer, PenaltySerializer
 from apps.groups.models import GroupMember, Group, RotationCycle, PenaltyRule
-from apps.ledger.services import append_ledger_entry
+from apps.ledger.services import append_ledger_entry, close_ledger_event_group
 from apps.payments.selector import get_payment_provider
 from common.exceptions import success_response
 from common.db_utils import get_db_for_group, get_db_for_country
@@ -40,6 +40,18 @@ def advisory_lock(lock_id: int):
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
             yield
+
+@contextmanager
+def sqlite_write_lock(db_alias: str):
+    """
+    Serializes local SQLite write-heavy tests while preserving database-native
+    row locking for production engines.
+    """
+    if connections[db_alias].vendor == 'sqlite':
+        with _sqlite_lock:
+            yield
+    else:
+        yield
 
 class PenaltyViewSet(viewsets.ModelViewSet):
     """
@@ -114,7 +126,7 @@ class ContributionViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = Contribution.objects.filter(
             group__memberships__member=user,
             group__memberships__status='active'
-        ).select_related('member', 'group').order_by('-created_at')
+        ).select_related('group').order_by('-created_at')
 
         if group_id:
             queryset = queryset.filter(group_id=group_id)
@@ -140,8 +152,9 @@ class InitiateContributionView(views.APIView):
         phone      = serializer.validated_data['phone']
         method     = serializer.validated_data['method']
 
+        membership_db_alias = get_db_for_country(getattr(request.user, 'country', None))
         try:
-            membership = GroupMember.objects.select_related('group').get(
+            membership = GroupMember.objects.using(membership_db_alias).select_related('group').get(
                 group_id=group_pk,
                 member=request.user,
                 status__in=['active', 'pending_approval', 'pending_session_refresh']
@@ -198,7 +211,7 @@ class InitiateContributionView(views.APIView):
         with transaction.atomic(using=db_alias):
             with advisory_lock(lock_seed):
                 # Anti-Spam: Check if a highly identical pending contribution already explicitly exists
-                existing_pending = Contribution.objects.filter(
+                existing_pending = Contribution.objects.using(db_alias).filter(
                     group=group, 
                     member=request.user, 
                     amount=amount_dec, 
@@ -223,8 +236,8 @@ class InitiateContributionView(views.APIView):
                 prov_ref = res.get('provider_reference', 'UNKNOWN')
 
                 # State formally tracking
-                current_cycle = RotationCycle.objects.filter(group=group, is_current=True).first()
-                contribution = Contribution.objects.create(
+                current_cycle = RotationCycle.objects.using(db_alias).filter(group=group, is_current=True).first()
+                contribution = Contribution.objects.using(db_alias).create(
                     group=group,
                     member=request.user,
                     amount=amount_dec,
@@ -260,6 +273,8 @@ class ContributionWebhookView(views.APIView):
             
         try:
              parsed = provider.parse_callback(request.data)
+             if hasattr(provider, 'record_callback'):
+                 provider.record_callback(request.data, parsed)
         except Exception as e:
              logger.error("webhook_parser_failed", error=str(e), payload=request.data)
              return Response({"error": "Malformed provider payload array."}, status=status.HTTP_400_BAD_REQUEST)
@@ -268,78 +283,119 @@ class ContributionWebhookView(views.APIView):
         cb_status = parsed.get("status")
         
         db_alias = get_db_for_country(country)
-        with transaction.atomic(using=db_alias):  # Safe multi-DB routing
-            # Select FOR UPDATE mechanically freezes the row locking out thousands of concurrent pings immediately.
-            try:
-                contrib = (
-                    Contribution.objects.using(db_alias)
-                    .select_for_update()
-                    .select_related('group')
-                    .get(provider_reference=prov_ref)
-                )
-            except Contribution.DoesNotExist:
-                logger.error("webhook_orphan_reference", reference=prov_ref)
-                return Response({"status": "acknowledged"}, status=status.HTTP_200_OK) # Acknowledge anyway so provider doesn't DDOS retry
-                
-            if contrib.status not in ['initiated', 'pending']:
-                # Idempotency achieved! This webhook already executed or failed permanently.
-                return Response({"status": "acknowledged"}, status=status.HTTP_200_OK)
-                
-            if cb_status == 'failed':
-                contrib.status = 'failed'
-                contrib.save(update_fields=['status'])
-                logger.info("contribution_webhook_failed_marked", contrib_id=contrib.id)
-                return Response({"status": "acknowledged"}, status=status.HTTP_200_OK)
-                
-            observed_amount = Decimal(parsed.get('amount', contrib.amount))
-            if observed_amount != contrib.amount:
-                freeze_contribution_amount_mismatch(
-                    contribution=contrib,
-                    country=country,
-                    provider_id=provider_id,
-                    observed_amount=observed_amount,
-                    raw_payload=parsed.get('raw', request.data),
-                )
-                logger.warning(
-                    "contribution_webhook_amount_mismatch_frozen",
-                    contrib_id=contrib.id,
-                    expected=str(contrib.amount),
-                    observed=str(observed_amount),
-                )
-                return Response({"status": "acknowledged", "review": "required"}, status=status.HTTP_200_OK)
+        with sqlite_write_lock(db_alias):
+            with transaction.atomic(using=db_alias):  # Safe multi-DB routing
+                # Select FOR UPDATE mechanically freezes the row locking out thousands of concurrent pings immediately.
+                try:
+                    contrib = (
+                        Contribution.objects.using(db_alias)
+                        .select_for_update()
+                        .select_related('group')
+                        .get(provider_reference=prov_ref)
+                    )
+                except Contribution.DoesNotExist:
+                    logger.error("webhook_orphan_reference", reference=prov_ref)
+                    return Response({"status": "acknowledged"}, status=status.HTTP_200_OK) # Acknowledge anyway so provider doesn't DDOS retry
 
-            # Success Track! Shift to double-entry ledger instantiation.
-            contrib.status = 'confirmed'
-            contrib.confirmed_at = tz.now()
-            contrib.actual_amount = observed_amount
-            contrib.save(using=db_alias, update_fields=['status', 'confirmed_at', 'actual_amount'])
-            
-            # Formally calculate and bind any statutory late penalties defining this specific transaction sequence.
-            from .services.penalty_service import PenaltyService
-            PenaltyService.apply_late_penalty(contrib)
-            
-            # Increment cycle aggregates for live tracking
-            if contrib.cycle:
-                from django.db.models import F
-                contrib.cycle.total_contributions = F('total_contributions') + contrib.actual_amount
-                contrib.cycle.save(using=db_alias, update_fields=['total_contributions'])
-            
-            # Double-Entry Logic enforced instantly
-            append_ledger_entry(
-                group=contrib.group,
-                member=contrib.member,
-                account_stream='rotation',
-                entry_type='contribution',
-                direction='credit',
-                amount=contrib.actual_amount,
-                currency=contrib.group.currency,
-                description=f"Member Contribution directly via {provider_id.upper()}",
-                reference=prov_ref,
-                related_contribution=contrib,
-                idempotency_key=f"contribution:webhook:{prov_ref}",
-                source_system='provider_webhook',
-            )
-            
-            logger.info("contribution_webhook_success_locked", contrib_id=contrib.id, amount=contrib.actual_amount)
+                if contrib.status not in ['initiated', 'pending']:
+                    # Idempotency achieved! This webhook already executed or failed permanently.
+                    return Response({"status": "acknowledged"}, status=status.HTTP_200_OK)
+
+                if cb_status == 'failed':
+                    contrib.status = 'failed'
+                    contrib.save(update_fields=['status'])
+                    logger.info("contribution_webhook_failed_marked", contrib_id=contrib.id)
+                    return Response({"status": "acknowledged"}, status=status.HTTP_200_OK)
+
+                observed_amount = Decimal(parsed.get('amount', contrib.amount))
+                if observed_amount != contrib.amount:
+                    freeze_contribution_amount_mismatch(
+                        contribution=contrib,
+                        country=country,
+                        provider_id=provider_id,
+                        observed_amount=observed_amount,
+                        raw_payload=parsed.get('raw', request.data),
+                    )
+                    logger.warning(
+                        "contribution_webhook_amount_mismatch_frozen",
+                        contrib_id=contrib.id,
+                        expected=str(contrib.amount),
+                        observed=str(observed_amount),
+                    )
+                    return Response({"status": "acknowledged", "review": "required"}, status=status.HTTP_200_OK)
+
+                # Success Track! Shift to double-entry ledger instantiation.
+                contrib.status = 'confirmed'
+                contrib.confirmed_at = tz.now()
+                contrib.actual_amount = observed_amount
+                contrib.save(using=db_alias, update_fields=['status', 'confirmed_at', 'actual_amount'])
+
+                # Formally calculate and bind any statutory late penalties defining this specific transaction sequence.
+                from .services.penalty_service import PenaltyService
+                PenaltyService.apply_late_penalty(contrib)
+
+                # Increment cycle aggregates for live tracking
+                if contrib.cycle:
+                    from django.db.models import F
+                    contrib.cycle.total_contributions = F('total_contributions') + contrib.actual_amount
+                    contrib.cycle.save(using=db_alias, update_fields=['total_contributions'])
+
+                # Double-entry stream allocation enforced instantly.
+                # Mandatory savings is deducted first, then the remaining amount is
+                # split between rotation savings and loaning by group settings.
+                actual_amount = Decimal(str(contrib.actual_amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                savings_amount = min(
+                    actual_amount,
+                    Decimal(str(contrib.group.mandatory_savings_amount or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+                )
+                distributable_amount = actual_amount - savings_amount
+                loan_pct = Decimal(str(contrib.group.loan_pool_pct or 0))
+                loaning_amount = ((distributable_amount * loan_pct) / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                rotation_amount = distributable_amount - loaning_amount
+
+                ledger_allocations = [
+                    ('savings', savings_amount, 'Mandatory savings allocation'),
+                    ('loaning', loaning_amount, 'Loan pool allocation'),
+                    ('rotation', rotation_amount, 'Rotation savings allocation'),
+                ]
+                event_group_key = f"contribution:{prov_ref}:settled"
+                append_ledger_entry(
+                    group=contrib.group,
+                    member=contrib.member,
+                    account_stream='provider_settlement',
+                    entry_type='contribution',
+                    direction='debit',
+                    amount=actual_amount,
+                    currency=contrib.group.currency,
+                    description=f"Provider cash settlement via {provider_id.upper()}",
+                    reference=f"{prov_ref}:provider_settlement",
+                    related_contribution=contrib,
+                    idempotency_key=f"contribution:webhook:{prov_ref}:provider_settlement",
+                    source_system='provider_webhook',
+                    event_group_key=event_group_key,
+                    event_type='provider_collection_settled',
+                )
+                for account_stream, amount, description in ledger_allocations:
+                    if amount <= 0:
+                        continue
+                    append_ledger_entry(
+                        group=contrib.group,
+                        member=contrib.member,
+                        account_stream=account_stream,
+                        entry_type='contribution',
+                        direction='credit',
+                        amount=amount,
+                        currency=contrib.group.currency,
+                        description=f"{description} via {provider_id.upper()}",
+                        reference=f"{prov_ref}:{account_stream}",
+                        related_contribution=contrib,
+                        idempotency_key=f"contribution:webhook:{prov_ref}:{account_stream}",
+                        source_system='provider_webhook',
+                        event_group_key=event_group_key,
+                        event_type='provider_collection_settled',
+                    )
+                close_ledger_event_group(event_group_key, db_alias=db_alias)
+
+                logger.info("contribution_webhook_success_locked", contrib_id=contrib.id, amount=contrib.actual_amount)
             
         return Response({"status": "acknowledged"}, status=status.HTTP_200_OK)

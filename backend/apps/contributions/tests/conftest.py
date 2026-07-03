@@ -11,13 +11,17 @@ def auth_user(db):
         email='contrib@example.com',
         phone='+254711111111',
         password='password123',
-        full_name='Contrib User'
+        full_name='Contrib User',
+        country='kenya',
+        kyc_status='verified',
+        next_of_kin_name='Contrib Next',
+        next_of_kin_phone='+254722222222',
     )
     return user
 
 @pytest.fixture
 def group(db, auth_user):
-    group = Group.objects.create(
+    group = Group.objects.using('default').create(
         name="Contrib Scale Group",
         country="kenya",
         currency="KES",
@@ -30,16 +34,18 @@ def group(db, auth_user):
         max_loan_multiplier=2.0,
         loan_term_weeks=4,
         loan_interest_rate_monthly=5.0,
-        chairperson=auth_user
+        chairperson=auth_user,
+        status='active',
+        verification_status='verified',
     )
-    GroupMember.objects.create(group=group, member=auth_user, role='chairperson', rotation_position=1)
+    GroupMember.objects.using('default').create(group=group, member=auth_user, role='chairperson', rotation_position=1)
     return group
 
 import datetime
 
 @pytest.fixture
 def contribution_pending(db, group, auth_user):
-    return Contribution.objects.create(
+    return Contribution.objects.using('default').create(
         group=group,
         member=auth_user,
         amount=Decimal("5000.00"),

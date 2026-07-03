@@ -132,7 +132,7 @@ export function RotationPool() {
 
       // Vault fills
       tl.to(".vault-inner", { fill: "#00ab00", duration: 0.5, ease: "power2.inOut" }, "-=0.2")
-      tl.call(() => { setCycleLabel("Pool collected. Paying out..."); setVaultTotal(MEMBERS_COUNT * 5000) })
+      tl.call(() => { setCycleLabel("Rotation savings collected. Paying out..."); setVaultTotal(MEMBERS_COUNT * 5000) })
 
       // Pause, then pay out
       tl.to({}, { duration: 1.2 })
@@ -204,7 +204,7 @@ export function RotationPool() {
             Watch the Cycle Run
           </h2>
           <p className="text-lg text-white/50 font-medium max-w-xl mx-auto">
-            Every member contributes. The pool grows. OrbiSave automatically
+            Every member contributes. Rotation savings grow. OrbiSave automatically
             pays out to the next person in rotation — no manual work, no missing funds.
           </p>
         </div>
@@ -214,7 +214,7 @@ export function RotationPool() {
 
           {/* SVG Visualizer */}
           <div className="flex-1 flex items-center justify-center">
-            <svg viewBox="0 0 520 520" className="w-full max-w-[520px]" aria-label="Rotation pool visualizer">
+            <svg viewBox="0 0 520 520" className="w-full max-w-[520px]" aria-label="Rotation savings visualizer">
               <defs>
                 <radialGradient id="vaultGrad" cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stopColor="#00ab00" stopOpacity="0.3" />

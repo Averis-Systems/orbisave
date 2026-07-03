@@ -68,24 +68,10 @@ const config = {
         slate: "#4a5c6a",
         ink: "#0f1924",
       },
-      borderRadius: {
-        // Hard cap at 5px for cards and containers
-        "2xl": "5px",
-        xl: "5px",
-        lg: "5px",
-        md: "5px",
-        sm: "4px",
-        DEFAULT: "5px",
-      },
       boxShadow: {
-        // No shadows — override to empty
-        sm: "none",
-        DEFAULT: "none",
-        md: "none",
-        lg: "none",
-        xl: "none",
-        "2xl": "none",
-        inner: "none",
+        "theme-xs": "0px 1px 2px 0px rgba(16, 24, 40, 0.05)",
+        "theme-sm": "0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06)",
+        "theme-md": "0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06)",
       },
       keyframes: {
         "accordion-down": {

@@ -121,6 +121,7 @@ class LoanEngine:
             LedgerEntry.objects.using(db_alias).create(
                 group=group,
                 member=loan.borrower,
+                account_stream='loaning',
                 entry_type='loan_disbursement',
                 direction='debit',
                 amount=loan.amount,

@@ -199,7 +199,7 @@ export function Home2Hero() {
               <span className="text-[10px] font-bold tracking-widest uppercase text-white/80">Cycle 3 · Live</span>
             </div>
 
-            <svg viewBox="0 0 480 480" className="w-full max-w-[480px]" aria-label="OrbiSave rotation pool">
+            <svg viewBox="0 0 480 480" className="w-full max-w-[480px]" aria-label="OrbiSave rotation savings">
 
               {/* Rings */}
               <circle cx="240" cy="240" r="200" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" strokeDasharray="4 10" />

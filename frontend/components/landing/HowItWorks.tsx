@@ -37,7 +37,7 @@ const STEPS = [
     iconCls: "step-icon-rotate",
     title: "Get Your Big Payout",
     description:
-      "When a member's turn arrives, the aggregated pool is disbursed directly to their wallet. Smart contracts enforce the queue, ensuring zero delays.",
+      "When a member's turn arrives, the rotation savings total is disbursed directly to their wallet. Smart contracts enforce the queue, ensuring zero delays.",
     detail: "Payout → Amara K. · KES 48,500 Net",
     bg: "#e9f3ed",
     accent: "#00ab00",
@@ -49,7 +49,7 @@ const STEPS = [
     iconCls: "step-icon-landmark",
     title: "Emergency Loans",
     description:
-      "A portion of the pool forms a reserve fund. Members can request instant, low-interest micro-loans, approved digitally by group administrators.",
+      "A portion of contributions forms a reserve fund. Members can request instant, low-interest micro-loans, approved digitally by group administrators.",
     detail: "Reserve: KES 18,000 · Rate: 3% / month",
     bg: "#e8edf3",
     accent: "#0a2540",

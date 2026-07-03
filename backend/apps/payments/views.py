@@ -57,6 +57,7 @@ class JengaWebhookView(APIView):
 
         # 4. Parse & Process
         data = provider.parse_callback(payload)
+        provider.record_callback(payload, data)
         status_norm = data['status']
         external_id = data['transaction_id']
         amount      = data['amount']

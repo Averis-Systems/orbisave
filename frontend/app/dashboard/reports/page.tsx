@@ -40,7 +40,7 @@ export default function ReportsPage() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-[#0a2540] mb-2">Pool Analytics</h1>
+          <h1 className="text-3xl font-black text-[#0a2540] mb-2">Group Analytics</h1>
           <p className="text-gray-500 font-bold">Comprehensive financial audits and member participation matrices.</p>
         </div>
         <button 
@@ -84,7 +84,7 @@ export default function ReportsPage() {
             <div className="p-8 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
               <div>
                  <h3 className="text-lg font-black text-[#0a2540]">Contributor Equity Matrix</h3>
-                 <p className="text-xs font-bold text-gray-400 mt-1">Aggregated lifetime savings per pool participant.</p>
+                 <p className="text-xs font-bold text-gray-400 mt-1">Aggregated lifetime savings per group member.</p>
               </div>
               <FileText size={24} className="text-gray-200" />
             </div>
@@ -108,7 +108,7 @@ export default function ReportsPage() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50/80">
-                    <td className="px-8 py-6 text-sm font-black text-[#0a2540]">Consolidated Pool Equity</td>
+                    <td className="px-8 py-6 text-sm font-black text-[#0a2540]">Consolidated Group Wallet</td>
                     <td className="px-8 py-6 text-center text-xs font-black text-[#0a2540]">
                       {matrix.reduce((s, r) => s + r.count, 0)} Total Deposits
                     </td>

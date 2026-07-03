@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AuthSlider } from "@/components/auth/AuthSlider"
+import { AppStatePanel } from "@/components/states/AppState"
 import { AlertTriangle } from "lucide-react"
 
 const CODE_LENGTH = 6
@@ -15,6 +16,7 @@ export default function VerifyPage() {
   const [error, setError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(60)
   const [canResend, setCanResend] = useState(false)
+  const [verified, setVerified] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   // Countdown timer for resend
@@ -58,7 +60,7 @@ export default function VerifyPage() {
     try {
       // await api.post("/auth/verify/", { code })
       await new Promise(r => setTimeout(r, 1000))
-      router.push("/dashboard")
+      setVerified(true)
     } catch {
       setError("Invalid or expired code. Please try again.")
       setDigits(Array(CODE_LENGTH).fill(""))
@@ -76,6 +78,36 @@ export default function VerifyPage() {
   }
 
   const isFull = digits.every(Boolean)
+
+  if (verified) {
+    return (
+      <div className="auth-layout">
+        <div className="auth-layout__slider">
+          <AuthSlider />
+        </div>
+
+        <div className="auth-layout__panel">
+          <div className="auth-topbar">
+            <Link href="/" className="auth-topbar__logo" id="verify-home-link">
+              <div className="auth-topbar__logo-mark">O</div>
+              OrbiSave
+            </Link>
+            <Link href="/login" className="auth-topbar__link" id="verify-login-link">
+              Back to<span>Sign in</span>
+            </Link>
+          </div>
+
+          <div className="auth-layout__panel-inner">
+            <AppStatePanel
+              outcomeKey="accountVerified"
+              className="border-solid"
+              onPrimaryAction={() => router.push("/dashboard")}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="auth-layout">

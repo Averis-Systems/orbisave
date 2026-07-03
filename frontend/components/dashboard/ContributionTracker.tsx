@@ -39,7 +39,7 @@ export function ContributionTracker({ groupId }: ContributionTrackerProps) {
     <Card className="shadow-sm border-border">
       <CardHeader>
         <CardTitle>My Contributions</CardTitle>
-        <CardDescription>Track your commitments to the collective pool.</CardDescription>
+        <CardDescription>Track your commitments to the group contribution schedule.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-6">

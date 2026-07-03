@@ -52,7 +52,7 @@ export default function SuperAdminDashboard() {
     { label: "Total Users", value: stats?.total_users, trend: "+12%", up: true, icon: Users, color: "#00ab00" },
     { label: "KYC Verified", value: stats?.verified_users, trend: "+8%", up: true, icon: ShieldCheck, color: "#3b82f6" },
     { label: "Pending Review", value: stats?.pending_kyc, trend: "-2%", up: false, icon: Activity, color: "#f59e0b" },
-    { label: "Total Liquidity", value: "KES 4.2M", trend: "+24%", up: true, icon: Banknote, color: "#8b5cf6" },
+    { label: "Trust Account Totals", value: "Not connected", trend: "0%", up: true, icon: Banknote, color: "#00ab00" },
   ]
 
   return (
@@ -127,7 +127,7 @@ export default function SuperAdminDashboard() {
                    { name: "Global Vault (KCB)", status: "Verified", color: "bg-green-500" },
                    { name: "Regional Databases", status: "Active", color: "bg-green-500" },
                    { name: "Payout Engine", status: "Standby", color: "bg-blue-500" },
-                   { name: "Security Protocols", status: "Hardened", color: "bg-green-500" }
+                   { name: "Security Controls", status: "Configured", color: "bg-green-500" }
                  ].map((s, i) => (
                    <div key={i} className="flex items-center justify-between">
                       <span className="text-sm font-bold text-white/70">{s.name}</span>

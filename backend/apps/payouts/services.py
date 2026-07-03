@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from apps.payouts.models import Payout
 from apps.ledger.models import SystemConfiguration
-from apps.ledger.services import append_ledger_entry
+from apps.ledger.services import append_ledger_entry, close_ledger_event_group
 from apps.groups.models import GroupMember, RotationCycle, RotationSchedule
 from apps.contributions.models import Contribution
 from apps.payments.selector import get_payment_provider
@@ -247,6 +247,7 @@ class PayoutService:
                 payout.processed_at = timezone.now()
                 payout.save(using=db_alias)
 
+                event_group_key = f"payout:{payout.id}:completed"
                 append_ledger_entry(
                     group=group,
                     member=target_member,
@@ -260,7 +261,42 @@ class PayoutService:
                     related_payout=payout,
                     idempotency_key=f"payout:{payout.id}:rotation",
                     source_system='orbisave_payout',
+                    event_group_key=event_group_key,
+                    event_type='rotation_payout_completed',
                 )
+                append_ledger_entry(
+                    group=group,
+                    member=target_member,
+                    account_stream='company_revenue',
+                    entry_type='service_fee',
+                    direction='credit',
+                    amount=payout.service_fee,
+                    currency=group.currency,
+                    description=f"Service fee for rotation payout to {target_member.full_name}.",
+                    reference=f"PAY-FEE-LEDGER-{payout.id}",
+                    related_payout=payout,
+                    idempotency_key=f"payout:{payout.id}:service_fee",
+                    source_system='orbisave_payout',
+                    event_group_key=event_group_key,
+                    event_type='rotation_payout_completed',
+                )
+                append_ledger_entry(
+                    group=group,
+                    member=target_member,
+                    account_stream='provider_settlement',
+                    entry_type='payout',
+                    direction='credit',
+                    amount=payout.net_amount,
+                    currency=group.currency,
+                    description=f"Provider settlement payable for rotation payout to {target_member.full_name}.",
+                    reference=f"PAY-PROVIDER-LEDGER-{payout.id}",
+                    related_payout=payout,
+                    idempotency_key=f"payout:{payout.id}:provider_settlement",
+                    source_system='orbisave_payout',
+                    event_group_key=event_group_key,
+                    event_type='rotation_payout_completed',
+                )
+                close_ledger_event_group(event_group_key, db_alias=db_alias)
                 logger.info("payout_completed", group_id=group.id, net=str(net_disbursement))
             else:
                 payout.status = 'failed'

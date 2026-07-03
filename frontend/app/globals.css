@@ -6,9 +6,9 @@
   :root {
     /* 
        ─────────────────────────────────────────────────────────────────
-       DESIGN SYSTEM CONSTRAINTS (MAY 2026)
+       DESIGN SYSTEM NOTES (JUNE 2026)
        ─────────────────────────────────────────────────────────────────
-       1. RADIUS: Max 5px for all dashboard cards/containers.
+       1. DASHBOARDS: TailAdmin reference shell uses rounded cards and subtle elevation.
        2. LOADING: Use Skeleton components, avoid spinners where possible.
        3. TYPOGRAPHY: Outfit for all platform text.
        ─────────────────────────────────────────────────────────────────
@@ -53,8 +53,7 @@
     --input: 138 25% 85%;
     --ring: 120 100% 34%;
 
-    /* 5px radius cap for cards and containers */
-    --radius: 5px;
+    --radius: 0.5rem;
   }
 }
 
@@ -67,6 +66,26 @@
   }
 }
 
+@layer components {
+  .loan-input {
+    @apply w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-[#0a2540] outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-white;
+  }
+
+  .member-input {
+    @apply h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-[#0a2540] outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-white;
+  }
+
+  .group-input {
+    @apply h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-4 text-sm font-bold text-[#0a2540] outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-white;
+  }
+}
+
+@keyframes orbisave-skeleton-wave {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Custom Selection */
 ::selection {
   background-color: #00ab0025;
@@ -76,6 +95,15 @@
 /* GSAP utilities to prevent FOUC during hydration */
 .invisible-until-hydrated {
   visibility: hidden;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -146,6 +174,90 @@ button:hover .icon-arrow {
    AUTH SLIDER & LAYOUT
    Premium full-height slider with animated content overlays.
 ───────────────────────────────────────────────────────────────── */
+
+.auth-layout {
+  @apply grid min-h-screen bg-white text-[#0a2540] lg:grid-cols-[minmax(0,1fr)_minmax(480px,560px)];
+}
+
+.auth-layout__slider {
+  @apply relative hidden min-h-screen overflow-hidden bg-[#012d1d] pointer-events-none lg:block;
+}
+
+.auth-layout__panel {
+  @apply relative z-10 flex min-h-screen flex-col bg-white;
+}
+
+.auth-layout__panel-inner {
+  @apply mx-auto flex w-full max-w-[460px] flex-1 flex-col justify-center px-6 py-10 sm:px-8;
+}
+
+.auth-topbar {
+  @apply flex items-center justify-between px-6 py-5 sm:px-8;
+}
+
+.auth-topbar__logo {
+  @apply inline-flex items-center gap-3 text-sm font-black text-[#0a2540];
+}
+
+.auth-topbar__logo-mark {
+  @apply flex h-9 w-9 items-center justify-center rounded-lg bg-[#00ab00] text-sm font-black text-white;
+}
+
+.auth-topbar__link {
+  @apply inline-flex items-center gap-1 text-xs font-black uppercase tracking-widest text-gray-400 transition hover:text-[#00ab00];
+}
+
+.auth-topbar__link span {
+  @apply text-[#00ab00];
+}
+
+.auth-heading {
+  @apply mb-7;
+}
+
+.auth-heading__eyebrow {
+  @apply mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#00ab00];
+}
+
+.auth-heading__title {
+  @apply text-3xl font-black tracking-tight text-[#0a2540] sm:text-4xl;
+}
+
+.auth-heading__sub {
+  @apply mt-3 text-sm font-semibold leading-6 text-gray-500;
+}
+
+.auth-card {
+  @apply rounded-lg border border-gray-100 bg-white p-6 shadow-sm;
+}
+
+.auth-error-banner {
+  @apply mb-5 flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-600;
+}
+
+.otp-group {
+  @apply grid grid-cols-6 gap-2 sm:gap-3;
+}
+
+.otp-input {
+  @apply h-12 rounded-lg border border-gray-200 bg-gray-50 text-center text-lg font-black text-[#0a2540] outline-none transition focus:border-[#00ab00] focus:bg-white focus:ring-4 focus:ring-[#00ab00]/10 sm:h-14;
+}
+
+.otp-input--filled {
+  @apply border-[#00ab00] bg-[#f0faf0];
+}
+
+.auth-btn {
+  @apply mt-6 inline-flex h-12 w-full items-center justify-center rounded-lg bg-[#00ab00] text-sm font-black text-white shadow-sm transition hover:bg-[#009200] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400;
+}
+
+.auth-resend {
+  @apply text-center text-sm font-semibold text-gray-500;
+}
+
+.auth-resend button {
+  @apply ml-2 font-black text-[#00ab00] transition hover:text-[#009200] disabled:text-gray-300;
+}
 
 .auth-slider {
   @apply absolute inset-0 overflow-hidden;

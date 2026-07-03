@@ -1,7 +1,58 @@
-from django.db import transaction
+from decimal import Decimal
 
-from apps.ledger.models import LedgerEntry, ReconciliationItem, ReconciliationRun
+from django.core.cache import cache
+from django.db import IntegrityError, transaction
+from django.db.models import Sum
+from django.utils import timezone
+
+from apps.ledger.models import (
+    LedgerEntry,
+    LedgerEventGroup,
+    LedgerStreamLock,
+    PROTECTED_NON_NEGATIVE_STREAMS,
+    ReconciliationItem,
+    ReconciliationRun,
+)
 from common.db_utils import get_db_for_country, get_db_for_group
+
+
+def _invalidate_group_wallet_cache(group):
+    try:
+        cache.delete(f"group_wallet_{group.id}")
+    except Exception:
+        pass
+
+
+def _get_or_create_stream_lock(*, db_alias, group, account_stream, currency):
+    try:
+        LedgerStreamLock.objects.using(db_alias).get_or_create(
+            group=group,
+            account_stream=account_stream,
+            currency=currency,
+        )
+    except IntegrityError:
+        pass
+    return (
+        LedgerStreamLock.objects.using(db_alias)
+        .select_for_update()
+        .get(group=group, account_stream=account_stream, currency=currency)
+    )
+
+
+def _get_or_create_event_group(*, db_alias, event_group_key, event_type, source_system, metadata):
+    if not event_group_key:
+        return None
+    event_group, _ = LedgerEventGroup.objects.using(db_alias).get_or_create(
+        event_group_key=event_group_key,
+        defaults={
+            'event_type': event_type or 'ledger_event',
+            'source_system': source_system,
+            'metadata': metadata or {},
+        },
+    )
+    if event_group.status != LedgerEventGroup.STATUS_OPEN:
+        raise ValueError(f"Ledger event group '{event_group_key}' is already closed.")
+    return event_group
 
 
 def append_ledger_entry(
@@ -21,6 +72,10 @@ def append_ledger_entry(
     recorded_by=None,
     idempotency_key=None,
     source_system='orbisave',
+    event_group_key=None,
+    event_type='ledger_event',
+    event_metadata=None,
+    allow_overdraft=False,
 ):
     """
     Single append-only entry point for ledger writes.
@@ -34,14 +89,48 @@ def append_ledger_entry(
             if existing:
                 return existing
 
-        return LedgerEntry.objects.using(db_alias).create(
+        event_group = _get_or_create_event_group(
+            db_alias=db_alias,
+            event_group_key=event_group_key,
+            event_type=event_type,
+            source_system=source_system,
+            metadata=event_metadata,
+        )
+        stream_lock = _get_or_create_stream_lock(
+            db_alias=db_alias,
+            group=group,
+            account_stream=account_stream,
+            currency=currency,
+        )
+
+        amount_dec = Decimal(str(amount)).quantize(Decimal('0.01'))
+        if direction == 'credit':
+            next_balance = stream_lock.current_balance + amount_dec
+        elif direction == 'debit':
+            next_balance = stream_lock.current_balance - amount_dec
+        else:
+            raise ValueError(f"Unsupported ledger direction '{direction}'.")
+
+        if (
+            not allow_overdraft
+            and account_stream in PROTECTED_NON_NEGATIVE_STREAMS
+            and next_balance < Decimal('0.00')
+        ):
+            raise ValueError(
+                f"Insufficient ledger balance in {account_stream}: "
+                f"{stream_lock.current_balance} available, {amount_dec} requested."
+            )
+
+        entry = LedgerEntry(
+            event_group=event_group,
             group=group,
             member=member,
             account_stream=account_stream,
             entry_type=entry_type,
             direction=direction,
-            amount=amount,
+            amount=amount_dec,
             currency=currency,
+            running_balance=next_balance,
             description=description,
             reference=reference,
             related_contribution=related_contribution,
@@ -50,7 +139,120 @@ def append_ledger_entry(
             recorded_by=recorded_by,
             idempotency_key=idempotency_key,
             source_system=source_system,
+            sequence_number=stream_lock.last_sequence_number + 1,
+            previous_hash=stream_lock.last_hash,
         )
+        entry.hash = entry.compute_hash()
+        entry.save(using=db_alias)
+
+        stream_lock.last_sequence_number = entry.sequence_number
+        stream_lock.last_hash = entry.hash
+        stream_lock.current_balance = entry.running_balance
+        stream_lock.save(using=db_alias, update_fields=[
+            'last_sequence_number',
+            'last_hash',
+            'current_balance',
+            'updated_at',
+        ])
+
+        transaction.on_commit(lambda: _invalidate_group_wallet_cache(group), using=db_alias)
+        return entry
+
+
+def close_ledger_event_group(event_group_key, *, db_alias='default'):
+    with transaction.atomic(using=db_alias):
+        event_group = (
+            LedgerEventGroup.objects.using(db_alias)
+            .select_for_update()
+            .get(event_group_key=event_group_key)
+        )
+        totals = {}
+        for row in (
+            LedgerEntry.objects.using(db_alias)
+            .filter(event_group=event_group)
+            .values('currency', 'direction')
+            .annotate(total=Sum('amount'))
+        ):
+            totals.setdefault(row['currency'], Decimal('0.00'))
+            if row['direction'] == 'debit':
+                totals[row['currency']] += row['total'] or Decimal('0.00')
+            else:
+                totals[row['currency']] -= row['total'] or Decimal('0.00')
+
+        imbalances = {
+            currency: total for currency, total in totals.items()
+            if total != Decimal('0.00')
+        }
+        if imbalances:
+            raise ValueError(f"Ledger event group '{event_group_key}' is not balanced: {imbalances}")
+
+        event_group.status = LedgerEventGroup.STATUS_CLOSED
+        event_group.closed_at = timezone.now()
+        event_group.save(using=db_alias, update_fields=['status', 'closed_at', 'updated_at'])
+        return event_group
+
+
+def verify_ledger_stream(*, group, account_stream, currency):
+    db_alias = group._state.db or get_db_for_group(group)
+    previous_hash = '0' * 64
+    running_balance = Decimal('0.00')
+    expected_sequence = 1
+    errors = []
+
+    entries = (
+        LedgerEntry.objects.using(db_alias)
+        .filter(group=group, account_stream=account_stream, currency=currency)
+        .select_related('event_group')
+        .order_by('sequence_number', 'created_at')
+    )
+
+    for entry in entries:
+        if entry.sequence_number != expected_sequence:
+            errors.append({
+                'code': 'sequence_gap',
+                'entry_id': str(entry.id),
+                'expected': expected_sequence,
+                'actual': entry.sequence_number,
+            })
+
+        if entry.previous_hash != previous_hash:
+            errors.append({
+                'code': 'previous_hash_mismatch',
+                'entry_id': str(entry.id),
+                'expected': previous_hash,
+                'actual': entry.previous_hash,
+            })
+
+        amount = Decimal(str(entry.amount)).quantize(Decimal('0.01'))
+        if entry.direction == 'credit':
+            running_balance += amount
+        elif entry.direction == 'debit':
+            running_balance -= amount
+
+        if entry.hash != entry.compute_hash():
+            errors.append({
+                'code': 'hash_mismatch',
+                'entry_id': str(entry.id),
+            })
+
+        if entry.running_balance != running_balance:
+            errors.append({
+                'code': 'running_balance_mismatch',
+                'entry_id': str(entry.id),
+                'expected': str(running_balance),
+                'actual': str(entry.running_balance),
+            })
+
+        previous_hash = entry.hash
+        expected_sequence += 1
+
+    return {
+        'valid': not errors,
+        'entry_count': expected_sequence - 1,
+        'final_hash': previous_hash,
+        'final_balance': str(running_balance),
+        'errors': errors,
+    }
 
 
 def start_reconciliation_run(

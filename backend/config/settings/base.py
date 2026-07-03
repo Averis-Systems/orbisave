@@ -182,6 +182,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3002',
     'http://localhost:3003',        # Manager (platform_admin) — dev
     'http://127.0.0.1:3003',
+    'http://localhost:3010',        # Web dashboard fallback dev port
+    'http://127.0.0.1:3010',
     'https://console.orbisave.com', # Console — production
     'https://manager.orbisave.com', # Manager — production
 ]
@@ -230,6 +232,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.groups.tasks.check_cycle_completion',
         'schedule': timedelta(hours=24),
         'options': {'expires': 3600},
+    },
+    # Attempts due rotation payouts; service layer enforces readiness and idempotency.
+    'process-due-rotation-payouts': {
+        'task': 'apps.payouts.tasks.process_due_rotation_payouts',
+        'schedule': timedelta(hours=1),
+        'options': {'expires': 1800},
     },
     'expire-pending-memberships': {
         'task': 'apps.groups.tasks.expire_pending_memberships',

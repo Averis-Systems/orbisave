@@ -12,8 +12,8 @@ const slides = [
     headline: "Coordinated\nwealth for\n<i>generational</i>\ngrowth.",
     body: "OrbiSave aligns your capital with the natural rhythms of agricultural cycles. We provide the infrastructure for collective savings, ensuring every season brings measurable impact and secured returns.",
     stats: [
-      { value: "40K+", label: "FARMERS SERVED" },
-      { value: "KES 2.1B", label: "POOLED SAVINGS" },
+      { value: "KYC", label: "IDENTITY GATES" },
+      { value: "TRUST", label: "BANK-BACKED CUSTODY" },
     ],
   },
   {
@@ -23,8 +23,8 @@ const slides = [
     headline: "Empower your\nsupply chain\n<i>seamlessly</i>.",
     body: "Enable financial inclusion across your supplier network with transparent group savings infrastructure built for scale and reliability.",
     stats: [
-      { value: "120+", label: "PARTNER COMPANIES" },
-      { value: "99.9%", label: "UPTIME GUARANTEE" },
+      { value: "MOBILE", label: "MONEY AUTOMATION" },
+      { value: "LEDGER", label: "AUDIT TRAILS" },
     ],
   },
   {
@@ -34,8 +34,8 @@ const slides = [
     headline: "Lead with\n<i>confidence</i>\nand clarity.",
     body: "Powerful tools for group leaders. Manage rotations, enforce rules, and build member trust with immutable ledger technology.",
     stats: [
-      { value: "8,500+", label: "ACTIVE CHAMAS" },
-      { value: "$2.4B", label: "ASSETS SECURED" },
+      { value: "GROUP", label: "GOVERNANCE" },
+      { value: "ROLE", label: "ACCESS CONTROLS" },
     ],
   },
   {
@@ -45,8 +45,8 @@ const slides = [
     headline: "Strength in\n<i>numbers</i>\nand unity.",
     body: "Whatever your size, OrbiSave scales with your community. From 5 to 500 members, our platform adapts to your unique saving cycles.",
     stats: [
-      { value: "500K+", label: "TOTAL MEMBERS" },
-      { value: "KES 890M", label: "PAYOUTS PROCESSED" },
+      { value: "ROTATION", label: "PAYOUTS" },
+      { value: "SAVINGS", label: "AUTO-DEDUCTIONS" },
     ],
   },
 ]

@@ -118,7 +118,7 @@ export function LoanPool() {
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
 
-          {/* Left: Pool split + interest */}
+          {/* Left: group wallet split + interest */}
           <div className="loan-left flex flex-col gap-5">
 
             {/* 70/30 bar */}
@@ -128,7 +128,7 @@ export function LoanPool() {
             >
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-base" style={{ color: "#0a2540" }}>
-                  Pool Allocation (Cycle 3)
+                  Group Wallet Allocation (Cycle 3)
                 </h3>
                 <span
                   className="text-xs font-semibold px-2.5 py-1"
@@ -194,7 +194,7 @@ export function LoanPool() {
                   When you pay back a loan with a small interest, that extra money goes back to the group. It makes everyone's payout bigger!
                 </p>
                 <div className="flex items-center gap-1.5 mt-3 text-xs font-bold" style={{ color: "#00ab00" }}>
-                  KES 900 interest → pool → +KES 150 per member
+                  KES 900 interest → loan pool → +KES 150 per member
                 </div>
               </div>
             </div>

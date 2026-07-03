@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Save, CheckCircle, RefreshCw, Layers, ShieldCheck, Info, ChevronLeft, Settings2, Smartphone, Lock } from "lucide-react"
+import { Save, CheckCircle, RefreshCw, Layers, ChevronLeft, Smartphone, Lock } from "lucide-react"
 import Link from "next/link"
 
 function Field({ label, value, type = "text", hint }: { label: string; value: string; type?: string; hint?: string }) {
@@ -51,7 +51,7 @@ export default function RotationSettingsPage() {
              <Link href="/dashboard/settings" className="text-gray-400 hover:text-[#00ab00] transition-colors">
                 <ChevronLeft size={16} />
              </Link>
-             <h1 className="text-3xl font-black text-[#0a2540]">Payout Logic Protocol</h1>
+             <h1 className="text-3xl font-black text-[#0a2540]">Rotation Payout Rules</h1>
           </div>
           <p className="text-gray-500 font-bold">Configure sequencing rules, disbursement triggers, and position governance.</p>
         </div>
@@ -61,7 +61,7 @@ export default function RotationSettingsPage() {
             saved ? 'bg-green-50 text-[#00ab00] border border-green-100' : 'bg-[#0a2540] text-white shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460]'
           }`}
         >
-          {saved ? <><CheckCircle size={16} /> Protocol Locked</> : <><Save size={16} /> Update Sequence</>}
+          {saved ? <><CheckCircle size={16} /> Rules Saved</> : <><Save size={16} /> Update Sequence</>}
         </button>
       </div>
 
@@ -101,7 +101,7 @@ export default function RotationSettingsPage() {
         {/* Position Management */}
         <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8 flex flex-col h-full">
           <div className="flex items-center gap-3 mb-8">
-             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 shadow-sm">
+             <div className="w-10 h-10 rounded-lg bg-[#e9f3ed] flex items-center justify-center text-[#00ab00] border border-[#bfe8c4] shadow-sm">
                 <Layers size={20} />
              </div>
              <div>
@@ -118,8 +118,8 @@ export default function RotationSettingsPage() {
                 </p>
              </div>
 
-             <Field label="Assignment Methodology" value="Chronological Entry" hint="Options: Draw, Manual, Chronological." />
-             <Field label="Disruption Protocol" value="Append to End" hint="Action on skipped/non-compliant cycles." />
+             <Field label="Assignment Method" value="Chronological Entry" hint="Options: Draw, Manual, Chronological." />
+             <Field label="Skipped Payout Rule" value="Append to End" hint="Action on skipped or non-compliant cycles." />
              
              <div className="pt-6 border-t border-gray-50 space-y-2">
                 <Toggle label="Swap Authorization" checked={true} hint="Allow peer-to-peer sequence exchanges." />

@@ -47,6 +47,16 @@ from .config_views import (
     ConfigListView,
     ConfigUpdateView,
     ConfigCreateView,
+    CountryPolicyDetailView,
+    CountryPolicyListView,
+    KYCProviderDetailView,
+    KYCProviderListView,
+    KYCProviderTestView,
+    KYCProviderToggleView,
+    MeetingProviderDetailView,
+    MeetingProviderListView,
+    MeetingProviderTestView,
+    MeetingProviderToggleView,
 )
 
 from .monitoring_views import (
@@ -115,6 +125,22 @@ urlpatterns = [
     path('superadmin/settings/',                       ConfigListView.as_view(),   name='config-list'),
     path('superadmin/settings/create/',                ConfigCreateView.as_view(), name='config-create'),
     path('superadmin/settings/<uuid:config_id>/',      ConfigUpdateView.as_view(), name='config-update'),
+
+    # KYC / Identity Provider Configuration
+    path('superadmin/kyc-providers/',                       KYCProviderListView.as_view(), name='kyc-provider-list'),
+    path('superadmin/kyc-providers/<uuid:provider_id>/',    KYCProviderDetailView.as_view(), name='kyc-provider-detail'),
+    path('superadmin/kyc-providers/<uuid:provider_id>/toggle/', KYCProviderToggleView.as_view(), name='kyc-provider-toggle'),
+    path('superadmin/kyc-providers/<uuid:provider_id>/test/',   KYCProviderTestView.as_view(), name='kyc-provider-test'),
+
+    # Meeting Provider Configuration
+    path('superadmin/meeting-providers/',                       MeetingProviderListView.as_view(), name='meeting-provider-list'),
+    path('superadmin/meeting-providers/<uuid:provider_id>/',    MeetingProviderDetailView.as_view(), name='meeting-provider-detail'),
+    path('superadmin/meeting-providers/<uuid:provider_id>/toggle/', MeetingProviderToggleView.as_view(), name='meeting-provider-toggle'),
+    path('superadmin/meeting-providers/<uuid:provider_id>/test/',   MeetingProviderTestView.as_view(), name='meeting-provider-test'),
+
+    # Country Policy Guardrails
+    path('superadmin/country-policies/',                    CountryPolicyListView.as_view(), name='country-policy-list'),
+    path('superadmin/country-policies/<uuid:policy_id>/',   CountryPolicyDetailView.as_view(), name='country-policy-detail'),
 
     # Monitoring & Observability
     path('superadmin/monitoring/metrics/', ApiActivityMetricsView.as_view(),  name='monitoring-metrics'),

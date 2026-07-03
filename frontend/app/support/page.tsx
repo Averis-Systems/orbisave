@@ -26,7 +26,7 @@ const FAQS = [
       },
       {
         q: "Does OrbiSave hold our money?",
-        a: "No. OrbiSave does not hold custody of funds. All money moves directly between your group members' mobile wallets (like M-Pesa) and a regulated escrow bank account. We simply provide the secure rails and audit trail."
+        a: "No. OrbiSave does not hold custody of funds. Money moves between group members' mobile wallets and regulated bank trust accounts. OrbiSave provides the software rails, ledger, automation, and audit trail."
       },
       {
         q: "How much does it cost?",
@@ -43,11 +43,11 @@ const FAQS = [
       },
       {
         q: "What happens if the entire group defaults on a Bank or Financier loan?",
-        a: "A default on external financing severely damages the group's OrbiSave Trust Score, permanently blocking access to future loans, grants, and input financing. The partner bank will execute standard recovery protocols as per the terms agreed upon by the Chairperson and Treasurer during the loan approval."
+        a: "A default on external financing affects the group's OrbiSave Trust Score and may restrict access to future loans, grants, and input financing. The partner bank follows the recovery process agreed by the Chairperson and Treasurer during loan approval."
       },
       {
         q: "How does the platform handle disputes like 'I sent the money but it doesn't show'?",
-        a: "Disputes are mathematically impossible on OrbiSave. Because payments are integrated directly with mobile money providers (like M-Pesa STK push), the ledger only updates when the telecom confirms the transaction via API. If it is not on the ledger, the telecom did not process it."
+        a: "Payment disputes are handled from provider-confirmed records. Because payments are integrated with mobile money providers like M-Pesa STK push, the ledger updates only after the provider confirms the transaction through the API."
       }
     ]
   },

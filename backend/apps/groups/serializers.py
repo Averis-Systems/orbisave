@@ -1,8 +1,11 @@
 from rest_framework import serializers
 from django.core.cache import cache
+import logging
 from .models import Group, GroupMember
 from django.db.models import Sum
 from common.db_utils import get_db_for_group
+
+logger = logging.getLogger(__name__)
 
 class WalletCalculations:
     @staticmethod
@@ -12,7 +15,11 @@ class WalletCalculations:
         Avoids hammering the DB with `SUM()` over millions of LedgerEntry rows.
         """
         cache_key = f"group_wallet_{group.id}"
-        cached_data = cache.get(cache_key)
+        try:
+            cached_data = cache.get(cache_key)
+        except Exception as exc:
+            logger.warning("group_wallet_cache_read_failed", extra={"group_id": str(group.id), "error": str(exc)})
+            cached_data = None
         
         if cached_data:
             return cached_data
@@ -21,22 +28,31 @@ class WalletCalculations:
         # This will be invalidated upon ANY new LedgerEntry insertion via a Django Signal.
         db_alias = group._state.db or get_db_for_group(group)
         entries = group.ledger_entries.using(db_alias).all()
-        total_credits = entries.filter(direction='credit').aggregate(Sum('amount'))['amount__sum'] or 0
-        total_debits  = entries.filter(direction='debit').aggregate(Sum('amount'))['amount__sum'] or 0
-        total = total_credits - total_debits
-        
-        rotation_pool = total * (group.rotation_savings_pct / 100)
-        loan_pool     = total * (group.loan_pool_pct / 100)
+
+        def stream_balance(account_stream):
+            stream_entries = entries.filter(account_stream=account_stream)
+            credits = stream_entries.filter(direction='credit').aggregate(Sum('amount'))['amount__sum'] or 0
+            debits = stream_entries.filter(direction='debit').aggregate(Sum('amount'))['amount__sum'] or 0
+            return credits - debits
+
+        rotation_pool = stream_balance('rotation')
+        loan_pool = stream_balance('loaning')
+        savings_balance = stream_balance('savings')
+        total = rotation_pool + loan_pool + savings_balance
         
         computed = {
             'total': float(total),
             'rotation_pool': float(rotation_pool),
             'loan_pool': float(loan_pool),
+            'mandatory_savings': float(savings_balance),
             'currency': group.currency
         }
         
         # Cache for 24 hours (invalidated actively by signals on write)
-        cache.set(cache_key, computed, timeout=86400)
+        try:
+            cache.set(cache_key, computed, timeout=86400)
+        except Exception as exc:
+            logger.warning("group_wallet_cache_write_failed", extra={"group_id": str(group.id), "error": str(exc)})
         return computed
 
 

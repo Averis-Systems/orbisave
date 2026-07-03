@@ -178,14 +178,14 @@ export default function GroupDetailPage() {
                     <Landmark className="w-7 h-7" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Savings Pool</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Group Savings</p>
                     <h4 className="text-2xl font-bold text-navy tabular-nums">
                       {group.currency} {parseFloat(group.wallet.total_contributions).toLocaleString()}
                     </h4>
                   </div>
                 </div>
                 <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-6">
-                  <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500">
+                  <div className="w-14 h-14 bg-[#ecfdf3] rounded-2xl flex items-center justify-center text-[#00ab00]">
                     <Banknote className="w-7 h-7" />
                   </div>
                   <div>

@@ -2,6 +2,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -65,6 +66,8 @@ def _active_verified_group(chairperson, member):
 
 def test_payout_execution_uses_schedule_recipient_not_request_target(chairperson, user):
     group, _cycle = _active_verified_group(chairperson, user)
+    chairperson.transaction_pin = make_password("1234")
+    chairperson.save(update_fields=["transaction_pin"])
     client = APIClient()
     client.force_authenticate(user=chairperson)
 
@@ -77,7 +80,7 @@ def test_payout_execution_uses_schedule_recipient_not_request_target(chairperson
 
         response = client.post(
             f"/api/v1/payouts/{group.id}/execute/",
-            {"target_member_id": str(chairperson.id)},
+            {"target_member_id": str(chairperson.id), "pin": "1234"},
             format="json",
         )
 
@@ -85,6 +88,42 @@ def test_payout_execution_uses_schedule_recipient_not_request_target(chairperson
     called_group, called_member = execute.call_args.args
     assert called_group.id == group.id
     assert called_member.id == user.id
+
+
+def test_payout_execution_requires_transaction_pin(chairperson, user):
+    group, _cycle = _active_verified_group(chairperson, user)
+    chairperson.transaction_pin = make_password("1234")
+    chairperson.save(update_fields=["transaction_pin"])
+    client = APIClient()
+    client.force_authenticate(user=chairperson)
+
+    with patch("apps.payouts.views.PayoutService.execute_rotation_payout") as execute:
+        response = client.post(f"/api/v1/payouts/{group.id}/execute/", {}, format="json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["error"] == "Transaction PIN is required to authorise this payout."
+    execute.assert_not_called()
+
+
+def test_wrong_payout_pin_is_rejected_and_counted(chairperson, user):
+    group, _cycle = _active_verified_group(chairperson, user)
+    chairperson.transaction_pin = make_password("1234")
+    chairperson.save(update_fields=["transaction_pin"])
+    client = APIClient()
+    client.force_authenticate(user=chairperson)
+
+    with patch("apps.payouts.views.PayoutService.execute_rotation_payout") as execute:
+        response = client.post(
+            f"/api/v1/payouts/{group.id}/execute/",
+            {"pin": "9999"},
+            format="json",
+        )
+
+    chairperson.refresh_from_db()
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.data["error"] == "Transaction PIN verification failed."
+    assert chairperson.transaction_pin_failed_attempts == 1
+    execute.assert_not_called()
 
 
 def test_non_leader_cannot_execute_payout(chairperson, user):
