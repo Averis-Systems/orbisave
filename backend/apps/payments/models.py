@@ -8,6 +8,7 @@ and can be toggled sandbox ↔ live and enabled/disabled without a deployment.
 """
 import uuid
 from django.db import models
+from common.fields import EncryptedJSONField, EncryptedTextField
 from common.models import BaseModel
 
 
@@ -36,9 +37,9 @@ STATUS_CHOICES = [
 class BankProvider(BaseModel):
     """
     One row = one bank integration for one country.
-    Credentials stored as plain text here but MUST be encrypted at rest via
-    django-encrypted-model-fields in production (KMS key per country).
-    In dev they are stored unencrypted for simplicity.
+    Credentials and provider extras (which can hold RSA private keys) are
+    Fernet-encrypted at rest via common.fields — the database only ever sees
+    opaque enc$v1$ tokens. Key management: FIELD_ENCRYPTION_KEY env var.
     """
 
     name          = models.CharField(max_length=150, help_text="Display name, e.g. 'Equity Bank Kenya'")
@@ -47,17 +48,17 @@ class BankProvider(BaseModel):
     environment   = models.CharField(max_length=10, choices=ENVIRONMENTS, default='sandbox')
     status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
 
-    # ── API Credentials (encrypted in prod) ──────────────────────────────────
-    api_key       = models.TextField(blank=True, help_text="API key / Consumer key")
-    api_secret    = models.TextField(blank=True, help_text="API secret / Consumer secret")
+    # ── API Credentials (encrypted at rest) ──────────────────────────────────
+    api_key       = EncryptedTextField(blank=True, help_text="API key / Consumer key")
+    api_secret    = EncryptedTextField(blank=True, help_text="API secret / Consumer secret")
     merchant_code = models.CharField(max_length=100, blank=True, help_text="Merchant / business code")
-    extra_config  = models.JSONField(default=dict, blank=True,
-                                     help_text="Provider-specific extras (e.g. RSA private key path, paybill)")
+    extra_config  = EncryptedJSONField(default=dict, blank=True,
+                                       help_text="Provider-specific extras (e.g. RSA private key, paybill)")
 
     # ── Endpoints ─────────────────────────────────────────────────────────────
     base_url      = models.URLField(blank=True, help_text="Provider API base URL (sandbox or live)")
     webhook_url   = models.URLField(blank=True, help_text="Our webhook URL registered with the provider")
-    webhook_secret = models.TextField(blank=True, help_text="Secret used to verify inbound webhook signatures")
+    webhook_secret = EncryptedTextField(blank=True, help_text="Secret used to verify inbound webhook signatures")
 
     # ── Capabilities ──────────────────────────────────────────────────────────
     supports_collections    = models.BooleanField(default=True)

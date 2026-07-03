@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from django.utils import timezone
+from common.fields import EncryptedTextField
 from common.models import BaseModel
 
 class SystemConfiguration(BaseModel):
@@ -60,9 +61,9 @@ class KYCProviderConfiguration(BaseModel):
     base_url = models.URLField(blank=True, default='https://verification.didit.me')
     workflow_id = models.CharField(max_length=120, blank=True)
     client_id = models.CharField(max_length=255, blank=True)
-    client_secret = models.TextField(blank=True)
+    client_secret = EncryptedTextField(blank=True)
     webhook_url = models.URLField(blank=True)
-    webhook_secret = models.TextField(blank=True)
+    webhook_secret = EncryptedTextField(blank=True)
     allowed_events = models.JSONField(default=list, blank=True)
     notes = models.TextField(blank=True)
     configured_by = models.ForeignKey(
@@ -108,9 +109,9 @@ class MeetingProviderConfiguration(BaseModel):
     environment = models.CharField(max_length=10, choices=ENVIRONMENT_CHOICES, default='sandbox')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
     base_url = models.URLField(blank=True, default='https://api.daily.co/v1')
-    api_key = models.TextField(blank=True)
+    api_key = EncryptedTextField(blank=True)
     webhook_url = models.URLField(blank=True)
-    webhook_secret = models.TextField(blank=True)
+    webhook_secret = EncryptedTextField(blank=True)
     allowed_events = models.JSONField(default=list, blank=True)
     notes = models.TextField(blank=True)
     configured_by = models.ForeignKey(

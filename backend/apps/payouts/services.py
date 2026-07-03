@@ -9,19 +9,11 @@ from apps.ledger.models import SystemConfiguration
 from apps.ledger.services import append_ledger_entry, close_ledger_event_group
 from apps.groups.models import GroupMember, RotationCycle, RotationSchedule
 from apps.contributions.models import Contribution
-from apps.payments.selector import get_payment_provider
+from apps.payments.selector import COUNTRY_DEFAULT_METHOD, get_payment_provider
 from apps.groups.serializers import WalletCalculations
 from common.db_utils import get_db_for_group
 
 logger = structlog.get_logger(__name__)
-
-# Country → default payment method mapping.
-# Replaces the previous hardcoded 'mpesa' for all countries.
-COUNTRY_DEFAULT_METHOD = {
-    'kenya':  'mpesa',
-    'rwanda': 'mtn_momo',
-    'ghana':  'mtn_momo',
-}
 
 
 class PayoutService:

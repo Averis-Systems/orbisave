@@ -24,8 +24,9 @@ class WalletCalculations:
         if cached_data:
             return cached_data
 
-        # Cache Miss - Compute it dynamically and save.
-        # This will be invalidated upon ANY new LedgerEntry insertion via a Django Signal.
+        # Cache miss — compute dynamically and save.
+        # Invalidated by the transaction.on_commit hook inside
+        # apps.ledger.services.append_ledger_entry (the sole ledger write path).
         db_alias = group._state.db or get_db_for_group(group)
         entries = group.ledger_entries.using(db_alias).all()
 
@@ -48,9 +49,11 @@ class WalletCalculations:
             'currency': group.currency
         }
         
-        # Cache for 24 hours (invalidated actively by signals on write)
+        # Short TTL as defense-in-depth: append_ledger_entry actively
+        # invalidates on every write, so 5 minutes only bounds how stale a
+        # balance can get if a write path ever bypasses the service again.
         try:
-            cache.set(cache_key, computed, timeout=86400)
+            cache.set(cache_key, computed, timeout=300)
         except Exception as exc:
             logger.warning("group_wallet_cache_write_failed", extra={"group_id": str(group.id), "error": str(exc)})
         return computed

@@ -36,13 +36,30 @@ def enforce_contribution_deadlines(self):
     for group in active_groups:
         db_alias = get_db_for_group(group)
         try:
-            overdue_qs = Contribution.objects.using(db_alias).filter(
-                group=group,
-                status__in=['initiated', 'pending'],
-                scheduled_date__lt=today,
+            # Collect IDs first: select_for_update is only legal inside a
+            # transaction, so each row is re-fetched and locked per-atomic
+            # block below (skip_locked lets concurrent workers coexist).
+            overdue_ids = list(
+                Contribution.objects.using(db_alias).filter(
+                    group=group,
+                    status__in=['initiated', 'pending'],
+                    scheduled_date__lt=today,
+                ).values_list('id', flat=True)
             )
-            for contribution in overdue_qs.select_for_update(skip_locked=True):
+            for contribution_id in overdue_ids:
                 with transaction.atomic(using=db_alias):
+                    contribution = (
+                        Contribution.objects.using(db_alias)
+                        .select_for_update(skip_locked=True)
+                        .filter(
+                            id=contribution_id,
+                            status__in=['initiated', 'pending'],
+                        )
+                        .first()
+                    )
+                    if contribution is None:
+                        continue  # already handled by a concurrent worker
+
                     contribution.status = 'overdue'
                     contribution.save(update_fields=['status', 'updated_at'])
                     processed += 1
@@ -75,15 +92,21 @@ def enforce_contribution_deadlines(self):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def apply_pending_penalties(self):
     """
-    Runs every 6 hours. Processes any Penalty records still in 'pending' state
-    (e.g. flagged by the deadline task but not yet reconciled into the ledger).
+    Runs every 6 hours. Promotes Penalty records from 'pending' to 'applied',
+    making the obligation official against the member.
+
+    The ledger deliberately records NO entry at assessment time: a penalty
+    owed is an obligation, not a money movement. The previous implementation
+    wrote a direct LedgerEntry here (bypassing append_ledger_entry) with an
+    invalid entry_type and a rotation-stream debit for money that never moved
+    — corrupting both the stream lock and the pool balance. Ledger entries
+    for penalties are written only when the fine is actually collected,
+    through the payment/webhook flow like any other confirmed money-in.
 
     Satisfies Financial Engine Checklist §9: Escalation logic.
     """
     from apps.contributions.models import Penalty
-    from apps.ledger.models import LedgerEntry
     from common.db_utils import get_db_for_group
-    import uuid
 
     pending_penalties = Penalty.objects.filter(status='pending').select_related(
         'contribution__group', 'member'
@@ -95,25 +118,15 @@ def apply_pending_penalties(self):
         db_alias = get_db_for_group(group)
         try:
             with transaction.atomic(using=db_alias):
-                LedgerEntry.objects.using(db_alias).get_or_create(
-                    reference=f"PENALTY-{penalty.id}",
-                    defaults={
-                        'group': group,
-                        'member': penalty.member,
-                        'entry_type': 'penalty',
-                        'direction': 'debit',
-                        'amount': penalty.amount,
-                        'currency': group.currency,
-                        'description': (
-                            f"Late contribution penalty for "
-                            f"{penalty.contribution.scheduled_date}."
-                        ),
-                        'related_contribution': penalty.contribution,
-                    }
-                )
                 penalty.status = 'applied'
                 penalty.save(update_fields=['status', 'updated_at'])
                 applied += 1
+
+            _emit_group_event(group.id, 'penalty.applied', {
+                'penalty_id': str(penalty.id),
+                'member_id': str(penalty.member_id),
+                'amount': str(penalty.amount),
+            })
         except Exception as exc:
             logger.error('penalty_apply_error', penalty_id=penalty.id, error=str(exc))
 

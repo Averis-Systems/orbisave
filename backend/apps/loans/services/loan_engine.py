@@ -4,7 +4,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.groups.models import GroupMember
-from apps.ledger.models import LedgerEntry
+from apps.ledger.services import append_ledger_entry, close_ledger_event_group
+from apps.payments.selector import COUNTRY_DEFAULT_METHOD, get_payment_provider
 
 logger = structlog.get_logger(__name__)
 
@@ -102,6 +103,23 @@ class LoanEngine:
         """
         Finalizes actual money movement after business approval.
         Ledger entries and repayment schedules are created only here.
+
+        Money leaves through the country's configured payment rail (B2C to the
+        borrower's mobile money), then a balanced ledger event group records:
+            debit  loaning              (principal leaves the loan pool)
+            credit provider_settlement  (cash owed out through the provider)
+        — the same stream convention as rotation payouts, so daily bank
+        reconciliation sees every outbound movement on provider_settlement.
+        The loaning debit is overdraft-protected: a loan can never draw the
+        pool below zero.
+
+        Passing an explicit disbursement_reference records a MANUAL (offline)
+        disbursement — e.g. a bank transfer executed outside the rails by an
+        admin — and skips the provider call. Ledger entries are identical;
+        reconciliation matches the manual reference against the statement.
+
+        On provider failure nothing is written and the loan stays 'approved',
+        so the action can be safely retried.
         """
         if loan.status == 'disbursed':
             return loan
@@ -109,28 +127,80 @@ class LoanEngine:
             raise ValueError(f"Loan is in '{loan.status}' - only approved loans can be disbursed.")
 
         group = loan.group
+        borrower = loan.borrower
         from common.db_utils import get_db_for_group
         db_alias = loan._state.db or get_db_for_group(group)
 
+        is_manual = bool(disbursement_reference)
+        provider_reference = disbursement_reference
+
         with transaction.atomic(using=db_alias):
+            if not is_manual:
+                payment_method = COUNTRY_DEFAULT_METHOD.get(group.country, 'mpesa')
+                payout_phone = borrower.mobile_money_number or borrower.phone
+                provider = get_payment_provider(group.country, payment_method)
+                res = provider.initiate_disbursement(
+                    phone=payout_phone,
+                    amount=loan.amount,
+                    reference=f"LOAN-{loan.id}",
+                    remarks=f"Loan disbursement — {group.name}",
+                )
+                if res.get('status') != 'success':
+                    logger.warning(
+                        "loan_disbursement_provider_failed",
+                        loan_id=loan.id,
+                        group_id=group.id,
+                        response=res,
+                    )
+                    raise ValueError(
+                        f"Provider failed to disburse loan: {res.get('error', 'provider returned failure status')}"
+                    )
+                provider_reference = res.get('provider_reference') or f"DISB-{uuid.uuid4()}"
+
             loan.status = 'disbursed'
             loan.disbursed_at = timezone.now()
-            loan.disbursement_reference = disbursement_reference or f"DISB-{uuid.uuid4()}"
+            loan.disbursement_reference = provider_reference
             loan.save(using=db_alias, update_fields=['status', 'disbursed_at', 'disbursement_reference'])
 
-            LedgerEntry.objects.using(db_alias).create(
+            event_group_key = f"loan_disbursement:{loan.id}"
+            append_ledger_entry(
                 group=group,
-                member=loan.borrower,
+                member=borrower,
                 account_stream='loaning',
                 entry_type='loan_disbursement',
                 direction='debit',
                 amount=loan.amount,
                 currency=group.currency,
-                description=f"Loan #{loan.id} disbursed. Authorised by {actor.full_name}.",
-                reference=str(uuid.uuid4()),
+                description=f"Loan #{loan.id} principal disbursed to {borrower.full_name}. Authorised by {actor.full_name}.",
+                reference=f"LOAN-LEDGER-{loan.id}",
                 related_loan=loan,
                 recorded_by=actor,
+                idempotency_key=f"loan_disbursement:{loan.id}:loaning",
+                source_system='orbisave_loans',
+                event_group_key=event_group_key,
+                event_type='loan_disbursement',
             )
+            append_ledger_entry(
+                group=group,
+                member=borrower,
+                account_stream='provider_settlement',
+                entry_type='loan_disbursement',
+                direction='credit',
+                amount=loan.amount,
+                currency=group.currency,
+                description=(
+                    f"{'Manual settlement' if is_manual else 'Provider settlement'} payable for "
+                    f"loan #{loan.id} to {borrower.full_name}."
+                ),
+                reference=f"LOAN-PROVIDER-LEDGER-{loan.id}",
+                related_loan=loan,
+                recorded_by=actor,
+                idempotency_key=f"loan_disbursement:{loan.id}:provider_settlement",
+                source_system='orbisave_loans',
+                event_group_key=event_group_key,
+                event_type='loan_disbursement',
+            )
+            close_ledger_event_group(event_group_key, db_alias=db_alias)
 
             from apps.loans.services.repayment_service import LoanRepaymentService
             LoanRepaymentService.generate_repayments(loan)
@@ -140,5 +210,6 @@ class LoanEngine:
             loan_id=loan.id,
             actor_id=actor.id,
             reference=loan.disbursement_reference,
+            manual=is_manual,
         )
         return loan

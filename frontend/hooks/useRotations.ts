@@ -74,13 +74,16 @@ export function useStartNextCycle() {
 export function useTriggerPayout() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ cycleId, memberId, pin }: { cycleId: string, memberId: string, pin?: string }) => {
-      const { data } = await api.post(`/groups/rotations/${cycleId}/trigger_payout/`, { member_id: memberId, pin })
+    // Calls the real payout engine: PIN-gated, idempotent, and the recipient
+    // is derived server-side from the rotation schedule — never client-chosen.
+    mutationFn: async ({ groupId, pin }: { groupId: string, pin: string }) => {
+      const { data } = await api.post(`/payouts/${groupId}/execute/`, { pin })
       return data
     },
-    onSuccess: (_, { cycleId }) => {
-      queryClient.invalidateQueries({ queryKey: ['rotation-schedules', cycleId] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rotation-schedules'] })
       queryClient.invalidateQueries({ queryKey: ['rotations'] })
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
     }
   })
 }

@@ -16,6 +16,16 @@ from .base import PaymentProvider
 
 logger = logging.getLogger(__name__)
 
+# Country → default mobile-money method. Single source of truth for services
+# that need a rail without the caller specifying one (payouts, loan
+# disbursements). Kenya launches first; Rwanda/Ghana follow the same pattern
+# once their bank APIs are onboarded via the Console Provider Hub.
+COUNTRY_DEFAULT_METHOD = {
+    'kenya':  'mpesa',
+    'rwanda': 'mtn_momo',
+    'ghana':  'mtn_momo',
+}
+
 
 def get_payment_provider(country: str, method: str = None) -> PaymentProvider:
     """
@@ -71,12 +81,21 @@ def get_provider_by_id(provider_id: str) -> PaymentProvider:
 def _instantiate_provider(record) -> PaymentProvider:
     """Map a BankProvider record to its implementation class."""
     from apps.payments.providers.jenga import JengaProvider
+    from apps.payments.providers.mock import MockProvider
 
     mapping = {
         'jenga_ke': JengaProvider,
         'jenga_rw': JengaProvider,
+        'mock': MockProvider,
         # 'ecobank_gh': EcobankProvider,  # coming soon
     }
+
+    # The instant-success mock can never run against real money: it is only
+    # resolvable for provider rows explicitly configured as sandbox.
+    if record.provider_code == 'mock' and record.environment != 'sandbox':
+        raise ValueError(
+            "The 'mock' provider is restricted to environment='sandbox' configurations."
+        )
 
     cls = mapping.get(record.provider_code)
     if cls is None:

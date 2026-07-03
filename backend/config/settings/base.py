@@ -256,6 +256,18 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': timedelta(hours=24),
         'options': {'expires': 3600},
     },
+    # Seals the previous day's ledger into per-group Merkle checkpoints
+    'generate-daily-ledger-checkpoints': {
+        'task': 'apps.ledger.tasks.generate_daily_checkpoints',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 7200},
+    },
+    # Full hash-chain/sequence/balance sweep — any violation is a P0 incident
+    'verify-ledger-integrity': {
+        'task': 'apps.ledger.tasks.verify_all_ledger_streams',
+        'schedule': timedelta(hours=6),
+        'options': {'expires': 3600},
+    },
 }
 
 # ─── Django Channels (WebSockets) ────────────────────────────────────────────

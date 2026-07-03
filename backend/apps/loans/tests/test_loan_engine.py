@@ -78,22 +78,50 @@ class TestLoanEngine:
         self, approved_loan, chairperson
     ):
         from apps.loans.services.loan_engine import LoanEngine
-        from apps.ledger.models import LedgerEntry
+        from apps.ledger.models import LedgerEntry, LedgerEventGroup
+        from apps.ledger.services import append_ledger_entry
 
         approved_loan.status = 'approved'
         approved_loan.save(update_fields=['status'])
 
+        # Disbursement is overdraft-protected: the loaning stream must hold
+        # at least the principal before money can leave it.
+        append_ledger_entry(
+            group=approved_loan.group,
+            account_stream='loaning',
+            entry_type='contribution',
+            direction='credit',
+            amount=Decimal('15000.00'),
+            currency='KES',
+            description='Seed loan pool for disbursement test',
+            reference='SEED-LOAN-POOL-001',
+        )
+
         result = LoanEngine.disburse_loan(
             loan=approved_loan,
             actor=chairperson,
-            disbursement_reference='MANUAL-DISB-001',
+            disbursement_reference='MANUAL-DISB-001',  # manual/offline path — no provider call
         )
 
         assert result.status == 'disbursed'
         assert result.disbursed_at is not None
         assert result.disbursement_reference == 'MANUAL-DISB-001'
-        entry = LedgerEntry.objects.get(related_loan=result)
-        assert entry.account_stream == 'loaning'
+
+        # Balanced event group: principal out of the loan pool, matched by a
+        # provider_settlement credit so bank reconciliation sees the outflow.
+        entries = LedgerEntry.objects.filter(related_loan=result)
+        assert entries.count() == 2
+        loaning_entry = entries.get(account_stream='loaning')
+        settlement_entry = entries.get(account_stream='provider_settlement')
+        assert loaning_entry.direction == 'debit'
+        assert settlement_entry.direction == 'credit'
+        assert loaning_entry.amount == settlement_entry.amount == result.amount
+
+        event_group = LedgerEventGroup.objects.get(
+            event_group_key=f"loan_disbursement:{result.id}"
+        )
+        assert event_group.status == LedgerEventGroup.STATUS_CLOSED
+
         assert result.repayments.count() > 0
 
     def test_wrong_pin_raises_permission_error(self, loan_pending_chair, chairperson):

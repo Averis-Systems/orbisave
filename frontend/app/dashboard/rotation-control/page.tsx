@@ -81,14 +81,16 @@ export default function RotationControlPage() {
 
   const handleTriggerPayout = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!confirmation || !currentCycle) return
+    if (!confirmation || !activeGroup) return
     if (!/^\d{4,6}$/.test(pin)) {
       toast.error("Enter a valid 4 to 6 digit transaction PIN.")
       return
     }
 
     try {
-      await triggerPayout.mutateAsync({ cycleId: currentCycle.id, memberId: confirmation.member, pin })
+      // The payout engine pays the next scheduled unpaid recipient — the
+      // confirmation panel shows who that is; the server enforces it.
+      await triggerPayout.mutateAsync({ groupId: activeGroup.id, pin })
       toast.success(`${getFinancialOutcome("payoutQueued").title} for ${confirmation.member_name}.`)
       setConfirmation(null)
       setPin("")
@@ -219,17 +221,21 @@ export default function RotationControlPage() {
                             <CheckCircle2 size={14} />
                             Settled
                           </span>
-                        ) : (
+                        ) : schedule.id === nextRecipient?.id ? (
                           <button
                             type="button"
                             onClick={() => {
                               setConfirmation(schedule)
                               setPin("")
                             }}
-                            className={`inline-flex h-8 items-center justify-center rounded-lg px-3 text-[10px] font-black uppercase tracking-widest transition ${index === 0 ? "bg-primary text-white hover:bg-green-hover" : "bg-gray-50 text-gray-400 hover:text-[#0a2540] dark:bg-white/10 dark:hover:text-white"}`}
+                            className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-green-hover"
                           >
                             Authorize
                           </button>
+                        ) : (
+                          <span className="inline-flex h-8 items-center justify-center rounded-lg bg-gray-50 px-3 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:bg-white/10">
+                            Queued
+                          </span>
                         )}
                       </td>
                     </tr>

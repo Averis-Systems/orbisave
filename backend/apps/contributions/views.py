@@ -204,7 +204,7 @@ class InitiateContributionView(views.APIView):
 
         db_alias = get_db_for_group(group)
 
-        lock_seed = int(hashlib.md5(
+        lock_seed = int(hashlib.blake2s(
             f"init_contrib_{request.user.id}_{group.id}".encode()
         ).hexdigest(), 16) % (2**63 - 1)
 

@@ -36,8 +36,10 @@ class BankProviderSerializer(serializers.ModelSerializer):
         source='configured_by.full_name', read_only=True, default=None
     )
     accounts = PaymentProviderAccountSerializer(many=True, required=False)
+    has_api_key = serializers.SerializerMethodField()
     has_api_secret = serializers.SerializerMethodField()
     has_webhook_secret = serializers.SerializerMethodField()
+    extra_config_keys = serializers.SerializerMethodField()
 
     class Meta:
         model = BankProvider
@@ -47,17 +49,26 @@ class BankProviderSerializer(serializers.ModelSerializer):
             'base_url', 'webhook_url', 'webhook_secret',
             'supports_collections', 'supports_disbursements', 'supports_mobile_money',
             'supported_mobile_methods',
-            'accounts', 'has_api_secret', 'has_webhook_secret',
+            'accounts', 'has_api_key', 'has_api_secret', 'has_webhook_secret',
+            'extra_config_keys',
             'configured_by_name', 'last_tested_at', 'last_test_status',
             'last_test_message', 'notes', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at',
                             'last_tested_at', 'last_test_status', 'last_test_message',
                             'configured_by_name']
+        # ALL credential material is write-only: the console submits secrets
+        # but read responses only carry has_* booleans / key names. extra_config
+        # can hold the Jenga RSA private key — it must never travel back out.
         extra_kwargs = {
+            'api_key':        {'write_only': True},
             'api_secret':     {'write_only': True},
             'webhook_secret': {'write_only': True},
+            'extra_config':   {'write_only': True},
         }
+
+    def get_has_api_key(self, obj):
+        return bool(obj.api_key)
 
     def get_has_api_secret(self, obj):
         return bool(obj.api_secret)
@@ -65,11 +76,25 @@ class BankProviderSerializer(serializers.ModelSerializer):
     def get_has_webhook_secret(self, obj):
         return bool(obj.webhook_secret)
 
+    def get_extra_config_keys(self, obj):
+        return sorted((obj.extra_config or {}).keys())
+
     def validate(self, attrs):
         provider_code = attrs.get('provider_code', getattr(self.instance, 'provider_code', ''))
         country = attrs.get('country', getattr(self.instance, 'country', ''))
         if provider_code == 'jenga_ke' and country != 'kenya':
             raise serializers.ValidationError({'country': 'jenga_ke can only be configured for Kenya.'})
+
+        # Credentials are write-only, so edit forms round-trip them as empty.
+        # On update, an empty submission means "leave the stored secret
+        # unchanged" — clearing a credential is an explicit re-configuration,
+        # not a side effect of saving an unrelated field.
+        if self.instance is not None:
+            for secret_field in ('api_key', 'api_secret', 'webhook_secret'):
+                if secret_field in attrs and attrs[secret_field] == '':
+                    attrs.pop(secret_field)
+            if 'extra_config' in attrs and attrs['extra_config'] in ({}, None):
+                attrs.pop('extra_config')
         return attrs
 
     def _save_accounts(self, provider, accounts):

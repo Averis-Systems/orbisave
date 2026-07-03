@@ -51,65 +51,13 @@ class RotationViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(RotationScheduleSerializer(schedules, many=True).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsGroupChairperson])
-    def trigger_payout(self, request, pk=None):
-        """
-        Explicitly triggers a payout for a specific member in this cycle.
-        Satisfies Checklist Item 43: Manual Payout Trigger with Audit.
-        """
-        cycle = self.get_object()
-        member_id = request.data.get('member_id')
-        
-        from apps.payouts.models import Payout
-        from apps.accounts.models import User
-        from decimal import Decimal
-
-        with transaction.atomic():
-            schedule = RotationSchedule.objects.get(
-                group=cycle.group, 
-                cycle_number=cycle.cycle_number, 
-                member_id=member_id
-            )
-            
-            if schedule.is_paid_out:
-                return Response({"error": "Member already received payout for this cycle."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            member = User.objects.get(id=member_id)
-            amount = cycle.group.contribution_amount * cycle.group.memberships.count() # Simplification
-            fee = amount * Decimal('0.03')
-            net = amount - fee
-
-            payout = Payout.objects.create(
-                group=cycle.group,
-                recipient=member,
-                cycle=cycle,
-                rotation_position=schedule.cycle_number, # using cycle_num as pos for now
-                cycle_number=cycle.cycle_number,
-                gross_amount=amount,
-                service_fee=fee,
-                net_amount=net,
-                currency=cycle.group.currency,
-                method='mpesa',
-                mobile_number=member.phone or '0700000000',
-                status='completed',
-                processed_by=request.user,
-                processed_at=timezone.now(),
-                scheduled_date=schedule.scheduled_payout_date
-            )
-            
-            schedule.is_paid_out = True
-            schedule.save()
-            
-            log_audit(
-                action='payout_triggered',
-                actor=request.user,
-                target_user=member,
-                target_group=cycle.group,
-                ip_address=request.META.get('REMOTE_ADDR'),
-                metadata={'payout_id': str(payout.id), 'amount': str(net)}
-            )
-            
-            return success_response(data=None, message=f"Payout of {net} successfully disbursed to {member.full_name}.")
+    # NOTE: the old `trigger_payout` action that lived here was removed
+    # deliberately: it fabricated a Payout(status='completed') with a
+    # hardcoded fee, no payment-provider call, and no ledger entries —
+    # permanently desyncing Payout state from the ledger and the bank.
+    # The one sanctioned payout path is POST /api/v1/payouts/<group>/execute/
+    # (PIN-gated, idempotent, schedule-derived recipient, balanced ledger
+    # event group). See apps/payouts/views.py and apps/payouts/services.py.
 
 class GroupViewSet(viewsets.ModelViewSet):
     """
@@ -394,6 +342,21 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         outstanding_loans = Loan.objects.filter(
             group=group, borrower=member, status__in=['approved', 'disbursed', 'active']
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # A member with unsettled loan obligations cannot exit: the loan pool
+        # would lose its claim on the borrower the moment membership ends.
+        if outstanding_loans > Decimal('0'):
+            return Response(
+                {
+                    "error": (
+                        "Exit blocked: this member has outstanding loan obligations "
+                        f"of {outstanding_loans} {group.currency}. Loans must be fully "
+                        "repaid (or formally waived by the group) before exiting."
+                    ),
+                    "outstanding_loan_obligations": str(outstanding_loans),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         settlement = {
             'total_contributed': str(total_contributed),

@@ -139,6 +139,25 @@ class AdminGroupVerifyView(APIView):
         now = timezone.now()
 
         if action == 'verify':
+            # Governance gate: a group cannot be verified until its chairperson
+            # has completed KYC. Chairpersons control invites, payouts, and loan
+            # approvals — verifying a group under an unverified identity would
+            # let real money move under an unknown person.
+            from apps.accounts.models import User
+            chairperson = User.objects.filter(id=group.chairperson_id).first()
+            if chairperson is None or chairperson.kyc_status != 'verified':
+                return Response(
+                    {
+                        'error': (
+                            'Group cannot be verified: the chairperson has not completed KYC '
+                            'verification. Review their KYC submission first (KYC Review queue), '
+                            'then verify the group.'
+                        ),
+                        'chairperson_kyc_status': getattr(chairperson, 'kyc_status', 'missing'),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             group.verification_status = 'verified'
             group.status              = 'pending_activation'
             group.verification_note   = note
