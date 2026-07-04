@@ -90,17 +90,14 @@ export function RegisterForm() {
       }
       await api.post("/auth/register/", regPayload)
       
-      // 2. Log in
-      const tokenRes = await api.post("/auth/token/", {
+      // 2. Log in — the proxy stores the JWTs in httpOnly cookies; all
+      // subsequent calls are authenticated automatically.
+      await api.post("/auth/token/", {
         email: data.email,
         password: data.password,
       })
-      const access = tokenRes.data.access_token || tokenRes.data.access
-      
-      const profileRes = await api.get("/auth/me/", {
-        headers: { Authorization: `Bearer ${access}` },
-      })
-      setAuth(profileRes.data, access)
+      const profileRes = await api.get("/auth/me/")
+      setAuth(profileRes.data)
 
       // 3. Phone verification is mandatory before joining a group — the
       // verify page sends the SMS code and accepts the invite on success.
@@ -117,10 +114,9 @@ export function RegisterForm() {
         
         if (isAlreadyExists) {
            try {
-             const tokenRes = await api.post("/auth/token/", { email: data.email, password: data.password })
-             const access = tokenRes.data.access_token || tokenRes.data.access
-             const profileRes = await api.get("/auth/me/", { headers: { Authorization: `Bearer ${access}` } })
-             setAuth(profileRes.data, access)
+             await api.post("/auth/token/", { email: data.email, password: data.password })
+             const profileRes = await api.get("/auth/me/")
+             setAuth(profileRes.data)
              const retryInvite = inviteToken || data.group_invite_code
              if (profileRes.data?.phone_verified) {
                router.push("/dashboard")

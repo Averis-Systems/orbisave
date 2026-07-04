@@ -34,17 +34,15 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormValues) => {
     setError(null)
     try {
-      const response = await api.post("/auth/token/", {
+      // The proxy captures the JWTs into httpOnly cookies — the browser
+      // never sees a token; subsequent calls are authenticated automatically.
+      await api.post("/auth/token/", {
         email: data.email,
         password: data.password,
       })
-      const access = response.data.access_token || response.data.access
-      const refresh = response.data.refresh_token || response.data.refresh
-      const profileRes = await api.get("/auth/me/", {
-        headers: { Authorization: `Bearer ${access}` },
-      })
-      setAuth(profileRes.data, access, refresh)
-      router.push("/dashboard")
+      const profileRes = await api.get("/auth/me/")
+      setAuth(profileRes.data)
+      router.push(profileRes.data?.phone_verified ? "/dashboard" : "/verify")
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError("Invalid email or password. Please try again.")

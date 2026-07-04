@@ -7,17 +7,22 @@ const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws'
 /**
  * Custom hook to connect to the Django Channels WebSocket for real-time events.
  * Listens to group-specific events and automatically invalidates React Query caches.
+ *
+ * DEFERRED FEATURE — not invoked by any page yet. JWTs now live in httpOnly
+ * cookies (see /api/backend proxy), so the old ?token= query auth cannot
+ * work from browser JS. When real-time updates are wired, add a short-lived
+ * WS ticket endpoint on the backend and exchange it here.
  */
 export function useWebSocket(groupId?: string) {
-  const { token } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const wsRef = useRef<WebSocket | null>(null)
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!groupId || !token) return
+    if (!groupId || !isAuthenticated) return
 
-    // Connect to the specific group channel with JWT auth
-    const wsUrl = `${WS_BASE_URL}/group/${groupId}/?token=${token}`
+    // TODO(deferred): authenticate via a server-issued one-time ticket.
+    const wsUrl = `${WS_BASE_URL}/group/${groupId}/`
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
@@ -72,7 +77,7 @@ export function useWebSocket(groupId?: string) {
     return () => {
       ws.close()
     }
-  }, [groupId, token, queryClient])
+  }, [groupId, isAuthenticated, queryClient])
 
   return wsRef.current
 }

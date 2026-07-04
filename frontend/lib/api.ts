@@ -1,132 +1,50 @@
 import axios from 'axios'
 import { useAuthStore } from '@/store/auth'
-import Cookies from 'js-cookie'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
-
-const getAuthCookieOptions = () => ({
-  secure: typeof window !== 'undefined' ? window.location.protocol === 'https:' : process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  expires: 7,
-  path: '/',
-})
-
+/**
+ * All requests go through the same-origin proxy (/api/backend/*), which
+ * holds the JWTs in httpOnly cookies, attaches them server-side, and
+ * refreshes them transparently. Browser JavaScript never sees a token —
+ * there is nothing here for an XSS payload to steal.
+ */
 export const api = axios.create({
-  baseURL: API_URL.endsWith('/') ? API_URL : `${API_URL}/`,
+  baseURL: '/api/backend/',
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Request Interceptor: Attach JWT token from cookies or store
-api.interceptors.request.use(
-  (config) => {
-    // Normalize URL: Remove leading slash to ensure it's relative to baseURL (api/v1/)
-    if (config.url?.startsWith('/')) {
-      config.url = config.url.substring(1)
-    }
-
-    // Attempt to get token from cookie first (more reliable across tabs), then fallback to store
-    const token = Cookies.get('access_token') || useAuthStore.getState().token
-    const isAuthRoute = 
-      config.url?.includes('auth/token/') || 
-      config.url?.includes('auth/register/') ||
-      config.url?.includes('admin-portal/auth/')
-    
-    if (token && !config.headers.Authorization && !isAuthRoute) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-
-    const country = useAuthStore.getState().user?.country
-    if (country) {
-      config.headers['X-Country'] = country
-    }
-
-    console.log(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`, {
-      baseURL: config.baseURL,
-      headers: { ...config.headers, Authorization: config.headers.Authorization ? 'Bearer [REDACTED]' : undefined }
-    })
-
-    return config
-  },
-  (error) => {
-    console.error('[API] Request Error:', error.message)
-    return Promise.reject(error)
+api.interceptors.request.use((config) => {
+  // Normalize URL: remove the leading slash so paths stay relative to baseURL.
+  if (config.url?.startsWith('/')) {
+    config.url = config.url.substring(1)
   }
-)
 
-let isRefreshing = false
-let failedQueue: Array<{ resolve: (token: string) => void, reject: (err: any) => void }> = []
+  const country = useAuthStore.getState().user?.country
+  if (country && !config.headers['X-Country']) {
+    config.headers['X-Country'] = country
+  }
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error)
-    } else {
-      prom.resolve(token as string)
-    }
-  })
-  failedQueue = []
-}
+  return config
+})
 
-// Response Interceptor: Handle 401s (Token Expiry) globally
+// The proxy already retried with a refreshed token before a 401 reaches us,
+// so a 401 here means the session is genuinely over.
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config
+  (error) => {
+    const status = error.response?.status
+    const url: string = error.config?.url || ''
+    const isAuthAttempt = url.includes('auth/token') || url.includes('auth/register') || url.includes('password-reset')
 
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && !originalRequest.url?.includes('/auth/login')) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        }).then(token => {
-          originalRequest.headers['Authorization'] = 'Bearer ' + token
-          return api(originalRequest)
-        }).catch(err => Promise.reject(err))
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
-      try {
-        const refreshToken = Cookies.get('refresh_token')
-        if (!refreshToken) {
-            throw new Error("No refresh token available")
-        }
-        
-        // Standard SimpleJWT refresh endpoint
-        const { data } = await axios.post(`${API_URL}/auth/token/refresh/`, { refresh: refreshToken })
-        const { access, refresh: new_refresh_token } = data
-
-        const cookieOptions = getAuthCookieOptions()
-        Cookies.set('access_token', access, cookieOptions)
-        if (new_refresh_token) {
-          Cookies.set('refresh_token', new_refresh_token, cookieOptions)
-        }
-        
-        const currentUser = useAuthStore.getState().user
-        if (currentUser) {
-          useAuthStore.getState().setAuth(currentUser, access)
-        }
-
-        api.defaults.headers.common['Authorization'] = 'Bearer ' + access
-        originalRequest.headers['Authorization'] = 'Bearer ' + access
-
-        processQueue(null, access)
-        return api(originalRequest)
-      } catch (refreshError) {
-        processQueue(refreshError, null)
+    if (status === 401 && !isAuthAttempt && typeof window !== 'undefined') {
+      const onAuthPage = ['/login', '/register', '/verify', '/forgot-password', '/onboarding', '/chama-onboarding']
+        .some((page) => window.location.pathname.startsWith(page))
+      if (!onAuthPage) {
         useAuthStore.getState().logout()
-        Cookies.remove('refresh_token', { path: '/' })
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
-        return Promise.reject(refreshError)
-      } finally {
-        isRefreshing = false
+        window.location.href = '/login'
       }
     }
-
     return Promise.reject(error)
   }
 )

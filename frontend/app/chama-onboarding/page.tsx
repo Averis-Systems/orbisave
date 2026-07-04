@@ -470,7 +470,7 @@ export default function ChamaOnboardingPage() {
   // group creation requires a verified phone (the money number).
   const [verifyStage, setVerifyStage] = useState(false)
   const [otpCode, setOtpCode] = useState("")
-  const pendingRef = useRef<{ access: string; allData: WizardData } | null>(null)
+  const pendingRef = useRef<{ allData: WizardData } | null>(null)
 
   const methods = useForm<WizardData>({
     resolver: zodResolver((
@@ -504,8 +504,10 @@ export default function ChamaOnboardingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const authHeaders = (access: string, country: string) => ({
-    headers: { Authorization: `Bearer ${access}`, 'X-Country': country },
+  // JWTs live in httpOnly cookies set by the /api/backend proxy — requests
+  // after login are authenticated automatically; only X-Country is explicit.
+  const countryHeaders = (country: string) => ({
+    headers: { 'X-Country': country },
   })
 
   // Stage A: create + authenticate the account, then send the SMS code.
@@ -536,30 +538,25 @@ export default function ChamaOnboardingPage() {
         if (!alreadyExists) throw regErr
       }
 
-      // 2. Authenticate to get a fresh token
-      const tokenRes = await api.post("/auth/token/", {
+      // 2. Authenticate — the proxy stores the session in httpOnly cookies
+      await api.post("/auth/token/", {
         email: allData.email,
         password: allData.password
       }, {
         headers: { 'X-Country': allData.country }
       })
-      const access = tokenRes.data.access || tokenRes.data.access_token
-
-      if (!access) {
-        throw new Error("Authentication failed: No access token received.")
-      }
 
       // 3. Fetch Profile & Sync Auth Store
-      const profileRes = await api.get("/auth/me/", authHeaders(access, allData.country))
-      setAuth(profileRes.data, access)
+      const profileRes = await api.get("/auth/me/", countryHeaders(allData.country))
+      setAuth(profileRes.data)
 
-      pendingRef.current = { access, allData }
+      pendingRef.current = { allData }
 
       // 4. Send the verification code and hand over to the verify stage
       if (profileRes.data?.phone_verified) {
-        await createGroupAndPin(access, allData)
+        await createGroupAndPin(allData)
       } else {
-        await api.post("/auth/otp/request/", {}, authHeaders(access, allData.country))
+        await api.post("/auth/otp/request/", {}, countryHeaders(allData.country))
         setVerifyStage(true)
       }
     } catch (err: any) {
@@ -570,24 +567,24 @@ export default function ChamaOnboardingPage() {
     }
   }
 
-  const createGroupAndPin = async (access: string, allData: WizardData) => {
-    await api.post("/groups/", buildExistingAccountChairpersonPayload(allData), authHeaders(access, allData.country))
+  const createGroupAndPin = async (allData: WizardData) => {
+    await api.post("/groups/", buildExistingAccountChairpersonPayload(allData), countryHeaders(allData.country))
     await api.post("/auth/transaction-pin/", {
       pin: allData.transaction_pin,
       password: allData.password // Verification required by backend
-    }, authHeaders(access, allData.country))
+    }, countryHeaders(allData.country))
     setShowSuccess(true)
   }
 
   // Stage B: confirm the code, then create the group and set the PIN.
   const handleVerifyAndCreate = async () => {
     if (!pendingRef.current || otpCode.length !== 6) return
-    const { access, allData } = pendingRef.current
+    const { allData } = pendingRef.current
     setApiError(null)
     setIsSubmittingForm(true)
     try {
-      await api.post("/auth/otp/confirm/", { code: otpCode }, authHeaders(access, allData.country))
-      await createGroupAndPin(access, allData)
+      await api.post("/auth/otp/confirm/", { code: otpCode }, countryHeaders(allData.country))
+      await createGroupAndPin(allData)
     } catch (err: any) {
       console.error("Verification/creation error:", err.response?.data || err.message)
       setApiError(extractApiError(err))
@@ -598,10 +595,10 @@ export default function ChamaOnboardingPage() {
 
   const handleResendOtp = async () => {
     if (!pendingRef.current) return
-    const { access, allData } = pendingRef.current
+    const { allData } = pendingRef.current
     setApiError(null)
     try {
-      await api.post("/auth/otp/request/", {}, authHeaders(access, allData.country))
+      await api.post("/auth/otp/request/", {}, countryHeaders(allData.country))
     } catch (err: any) {
       setApiError(extractApiError(err))
     }
