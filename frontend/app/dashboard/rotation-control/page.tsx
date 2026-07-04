@@ -17,7 +17,7 @@ import { toast } from "sonner"
 
 import { AppStateNotice, AppStatePanel } from "@/components/states/AppState"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import {
   useInitializeRotation,
   useRotationSchedules,
@@ -59,8 +59,7 @@ function errorMessage(err: unknown, fallback: string) {
 }
 
 export default function RotationControlPage() {
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: cycles, isLoading: cyclesLoading } = useRotations(activeGroup?.id || null)
   const currentCycle = cycles?.find((cycle) => cycle.is_current) || cycles?.[0]
   const { data: schedules, isLoading: schedulesLoading } = useRotationSchedules(currentCycle?.id || null)

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { AlertCircle, CheckCircle2, ChevronLeft, Landmark, Percent, Save, ShieldCheck, Vote } from "lucide-react"
 import { toast } from "sonner"
 
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
 import { useAuthStore } from "@/store/auth"
 
@@ -22,8 +22,7 @@ function numberValue(value: string) {
 
 export default function LoanSettingsPage() {
   const user = useAuthStore((state) => state.user)
-  const { data: groups } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup } = useActiveGroup()
   const { data: members } = useMembers(activeGroup?.id || null)
   const currentMembership = members?.find((member) => member.member === user?.id || member.member_email === user?.email)
   const isChairperson = currentMembership?.role === "chairperson" || user?.role === "chairperson"

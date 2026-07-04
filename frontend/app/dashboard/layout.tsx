@@ -22,7 +22,7 @@ import {
 import { KYCModal } from "@/components/dashboard/KYCModal"
 import { GuidedOnboardingModal } from "@/components/dashboard/GuidedOnboardingModal"
 import { AppStateNotice } from "@/components/states/AppState"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useNotifications } from "@/hooks/useNotifications"
 import { getUserDashboardNavItems, type DashboardNavSection } from "@/lib/dashboard-reference"
 
@@ -401,8 +401,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const sidebar = useDashboardSidebar()
   const dashboardTheme = useDashboardTheme()
 
-  const { data: groups } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup } = useActiveGroup()
   const { data: notifications } = useNotifications(activeGroup?.id || null)
   const unreadCount = notifications?.filter((notification) => !notification.read_at).length || 0
 

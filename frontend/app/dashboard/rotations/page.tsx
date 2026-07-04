@@ -12,7 +12,7 @@ import {
 
 import { AppStateNotice, AppStatePanel } from "@/components/states/AppState"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGroups, type Group } from "@/hooks/useGroups"
+import { useActiveGroup, type Group } from "@/hooks/useGroups"
 import { useRotationSchedules, useRotations, type RotationSchedule } from "@/hooks/useRotations"
 import { formatCurrency } from "@/lib/formatters"
 import { getFinancialOutcome } from "@/lib/app-states"
@@ -41,8 +41,7 @@ function formatDate(value?: string) {
 }
 
 export default function RotationsPage() {
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: cycles, isLoading: cyclesLoading } = useRotations(activeGroup?.id || null)
   const currentCycle = cycles?.find((cycle) => cycle.is_current) || cycles?.[0]
   const { data: schedules, isLoading: schedulesLoading } = useRotationSchedules(currentCycle?.id || null)

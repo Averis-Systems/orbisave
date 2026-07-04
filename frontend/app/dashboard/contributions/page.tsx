@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { AppStateNotice, AppStatePanel } from "@/components/states/AppState"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Contribution, useContributions } from "@/hooks/useContributions"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
 import { formatCurrency } from "@/lib/formatters"
 
@@ -33,8 +33,7 @@ const STATUS_STYLES: Record<Contribution["status"], string> = {
 
 export default function ContributionsPage() {
   const [tab, setTab] = useState<ContributionTab>("collections")
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members, isLoading: membersLoading } = useMembers(activeGroup?.id || null)
   const { data: contributions, isLoading: contributionsLoading } = useContributions(activeGroup?.id || null)
 

@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import {
   Member,
   useCreateGroupInvite,
@@ -70,8 +70,7 @@ export default function MembersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
 
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members, isLoading: membersLoading } = useMembers(activeGroup?.id || null)
   const suspendMember = useSuspendMember()
   const reinstateMember = useReinstateMember()

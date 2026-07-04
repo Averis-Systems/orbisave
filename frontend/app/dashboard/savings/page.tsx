@@ -1,7 +1,7 @@
 "use client"
 
 import { PiggyBank, RefreshCw, Wallet } from "lucide-react"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { formatCurrency } from "@/lib/formatters"
 
 function getMandatorySavingsAmount(group: any) {
@@ -14,8 +14,7 @@ function getMandatorySavingsAmount(group: any) {
 }
 
 export default function SavingsPage() {
-  const { data: groups, isLoading } = useGroups()
-  const activeGroup = groups?.[0]
+  const { activeGroup, isLoading } = useActiveGroup()
   const currency = activeGroup?.currency || "KES"
   const mandatorySavings = getMandatorySavingsAmount(activeGroup)
 

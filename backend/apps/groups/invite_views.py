@@ -134,6 +134,15 @@ class GroupInvitePublicView(views.APIView):
         if group.memberships.filter(member=request.user, status__in=['active', 'pending_approval', 'pending_session_refresh']).exists():
             return Response({"error": "User is already linked to this collective."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Production-beta rule: one occupied group slot per user.
+        from .services.membership_policy import get_blocking_membership, SingleGroupLimitError
+        blocking = get_blocking_membership(request.user, exclude_group=group)
+        if blocking is not None:
+            return Response(
+                SingleGroupLimitError(blocking).as_response_data(),
+                status=status.HTTP_409_CONFLICT,
+            )
+
         # Mandatory Next of Kin check
         if not request.user.next_of_kin_name or not request.user.next_of_kin_phone:
             return Response(

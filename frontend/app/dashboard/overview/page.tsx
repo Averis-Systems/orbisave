@@ -26,7 +26,7 @@ import {
   Users,
 } from "lucide-react"
 import { useAuthStore } from "@/store/auth"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMeetings } from "@/hooks/useMeetings"
 import { useLoans } from "@/hooks/useLoans"
 import { useContributions } from "@/hooks/useContributions"
@@ -442,8 +442,7 @@ export default function OverviewPage() {
   const { user } = useAuthStore()
   const router = useRouter()
 
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
 
   const { data: meetings } = useMeetings(activeGroup?.id || null)
   const { data: loans } = useLoans(activeGroup?.id || null)

@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react"
+import { type FormEvent, type ReactNode, useMemo, useState } from "react"
 import {
   CalendarDays,
   CheckCircle2,
@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
 import {
   useCreateMeeting,
@@ -49,10 +49,8 @@ function errorMessage(err: unknown, fallback: string) {
 export default function MeetingsPage() {
   const [tab, setTab] = useState<MeetingTab>("upcoming")
   const [scheduleOpen, setScheduleOpen] = useState(false)
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const user = useAuthStore((state) => state.user)
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.find((group) => group.id === selectedGroupId) || groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members } = useMembers(activeGroup?.id || null)
   const { data: meetings, isLoading: meetingsLoading } = useMeetings(activeGroup?.id || null)
   const startMeeting = useStartMeeting()
@@ -66,12 +64,6 @@ export default function MeetingsPage() {
   const visibleMeetings = tab === "upcoming" ? upcoming : minutes
   const featuredMeeting = upcoming[0] || null
   const loading = groupsLoading || meetingsLoading
-
-  useEffect(() => {
-    if (!selectedGroupId && groups?.length) {
-      setSelectedGroupId(groups[0].id)
-    }
-  }, [groups, selectedGroupId])
 
   const stats = useMemo(
     () => [
@@ -140,44 +132,14 @@ export default function MeetingsPage() {
           </p>
         </div>
         {isChairperson && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {groups && groups.length > 1 && (
-              <select
-                value={activeGroup.id}
-                onChange={(event) => {
-                  setSelectedGroupId(event.target.value)
-                  setTab("upcoming")
-                }}
-                className="group-input min-w-56"
-              >
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>{group.name}</option>
-                ))}
-              </select>
-            )}
-            <button
-              type="button"
-              onClick={() => setScheduleOpen(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover"
-            >
-              <Plus size={15} />
-              Schedule Meeting
-            </button>
-          </div>
-        )}
-        {!isChairperson && groups && groups.length > 1 && (
-          <select
-            value={activeGroup.id}
-            onChange={(event) => {
-              setSelectedGroupId(event.target.value)
-              setTab("upcoming")
-            }}
-            className="group-input min-w-56"
+          <button
+            type="button"
+            onClick={() => setScheduleOpen(true)}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover"
           >
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>{group.name}</option>
-            ))}
-          </select>
+            <Plus size={15} />
+            Schedule Meeting
+          </button>
         )}
       </section>
 

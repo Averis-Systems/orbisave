@@ -6,7 +6,7 @@ import { CalendarDays, CheckCircle2, ChevronLeft, Save, ShieldCheck, Video, Vote
 import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
 import { useMeetingSettings, useUpdateMeetingSettings, type MeetingFrequency, type MeetingProviderMode } from "@/hooks/useMeetings"
 import { useAuthStore } from "@/store/auth"
@@ -29,9 +29,7 @@ function frequencyLabel(value: MeetingFrequency) {
 
 export default function MeetingsSettingsPage() {
   const user = useAuthStore((state) => state.user)
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
-  const activeGroup = groups?.find((group) => group.id === selectedGroupId) || groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members } = useMembers(activeGroup?.id || null)
   const { data: settings, isLoading: settingsLoading } = useMeetingSettings(activeGroup?.id || null)
   const updateMeetingSettings = useUpdateMeetingSettings(activeGroup?.id || null)
@@ -45,12 +43,6 @@ export default function MeetingsSettingsPage() {
   const [providerMode, setProviderMode] = useState<MeetingProviderMode>("daily")
   const [attendanceTracking, setAttendanceTracking] = useState(true)
   const [minutesRequired, setMinutesRequired] = useState(true)
-
-  useEffect(() => {
-    if (!selectedGroupId && groups?.length) {
-      setSelectedGroupId(groups[0].id)
-    }
-  }, [groups, selectedGroupId])
 
   useEffect(() => {
     if (!settings) return
@@ -112,20 +104,7 @@ export default function MeetingsSettingsPage() {
             Configure meeting cadence, quorum rules, voting thresholds, and video preferences for {activeGroup.name}.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {groups && groups.length > 1 && (
-            <select
-              value={activeGroup.id}
-              onChange={(event) => setSelectedGroupId(event.target.value)}
-              className="group-input min-w-56"
-            >
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>{group.name}</option>
-              ))}
-            </select>
-          )}
-          <StatusPill label={isChairperson ? "Chairperson controls" : "Member view"} />
-        </div>
+        <StatusPill label={isChairperson ? "Chairperson controls" : "Member view"} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -8,9 +8,7 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
   Clock3,
-  MapPin,
   Plus,
   RefreshCw,
   Settings,
@@ -25,9 +23,9 @@ import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { useKYCStatus, useSetTransactionPin } from "@/hooks/useAuth"
-import { useGroups, useActivateGroup, useCreateGroup, type CreateGroupPayload, type Group } from "@/hooks/useGroups"
+import { useActiveGroup, useActivateGroup, useCreateGroup, type CreateGroupPayload, type Group } from "@/hooks/useGroups"
 import { useMeetings, type Meeting } from "@/hooks/useMeetings"
-import { useMembers, type Member } from "@/hooks/useMembers"
+import { useExitGroup, useMembers, type Member } from "@/hooks/useMembers"
 import { useRotations, type RotationCycle } from "@/hooks/useRotations"
 import { formatCurrency } from "@/lib/formatters"
 import { CONTRIBUTION_FREQUENCIES, GROUP_TYPES, buildExistingAccountChairpersonPayload, type ContributionFrequency } from "@/lib/chairperson-onboarding"
@@ -107,16 +105,16 @@ function avatarTone(name: string) {
 }
 
 export default function MyGroupsPage() {
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [tab, setTab] = useState<GroupTab>("overview")
   const [createOpen, setCreateOpen] = useState(false)
 
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const selectedGroup = groups?.find((group) => group.id === selectedGroupId) || null
+  // One occupied group slot per user (enforced server-side): the active
+  // group IS the workspace — no picker, no card grid.
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
 
   if (groupsLoading) return <MyGroupSkeleton />
 
-  if (!selectedGroup) {
+  if (!activeGroup) {
     return (
       <div className="space-y-7">
         <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -124,7 +122,7 @@ export default function MyGroupsPage() {
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Group Registry</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">My Group</h1>
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-              Review the groups you belong to, open a group workspace, or create a new community savings group.
+              You can belong to one savings group at a time. Create your group or accept an invitation to get started.
             </p>
           </div>
           <button
@@ -137,19 +135,11 @@ export default function MyGroupsPage() {
           </button>
         </section>
 
-        {groups?.length ? (
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {groups.map((group) => (
-              <GroupCard key={group.id} group={group} onOpen={() => setSelectedGroupId(group.id)} />
-            ))}
-          </section>
-        ) : (
-          <EmptyPanel
-            icon={<Users size={28} />}
-            title="No group memberships yet"
-            description="Create a group or accept an invitation to start managing group contributions, rotations, loans, and meetings."
-          />
-        )}
+        <EmptyPanel
+          icon={<Users size={28} />}
+          title="No group membership yet"
+          description="Create a group or accept an invitation to start managing contributions, rotations, loans, and meetings. Membership in additional groups is coming in a future update."
+        />
 
         {createOpen && <CreateGroupDialog onClose={() => setCreateOpen(false)} />}
       </div>
@@ -158,30 +148,18 @@ export default function MyGroupsPage() {
 
   return (
     <div className="space-y-7">
-      <button
-        type="button"
-        onClick={() => {
-          setSelectedGroupId(null)
-          setTab("overview")
-        }}
-        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 transition hover:text-primary"
-      >
-        <ChevronLeft size={14} />
-        All Groups
-      </button>
-
       <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Group Workspace</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">{selectedGroup.name}</h1>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">{activeGroup.name}</h1>
           <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-            {selectedGroup.currency} group wallet / {statusLabel(selectedGroup.status)}
+            {activeGroup.currency} group wallet / {statusLabel(activeGroup.status)}
           </p>
         </div>
         <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Group Wallet</p>
           <p className="mt-1 text-2xl font-black text-[#0a2540] dark:text-white">
-            {formatCurrency(Number(selectedGroup.wallet?.total || 0), selectedGroup.currency)}
+            {formatCurrency(Number(activeGroup.wallet?.total || 0), activeGroup.currency)}
           </p>
         </div>
       </section>
@@ -207,44 +185,12 @@ export default function MyGroupsPage() {
         })}
       </section>
 
-      {tab === "overview" && <OverviewTab group={selectedGroup} />}
-      {tab === "members" && <MembersTab group={selectedGroup} />}
-      {tab === "rotations" && <RotationsTab group={selectedGroup} />}
-      {tab === "meetings" && <MeetingsTab group={selectedGroup} />}
-      {tab === "settings" && <SettingsTab group={selectedGroup} />}
+      {tab === "overview" && <OverviewTab group={activeGroup} />}
+      {tab === "members" && <MembersTab group={activeGroup} />}
+      {tab === "rotations" && <RotationsTab group={activeGroup} />}
+      {tab === "meetings" && <MeetingsTab group={activeGroup} />}
+      {tab === "settings" && <SettingsTab group={activeGroup} />}
     </div>
-  )
-}
-
-function GroupCard({ group, onOpen }: { group: Group; onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group rounded-lg border border-gray-100 bg-white p-6 text-left shadow-sm transition hover:border-emerald-100 hover:shadow-theme-sm dark:border-white/10 dark:bg-white/[0.03]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">
-          <Users size={20} />
-        </div>
-        <StatusPill status={group.status} />
-      </div>
-      <h2 className="mt-5 text-lg font-black text-[#0a2540] transition group-hover:text-primary dark:text-white">{group.name}</h2>
-      <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-400">
-        <MapPin size={13} />
-        {group.country} / {group.currency}
-      </p>
-      <div className="mt-6 grid grid-cols-2 gap-4 border-t border-gray-100 pt-5 dark:border-white/10">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Group Wallet</p>
-          <p className="mt-1 text-sm font-black text-[#0a2540] dark:text-white">{formatCurrency(Number(group.wallet?.total || 0), group.currency)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Members</p>
-          <p className="mt-1 text-sm font-black text-[#0a2540] dark:text-white">{group.member_count || 0}</p>
-        </div>
-      </div>
-    </button>
   )
 }
 
@@ -451,29 +397,101 @@ function MeetingsTab({ group }: { group: Group }) {
 }
 
 function SettingsTab({ group }: { group: Group }) {
+  const user = useAuthStore((state) => state.user)
+  const { data: members } = useMembers(group.id)
+  const exitGroup = useExitGroup()
+  const [confirmingExit, setConfirmingExit] = useState(false)
+
+  const ownMembership = members?.find(
+    (member) => member.member === user?.id || member.member_email === user?.email,
+  )
+  const isChairperson = ownMembership?.role === "chairperson"
+
+  const handleExit = async () => {
+    if (!ownMembership) return
+    try {
+      await exitGroup.mutateAsync({ groupId: group.id, membershipId: ownMembership.id })
+      toast.success(`You have left ${group.name}. You can now join or create another group.`)
+      setConfirmingExit(false)
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, "Exit could not be completed."))
+      setConfirmingExit(false)
+    }
+  }
+
   return (
-    <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="mb-6 flex items-start gap-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-50 text-[#0a2540] dark:bg-white/10 dark:text-white">
-          <Settings size={20} />
+    <div className="space-y-5">
+      <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="mb-6 flex items-start gap-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-50 text-[#0a2540] dark:bg-white/10 dark:text-white">
+            <Settings size={20} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Settings</h2>
+            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
+              Rule changes should follow the group governance process before they are applied.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Settings</h2>
-          <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
-            Rule changes should follow the group governance process before they are applied.
-          </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ReadOnlyField label="Group name" value={group.name} />
+          <ReadOnlyField label="Contribution day" value={`Day ${group.contribution_day}`} />
+          <ReadOnlyField label="Member capacity" value={`${group.max_members} members`} />
+          <ReadOnlyField label="Monthly loan interest" value={`${group.loan_interest_rate_monthly || 0}%`} />
         </div>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <ReadOnlyField label="Group name" value={group.name} />
-        <ReadOnlyField label="Contribution day" value={`Day ${group.contribution_day}`} />
-        <ReadOnlyField label="Member capacity" value={`${group.max_members} members`} />
-        <ReadOnlyField label="Monthly loan interest" value={`${group.loan_interest_rate_monthly || 0}%`} />
-      </div>
-      <p className="mt-6 rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm font-semibold leading-6 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-        Editable settings will be wired after the governance approval workflow is finalized. This prevents unsafely changing financial rules without group approval.
-      </p>
-    </section>
+        <p className="mt-6 rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm font-semibold leading-6 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+          Editable settings will be wired after the governance approval workflow is finalized. This prevents unsafely changing financial rules without group approval.
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-red-100 bg-white p-6 shadow-sm dark:border-red-500/20 dark:bg-white/[0.03]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-200">
+              <AlertCircle size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Leave Group</h2>
+              <p className="mt-1 max-w-xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
+                {isChairperson
+                  ? "Chairpersons must hand over the role to another member before leaving. Contact support to transfer chairpersonship."
+                  : "Leaving frees your group slot so you can join or create another group. Outstanding loans must be fully repaid first, and your contribution history stays on the group ledger."}
+              </p>
+            </div>
+          </div>
+          {!isChairperson && (
+            confirmingExit ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExit}
+                  disabled={exitGroup.isPending || !ownMembership}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  {exitGroup.isPending ? "Leaving..." : "Confirm Exit"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingExit(false)}
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-100 px-5 text-xs font-black uppercase tracking-widest text-gray-500 transition hover:text-[#0a2540] dark:border-white/10 dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingExit(true)}
+                disabled={!ownMembership}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 px-5 text-xs font-black uppercase tracking-widest text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
+              >
+                Leave This Group
+              </button>
+            )
+          )}
+        </div>
+      </section>
+    </div>
   )
 }
 

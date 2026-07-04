@@ -61,6 +61,23 @@ export function useGroups() {
   })
 }
 
+/**
+ * Single source of truth for the user's one active group.
+ *
+ * Production-beta rule: a user occupies at most one group slot at a time,
+ * enforced server-side (one_active_group_per_member constraint + 409s from
+ * create/join). The first — only — element of /groups/ is therefore THE
+ * active group. When multi-group membership ships as a future update, the
+ * group selector lives behind this hook and every consumer keeps working.
+ */
+export function useActiveGroup() {
+  const query = useGroups()
+  return {
+    ...query,
+    activeGroup: query.data?.[0] ?? null,
+  }
+}
+
 export function useCreateGroup() {
   const queryClient = useQueryClient()
   return useMutation({

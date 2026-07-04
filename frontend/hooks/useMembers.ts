@@ -81,3 +81,30 @@ export function useRemoveMember() {
     }
   })
 }
+
+export interface ExitSettlement {
+  total_contributed: string
+  total_payouts_received: string
+  outstanding_loan_obligations: string
+  net_settlement: string
+  currency: string
+}
+
+/**
+ * Voluntary self-exit. Frees the user's single group slot so they can join
+ * or create another group. Blocked server-side while the member has
+ * outstanding loan obligations; chairpersons must transfer their role first.
+ */
+export function useExitGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ groupId, membershipId }: { groupId: string, membershipId: string }) => {
+      const { data } = await api.post(`/groups/${groupId}/members/${membershipId}/exit/`)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+    }
+  })
+}

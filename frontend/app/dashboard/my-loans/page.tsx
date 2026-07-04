@@ -16,7 +16,7 @@ import { toast } from "sonner"
 
 import { AppStateNotice, AppStatePanel } from "@/components/states/AppState"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { Loan, useApproveLoan, useLoans, useRejectLoan, useRequestLoan } from "@/hooks/useLoans"
 import { fmt } from "@/lib/formatters"
 import { getAppState, getFinancialOutcome } from "@/lib/app-states"
@@ -46,8 +46,7 @@ export default function MyLoansPage() {
   const [rejectLoanId, setRejectLoanId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState("")
 
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: loans, isLoading: loansLoading } = useLoans(activeGroup?.id || null)
   const requestLoan = useRequestLoan()
   const approveLoan = useApproveLoan()

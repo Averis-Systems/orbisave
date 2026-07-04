@@ -4,17 +4,33 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+
+def _resolve_group(obj):
+    """
+    Group-scoped permissions receive different object types depending on the
+    route: the Group itself, or a group-linked row (GroupMember, RotationCycle,
+    Loan, ...). Resolve to the governing Group — permissions must never crash
+    with AttributeError on a financial endpoint (a 500 here previously broke
+    member remove/suspend/reinstate and rotation-schedule routes).
+    """
+    from apps.groups.models import Group
+    if isinstance(obj, Group):
+        return obj
+    return getattr(obj, 'group', None)
+
+
 class IsGroupMember(BasePermission):
     """
     Validates the user has an 'active' GroupMember row linking them to the requested Group.
     Satisfies Checklist Item 11: Multi-tenant isolation (groups cannot access each other).
     """
     def has_object_permission(self, request, view, obj):
-        # Prevent N+1 issues in views, assume obj is a Group. 
-        # For object-level membership checks:
-        has_membership = obj.memberships.filter(member=request.user, status='active').exists()
+        group = _resolve_group(obj)
+        if group is None:
+            return False
+        has_membership = group.memberships.filter(member=request.user, status='active').exists()
         if not has_membership:
-            logger.warning("rbac_violation_group_member", user_id=request.user.id, group_id=obj.id, ip=request.META.get('REMOTE_ADDR'))
+            logger.warning("rbac_violation_group_member", user_id=request.user.id, group_id=group.id, ip=request.META.get('REMOTE_ADDR'))
         return has_membership
 
 class IsGroupChairperson(BasePermission):
@@ -22,13 +38,16 @@ class IsGroupChairperson(BasePermission):
     Must be an active, approved chairperson for the group.
     """
     def has_object_permission(self, request, view, obj):
+        group = _resolve_group(obj)
+        if group is None:
+            return False
         is_chair = (
-            obj.chairperson == request.user
-            and obj.verification_status == 'verified'
-            and obj.memberships.filter(member=request.user, role='chairperson', status='active').exists()
+            group.chairperson == request.user
+            and group.verification_status == 'verified'
+            and group.memberships.filter(member=request.user, role='chairperson', status='active').exists()
         )
         if not is_chair:
-            logger.warning("rbac_violation_chairperson", user_id=request.user.id, group_id=obj.id)
+            logger.warning("rbac_violation_chairperson", user_id=request.user.id, group_id=group.id)
         return is_chair
 
 class IsGroupTreasurer(BasePermission):
@@ -36,9 +55,12 @@ class IsGroupTreasurer(BasePermission):
     Must literally be the treasurer.
     """
     def has_object_permission(self, request, view, obj):
-        is_treasurer = obj.treasurer == request.user
+        group = _resolve_group(obj)
+        if group is None:
+            return False
+        is_treasurer = group.treasurer == request.user
         if not is_treasurer:
-            logger.warning("rbac_violation_treasurer", user_id=request.user.id, group_id=obj.id)
+            logger.warning("rbac_violation_treasurer", user_id=request.user.id, group_id=group.id)
         return is_treasurer
 
 class IsGroupLeader(BasePermission):
@@ -46,9 +68,10 @@ class IsGroupLeader(BasePermission):
     Combinatory Role: Chairperson OR Treasurer.
     """
     def has_object_permission(self, request, view, obj):
-        if obj.verification_status != 'verified':
+        group = _resolve_group(obj)
+        if group is None or group.verification_status != 'verified':
             return False
-        return obj.memberships.filter(
+        return group.memberships.filter(
             member=request.user,
             role__in=['chairperson', 'treasurer'],
             status='active',

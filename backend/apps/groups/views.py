@@ -97,6 +97,18 @@ class GroupViewSet(viewsets.ModelViewSet):
             'ledger_entries'
         )
 
+    def create(self, request, *args, **kwargs):
+        # Production-beta rule: one occupied group slot per user. Creating a
+        # group makes you its (pending) chairperson, which occupies the slot.
+        from .services.membership_policy import get_blocking_membership, SingleGroupLimitError
+        blocking = get_blocking_membership(request.user)
+        if blocking is not None:
+            return Response(
+                SingleGroupLimitError(blocking).as_response_data(),
+                status=status.HTTP_409_CONFLICT,
+            )
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         country = serializer.validated_data['country']
         with transaction.atomic(using=country):
@@ -244,6 +256,11 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     def get_permissions(self):
         if self.action == 'list':
             return [IsAuthenticated(), IsGroupMember()]
+        if self.action == 'exit':
+            # Voluntary exit: any authenticated group member may call it, but
+            # the action itself only allows exiting your OWN membership
+            # (or the chairperson processing a member's exit request).
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsGroupChairperson()]
 
     def get_queryset(self):
@@ -255,6 +272,30 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         membership = self.get_object()
         if membership.role == 'chairperson':
             return Response({"error": "Cannot forcefully remove the group chairperson."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Same financial rule as voluntary exit: removing a borrower would
+        # sever the loan pool's claim on them. Suspend instead while the
+        # obligation is outstanding.
+        from decimal import Decimal
+        from django.db.models import Sum
+        from apps.loans.models import Loan
+        outstanding = Loan.objects.filter(
+            group=membership.group,
+            borrower=membership.member,
+            status__in=['approved', 'disbursed', 'active'],
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        if outstanding > Decimal('0'):
+            return Response(
+                {
+                    "error": (
+                        "Removal blocked: this member has outstanding loan obligations "
+                        f"of {outstanding} {membership.group.currency}. Suspend the member "
+                        "instead, or settle/waive the loans first."
+                    ),
+                    "outstanding_loan_obligations": str(outstanding),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         membership.status = 'exited'  # 'removed' was invalid — 'exited' is the correct state
         membership.exited_at = timezone.now()  # field renamed from left_at
@@ -291,6 +332,16 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     def reinstate(self, request, group_pk=None, pk=None):
         membership = self.get_object()
 
+        # A member who exited and joined a different group cannot be
+        # reinstated here — their single group slot is already occupied.
+        from .services.membership_policy import get_blocking_membership, SingleGroupLimitError
+        blocking = get_blocking_membership(membership.member, exclude_group=membership.group)
+        if blocking is not None:
+            return Response(
+                SingleGroupLimitError(blocking).as_response_data(),
+                status=status.HTTP_409_CONFLICT,
+            )
+
         membership.status = 'active'
         membership.exited_at = None  # field renamed from left_at
         membership.save(update_fields=['status', 'exited_at'])
@@ -309,8 +360,19 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         """
         Voluntary member exit with full settlement calculation.
         Satisfies Financial Engine Checklist §8: Settlement calculation required on exit.
+        Exiting frees the user's single group slot (see membership_policy).
         """
         membership = self.get_object()
+
+        # Only the member themselves — or the chairperson processing an exit
+        # request — may exit a membership.
+        is_self = membership.member_id == request.user.id
+        is_chair = membership.group.chairperson_id == request.user.id
+        if not (is_self or is_chair):
+            return Response(
+                {"error": "You can only exit your own membership."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         if membership.role == 'chairperson':
             return Response(

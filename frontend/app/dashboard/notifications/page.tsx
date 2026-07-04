@@ -1,7 +1,7 @@
 "use client"
 
 import { AlertCircle, Vote, Info, Users, CheckCircle, Bell, CheckSquare, Loader2 } from "lucide-react"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useNotifications } from "@/hooks/useNotifications"
 import { AppStatePanel } from "@/components/states/AppState"
 
@@ -15,8 +15,7 @@ const iconMap: Record<string, any> = {
 }
 
 export default function NotificationsPage() {
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   
   const { data: notifications, isLoading } = useNotifications(activeGroup?.id || null)
   

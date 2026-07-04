@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { AppStateNotice, AppStatePanel } from "@/components/states/AppState"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useFines, type Fine } from "@/hooks/useFines"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
 import { formatCurrency } from "@/lib/formatters"
 import { useAuthStore } from "@/store/auth"
@@ -46,8 +46,7 @@ function errorFreeNumber(value: string) {
 export default function FinesPage() {
   const [tab, setTab] = useState<FineTab>("ledger")
   const user = useAuthStore((state) => state.user)
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members } = useMembers(activeGroup?.id || null)
   const { data: fines, isLoading: finesLoading } = useFines(activeGroup?.id || null)
 

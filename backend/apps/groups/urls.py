@@ -16,6 +16,8 @@ urlpatterns = [
     path('<uuid:group_pk>/members/<uuid:pk>/remove/', GroupMemberActionViewSet.as_view({'post': 'remove'}), name='group-member-remove'),
     path('<uuid:group_pk>/members/<uuid:pk>/suspend/', GroupMemberActionViewSet.as_view({'post': 'suspend'}), name='group-member-suspend'),
     path('<uuid:group_pk>/members/<uuid:pk>/reinstate/', GroupMemberActionViewSet.as_view({'post': 'reinstate'}), name='group-member-reinstate'),
+    # Voluntary self-exit (also frees the user's single group slot).
+    path('<uuid:group_pk>/members/<uuid:pk>/exit/', GroupMemberActionViewSet.as_view({'post': 'exit'}), name='group-member-exit'),
 
     # Includes standard REST routes: GET /groups/, POST /groups/, GET /groups/{id}/
     path('', include(router.urls)),

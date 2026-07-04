@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useGroups } from "@/hooks/useGroups"
+import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
 import { useContributions } from "@/hooks/useContributions"
 import { useLoans } from "@/hooks/useLoans"
@@ -11,8 +11,7 @@ import { Download, Users, BarChart2, CreditCard, ChevronRight, FileText, ArrowUp
 import { fmt } from "@/lib/formatters"
 
 export default function ReportsPage() {
-  const { data: groups, isLoading: groupsLoading } = useGroups()
-  const activeGroup = groups?.[0] || null
+  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   
   const { data: members, isLoading: membersLoading } = useMembers(activeGroup?.id || null)
   const { data: contributions, isLoading: contribsLoading } = useContributions(activeGroup?.id || null)

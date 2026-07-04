@@ -1,7 +1,22 @@
 import secrets
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from common.models import BaseModel
+
+# Membership statuses that OCCUPY a user's single group slot.
+# Production-beta scope decision (2026-07-03): one active group per user.
+# 'suspended' still occupies the slot (it is disciplinary, not an exit), so
+# reinstatement can never collide with a membership acquired elsewhere.
+# Only 'exited' and 'deceased' free the slot. Multi-group membership is a
+# documented future feature — re-enabling it means dropping the
+# one_active_group_per_member constraint and rebuilding the UI, nothing more.
+BLOCKING_MEMBERSHIP_STATUSES = (
+    'active',
+    'pending_approval',
+    'pending_session_refresh',
+    'suspended',
+)
 
 class Group(BaseModel):
     CONTRIBUTION_FREQUENCY = [
@@ -107,6 +122,16 @@ class GroupMember(BaseModel):
     class Meta:
         db_table = 'groups_member'
         unique_together = [('group', 'member')]
+        constraints = [
+            # One occupied group slot per user (see BLOCKING_MEMBERSHIP_STATUSES).
+            # The service layer gives friendly errors; this is the hard floor
+            # that survives any future code path that forgets to check.
+            models.UniqueConstraint(
+                fields=['member'],
+                condition=Q(status__in=BLOCKING_MEMBERSHIP_STATUSES),
+                name='one_active_group_per_member',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.member_id} in {self.group.name} [{self.role}]"
