@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import CountryPolicy, KYCProviderConfiguration, MeetingProviderConfiguration, SystemConfiguration
+from common.encryption import encrypt_value, is_encrypted as value_is_encrypted
+from .models import (
+    CountryPolicy,
+    KYCProviderConfiguration,
+    MeetingProviderConfiguration,
+    NotificationProviderConfiguration,
+    SystemConfiguration,
+)
 
 class SystemConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,6 +20,54 @@ class SystemConfigurationSerializer(serializers.ModelSerializer):
         if instance.is_encrypted:
             ret['value'] = '********'
         return ret
+
+    def validate(self, attrs):
+        # Sensitive config values (API keys, e.g. the translation key) are
+        # Fernet-encrypted at rest the moment they're saved through the API.
+        # Consumers read them via SystemConfiguration.get_value(key).
+        flag = attrs.get('is_encrypted', getattr(self.instance, 'is_encrypted', False))
+        value = attrs.get('value')
+        if flag and value and not value_is_encrypted(value):
+            attrs['value'] = encrypt_value(value)
+        # An edit form round-trips the mask — treat it as "unchanged".
+        if self.instance is not None and value == '********':
+            attrs.pop('value', None)
+        return attrs
+
+
+class NotificationProviderConfigurationSerializer(serializers.ModelSerializer):
+    configured_by_name = serializers.CharField(
+        source='configured_by.full_name',
+        read_only=True,
+        default=None,
+    )
+    has_api_key = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NotificationProviderConfiguration
+        fields = [
+            'id', 'name', 'provider_code', 'environment', 'status',
+            'username', 'api_key', 'sender_id', 'notes',
+            'configured_by_name', 'has_api_key',
+            'last_tested_at', 'last_test_status', 'last_test_message',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'configured_by_name', 'has_api_key',
+            'last_tested_at', 'last_test_status', 'last_test_message',
+            'created_at', 'updated_at',
+        ]
+        extra_kwargs = {
+            'api_key': {'write_only': True, 'required': False, 'allow_blank': True},
+        }
+
+    def get_has_api_key(self, obj):
+        return bool(obj.api_key)
+
+    def update(self, instance, validated_data):
+        if validated_data.get('api_key') == '':
+            validated_data.pop('api_key')
+        return super().update(instance, validated_data)
 
 
 class KYCProviderConfigurationSerializer(serializers.ModelSerializer):

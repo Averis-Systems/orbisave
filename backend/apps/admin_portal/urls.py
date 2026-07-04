@@ -57,6 +57,15 @@ from .config_views import (
     MeetingProviderListView,
     MeetingProviderTestView,
     MeetingProviderToggleView,
+    NotificationProviderDetailView,
+    NotificationProviderListView,
+    NotificationProviderTestView,
+    NotificationProviderToggleView,
+)
+from .reconciliation_views import (
+    ReconciliationItemActionView,
+    ReconciliationItemListView,
+    ReconciliationRunListView,
 )
 
 from .monitoring_views import (
@@ -107,6 +116,11 @@ urlpatterns = [
     # ── Trust Account ─────────────────────────────────────────────────────────
     path('trust-account/', AdminTrustAccountView.as_view(), name='admin-trust-account'),
 
+    # ── Reconciliation Queue (country-scoped for platform admins) ────────────
+    path('reconciliation/runs/',  ReconciliationRunListView.as_view(),  name='recon-runs'),
+    path('reconciliation/items/', ReconciliationItemListView.as_view(), name='recon-items'),
+    path('reconciliation/items/<uuid:item_id>/action/', ReconciliationItemActionView.as_view(), name='recon-item-action'),
+
     # ─────────────────────────────────────────────────────────────────────────
     # SUPER ADMIN ONLY
     # ─────────────────────────────────────────────────────────────────────────
@@ -137,6 +151,12 @@ urlpatterns = [
     path('superadmin/meeting-providers/<uuid:provider_id>/',    MeetingProviderDetailView.as_view(), name='meeting-provider-detail'),
     path('superadmin/meeting-providers/<uuid:provider_id>/toggle/', MeetingProviderToggleView.as_view(), name='meeting-provider-toggle'),
     path('superadmin/meeting-providers/<uuid:provider_id>/test/',   MeetingProviderTestView.as_view(), name='meeting-provider-test'),
+
+    # SMS / Notification Provider Configuration (OTP + alerts delivery rail)
+    path('superadmin/notification-providers/',                        NotificationProviderListView.as_view(), name='notification-provider-list'),
+    path('superadmin/notification-providers/<uuid:provider_id>/',     NotificationProviderDetailView.as_view(), name='notification-provider-detail'),
+    path('superadmin/notification-providers/<uuid:provider_id>/toggle/', NotificationProviderToggleView.as_view(), name='notification-provider-toggle'),
+    path('superadmin/notification-providers/<uuid:provider_id>/test/',   NotificationProviderTestView.as_view(), name='notification-provider-test'),
 
     # Country Policy Guardrails
     path('superadmin/country-policies/',                    CountryPolicyListView.as_view(), name='country-policy-list'),

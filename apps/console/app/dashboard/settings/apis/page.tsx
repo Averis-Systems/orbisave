@@ -15,6 +15,7 @@ import {
   Key,
   Loader2,
   Lock,
+  MessageSquare,
   Plus,
   RefreshCcw,
   ShieldCheck,
@@ -29,7 +30,7 @@ import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
 
-type TabKey = 'kyc' | 'payments' | 'meetings' | 'platform' | 'logs'
+type TabKey = 'kyc' | 'payments' | 'sms' | 'meetings' | 'platform' | 'logs'
 
 interface Config {
   id: string
@@ -122,6 +123,34 @@ interface MeetingProviderForm {
   notes: string
 }
 
+interface SmsProvider {
+  id: string
+  name: string
+  provider_code: 'africastalking' | 'custom'
+  environment: 'sandbox' | 'live'
+  status: string
+  username: string
+  sender_id: string
+  notes: string
+  has_api_key: boolean
+  last_tested_at?: string | null
+  last_test_status?: string
+  last_test_message?: string
+  updated_at: string
+}
+
+interface SmsProviderForm {
+  id?: string
+  name: string
+  provider_code: 'africastalking' | 'custom'
+  environment: 'sandbox' | 'live'
+  status: string
+  username: string
+  api_key: string
+  sender_id: string
+  notes: string
+}
+
 interface LogEntry {
   id: string
   provider_name: string
@@ -162,22 +191,37 @@ const emptyMeetingForm: MeetingProviderForm = {
   notes: '',
 }
 
+const emptySmsForm: SmsProviderForm = {
+  name: "Africa's Talking SMS",
+  provider_code: 'africastalking',
+  environment: 'sandbox',
+  status: 'inactive',
+  username: 'sandbox',
+  api_key: '',
+  sender_id: '',
+  notes: '',
+}
+
 export default function ApiOperationsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('kyc')
   const [configs, setConfigs] = useState<Config[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
   const [kycProviders, setKycProviders] = useState<KycProvider[]>([])
   const [meetingProviders, setMeetingProviders] = useState<MeetingProvider[]>([])
+  const [smsProviders, setSmsProviders] = useState<SmsProvider[]>([])
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [metrics, setMetrics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [savingKyc, setSavingKyc] = useState(false)
   const [savingMeetingProvider, setSavingMeetingProvider] = useState(false)
+  const [savingSms, setSavingSms] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [showKycDialog, setShowKycDialog] = useState(false)
   const [showMeetingDialog, setShowMeetingDialog] = useState(false)
+  const [showSmsDialog, setShowSmsDialog] = useState(false)
   const [kycForm, setKycForm] = useState<KycProviderForm>(emptyKycForm)
   const [meetingForm, setMeetingForm] = useState<MeetingProviderForm>(emptyMeetingForm)
+  const [smsForm, setSmsForm] = useState<SmsProviderForm>(emptySmsForm)
 
   useEffect(() => {
     fetchData()
@@ -186,11 +230,12 @@ export default function ApiOperationsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [configRes, providerRes, kycRes, meetingRes, logRes, metricRes] = await Promise.all([
+      const [configRes, providerRes, kycRes, meetingRes, smsRes, logRes, metricRes] = await Promise.all([
         api.get('/admin-portal/superadmin/settings/?category=api_data'),
         api.get('/admin-portal/superadmin/payment-providers/'),
         api.get('/admin-portal/superadmin/kyc-providers/'),
         api.get('/admin-portal/superadmin/meeting-providers/'),
+        api.get('/admin-portal/superadmin/notification-providers/'),
         api.get('/admin-portal/superadmin/monitoring/logs/'),
         api.get('/admin-portal/superadmin/monitoring/metrics/'),
       ])
@@ -198,6 +243,7 @@ export default function ApiOperationsPage() {
       setProviders(providerRes.data.results || [])
       setKycProviders(kycRes.data.results || [])
       setMeetingProviders(meetingRes.data.results || [])
+      setSmsProviders(smsRes.data.results || [])
       setLogs(logRes.data || [])
       setMetrics(metricRes.data || null)
     } catch (error) {
@@ -209,18 +255,87 @@ export default function ApiOperationsPage() {
 
   const health = metrics?.summary?.success_rate ?? 100
   const meetingProvidersConfigured = meetingProviders.length
-  const connectedServices = configs.length + providers.length + kycProviders.length + meetingProvidersConfigured
+  const connectedServices =
+    configs.length + providers.length + kycProviders.length + meetingProvidersConfigured + smsProviders.length
 
   const tabs = useMemo(
     () => [
       { key: 'kyc' as const, label: 'KYC Identity', count: kycProviders.length },
       { key: 'payments' as const, label: 'Payment Providers', count: providers.length },
+      { key: 'sms' as const, label: 'SMS / OTP', count: smsProviders.length },
       { key: 'meetings' as const, label: 'Meeting Providers', count: meetingProvidersConfigured },
       { key: 'platform' as const, label: 'Platform APIs', count: configs.length },
       { key: 'logs' as const, label: 'Audit Logs', count: logs.length },
     ],
-    [configs.length, kycProviders.length, logs.length, meetingProvidersConfigured, providers.length],
+    [configs.length, kycProviders.length, logs.length, meetingProvidersConfigured, providers.length, smsProviders.length],
   )
+
+  const openSmsDialog = (provider?: SmsProvider) => {
+    if (provider) {
+      setSmsForm({
+        id: provider.id,
+        name: provider.name,
+        provider_code: provider.provider_code,
+        environment: provider.environment,
+        status: provider.status,
+        username: provider.username || '',
+        api_key: '',
+        sender_id: provider.sender_id || '',
+        notes: provider.notes || '',
+      })
+    } else {
+      setSmsForm(emptySmsForm)
+    }
+    setShowSmsDialog(true)
+  }
+
+  const saveSmsProvider = async (event: FormEvent) => {
+    event.preventDefault()
+    setSavingSms(true)
+    try {
+      if (smsForm.id) {
+        await api.patch(`/admin-portal/superadmin/notification-providers/${smsForm.id}/`, smsForm)
+      } else {
+        await api.post('/admin-portal/superadmin/notification-providers/', smsForm)
+      }
+      toast.success('SMS provider configuration saved.')
+      setShowSmsDialog(false)
+      await fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'SMS provider could not be saved.')
+    } finally {
+      setSavingSms(false)
+    }
+  }
+
+  const testSmsProvider = async (id: string) => {
+    setTestingId(id)
+    try {
+      // Bare field-completeness check; a Console operator can add test_phone
+      // to send a real message. Kept simple here.
+      const { data } = await api.post(`/admin-portal/superadmin/notification-providers/${id}/test/`)
+      if (data.success) {
+        toast.success(data.message || 'SMS provider configuration is ready.')
+      } else {
+        toast.error(data.message || 'SMS provider configuration needs attention.')
+      }
+      await fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'SMS provider test failed.')
+    } finally {
+      setTestingId(null)
+    }
+  }
+
+  const toggleSmsProvider = async (id: string) => {
+    try {
+      await api.post(`/admin-portal/superadmin/notification-providers/${id}/toggle/`)
+      toast.success('SMS provider status updated.')
+      await fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'SMS provider status could not be changed.')
+    }
+  }
 
   const openKycDialog = (provider?: KycProvider) => {
     if (provider) {
@@ -394,11 +509,17 @@ export default function ApiOperationsPage() {
             Refresh
           </button>
           <button
-            onClick={() => activeTab === 'meetings' ? openMeetingDialog() : openKycDialog()}
+            onClick={() =>
+              activeTab === 'meetings'
+                ? openMeetingDialog()
+                : activeTab === 'sms'
+                  ? openSmsDialog()
+                  : openKycDialog()
+            }
             className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-primary/90"
           >
             <Plus size={16} />
-            {activeTab === 'meetings' ? 'Add Meeting Provider' : 'Add Didit'}
+            {activeTab === 'meetings' ? 'Add Meeting Provider' : activeTab === 'sms' ? 'Add SMS Provider' : 'Add Didit'}
           </button>
         </div>
       </section>
@@ -490,6 +611,17 @@ export default function ApiOperationsPage() {
           />
         )}
         {activeTab === 'payments' && <PaymentTab loading={loading} providers={providers} />}
+        {activeTab === 'sms' && (
+          <SmsProvidersTab
+            loading={loading}
+            providers={smsProviders}
+            testingId={testingId}
+            onAdd={() => openSmsDialog()}
+            onEdit={openSmsDialog}
+            onTest={testSmsProvider}
+            onToggle={toggleSmsProvider}
+          />
+        )}
         {activeTab === 'meetings' && (
           <MeetingProvidersTab
             loading={loading}
@@ -523,6 +655,193 @@ export default function ApiOperationsPage() {
           onSubmit={saveMeetingProvider}
         />
       )}
+      {showSmsDialog && (
+        <SmsProviderDialog
+          form={smsForm}
+          saving={savingSms}
+          onChange={setSmsForm}
+          onClose={() => setShowSmsDialog(false)}
+          onSubmit={saveSmsProvider}
+        />
+      )}
+    </div>
+  )
+}
+
+function SmsProvidersTab({
+  loading,
+  providers,
+  testingId,
+  onAdd,
+  onEdit,
+  onTest,
+  onToggle,
+}: {
+  loading: boolean
+  providers: SmsProvider[]
+  testingId: string | null
+  onAdd: () => void
+  onEdit: (provider: SmsProvider) => void
+  onTest: (id: string) => void
+  onToggle: (id: string) => void
+}) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ProviderSkeleton />
+        <ProviderSkeleton />
+      </div>
+    )
+  }
+
+  if (!providers.length) {
+    return (
+      <EmptyState
+        icon={<MessageSquare size={24} />}
+        title="No SMS provider configured"
+        description="Add Africa's Talking to deliver signup OTPs, password-reset codes, and alerts. The active provider is used platform-wide."
+        actionLabel="Add SMS Provider"
+        onAction={onAdd}
+      />
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {providers.map((provider) => (
+        <div key={provider.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-primary">
+                  <MessageSquare size={17} />
+                </span>
+                <div>
+                  <p className="text-sm font-black text-navy">{provider.name}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                    {provider.provider_code} · {provider.environment}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <StatusBadge status={provider.status} />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+            <DetailRow label="Username" value={provider.username || '—'} />
+            <DetailRow label="Sender ID" value={provider.sender_id || '—'} />
+            <DetailRow label="API Key" value={provider.has_api_key ? '•••••• set' : 'not set'} />
+            <DetailRow label="Updated" value={new Date(provider.updated_at).toLocaleDateString()} />
+          </div>
+
+          {provider.last_test_message && (
+            <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-medium text-slate-500">
+              {provider.last_test_message}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => onEdit(provider)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[11px] font-black uppercase tracking-widest text-navy transition hover:bg-slate-50"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => onTest(provider.id)}
+              disabled={testingId === provider.id}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[11px] font-black uppercase tracking-widest text-navy transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              {testingId === provider.id ? 'Testing…' : 'Test'}
+            </button>
+            <button
+              onClick={() => onToggle(provider.id)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[11px] font-black uppercase tracking-widest text-white transition ${
+                provider.status === 'active' ? 'bg-slate-400 hover:bg-slate-500' : 'bg-primary hover:bg-primary/90'
+              }`}
+            >
+              {provider.status === 'active' ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SmsProviderDialog({
+  form,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  form: SmsProviderForm
+  saving: boolean
+  onChange: (form: SmsProviderForm) => void
+  onClose: () => void
+  onSubmit: (event: FormEvent) => void
+}) {
+  const set = (patch: Partial<SmsProviderForm>) => onChange({ ...form, ...patch })
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/60 p-4 backdrop-blur-sm">
+      <form onSubmit={onSubmit} className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-black text-navy">{form.id ? 'Edit' : 'Add'} SMS Provider</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              Delivers OTP and alerts. Credentials are encrypted at rest and never returned by the API.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-navy">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="md:col-span-2 space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Display name</span>
+            <input value={form.name} onChange={(e) => set({ name: e.target.value })} required className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-navy outline-none focus:border-primary" />
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Provider</span>
+            <select value={form.provider_code} onChange={(e) => set({ provider_code: e.target.value as SmsProviderForm['provider_code'] })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-navy outline-none focus:border-primary">
+              <option value="africastalking">Africa&apos;s Talking</option>
+              <option value="custom">Custom / Other</option>
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Environment</span>
+            <select value={form.environment} onChange={(e) => set({ environment: e.target.value as SmsProviderForm['environment'] })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-navy outline-none focus:border-primary">
+              <option value="sandbox">Sandbox</option>
+              <option value="live">Live</option>
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Username</span>
+            <input value={form.username} onChange={(e) => set({ username: e.target.value })} placeholder="sandbox" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-navy outline-none focus:border-primary" />
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Sender ID</span>
+            <input value={form.sender_id} onChange={(e) => set({ sender_id: e.target.value })} placeholder="ORBISAVE" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-navy outline-none focus:border-primary" />
+          </label>
+          <label className="md:col-span-2 space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              API Key {form.id && <span className="text-slate-300">(leave blank to keep current)</span>}
+            </span>
+            <input type="password" value={form.api_key} onChange={(e) => set({ api_key: e.target.value })} placeholder="••••••••••••" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-navy outline-none focus:border-primary" />
+          </label>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-navy hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="submit" disabled={saving} className="rounded-lg bg-primary px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white hover:bg-primary/90 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save Provider'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
@@ -1159,6 +1478,15 @@ function InfoRow({ label, value, secure }: { label: string; value: string; secur
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2 last:border-b-0">
       <span className="text-xs font-bold text-slate-400">{label}</span>
       <span className={`max-w-[60%] truncate text-right text-xs font-black ${secure ? 'text-primary' : 'text-navy'}`}>{value}</span>
+    </div>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-0.5 font-bold text-navy">{value}</p>
     </div>
   )
 }

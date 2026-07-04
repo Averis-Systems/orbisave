@@ -29,6 +29,16 @@ def _active_config():
     )
 
 
+def send_via_config(config, phone: str, message: str) -> dict:
+    """
+    Send through a SPECIFIC provider config (used by the Console
+    test-connection flow, regardless of which provider is 'active').
+    """
+    if config.provider_code == 'africastalking':
+        return _send_via_africastalking(config, phone, message)
+    raise SmsDeliveryError(f"SMS provider '{config.provider_code}' has no implementation.")
+
+
 def _send_via_africastalking(config, phone: str, message: str) -> dict:
     import africastalking
 

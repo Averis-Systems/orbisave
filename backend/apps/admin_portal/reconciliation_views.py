@@ -1,0 +1,177 @@
+"""
+Reconciliation queue — the human half of the fail-closed design.
+
+The statement import and webhook flows open ReconciliationRun/Item rows for
+anything the bank and the ledger disagree on; these endpoints are how country
+admins SEE and RESOLVE them. platform_admins are scoped to their country;
+super_admins see everything.
+"""
+import structlog
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.ledger.models import ReconciliationItem, ReconciliationRun
+from common.db_utils import financial_db_aliases
+from common.permissions import IsPlatformAdmin
+
+logger = structlog.get_logger(__name__)
+
+
+def _country_scope(request):
+    """None = unrestricted (super_admin); else the admin's country."""
+    if request.user.role == 'super_admin':
+        return None
+    return request.user.country
+
+
+def _collect(model, scope_country, filters=None, order='-created_at', limit=200):
+    """Merge rows across financial aliases, tagging each with its alias."""
+    rows = []
+    for alias in financial_db_aliases():
+        qs = model.objects.using(alias).all()
+        if filters:
+            qs = qs.filter(**filters)
+        if scope_country:
+            qs = qs.filter(country=scope_country) if hasattr(model, 'country') else qs
+        for obj in qs.order_by(order)[:limit]:
+            obj._alias = alias
+            rows.append(obj)
+    return rows
+
+
+class ReconciliationRunListView(APIView):
+    """GET /api/v1/admin-portal/reconciliation/runs/"""
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        results = []
+        for alias in financial_db_aliases():
+            qs = ReconciliationRun.objects.using(alias).all()
+            if scope:
+                qs = qs.filter(country=scope)
+            for run in qs.order_by('-business_date', '-created_at')[:100]:
+                open_items = (
+                    ReconciliationItem.objects.using(alias)
+                    .filter(run=run, status__in=['open', 'investigating'])
+                    .count()
+                )
+                results.append({
+                    'id': str(run.id),
+                    'country': run.country,
+                    'provider_code': run.provider_code,
+                    'account_stream': run.account_stream,
+                    'account_number': run.account_number,
+                    'business_date': str(run.business_date),
+                    'status': run.status,
+                    'expected_closing_balance': str(run.expected_closing_balance) if run.expected_closing_balance is not None else None,
+                    'observed_closing_balance': str(run.observed_closing_balance) if run.observed_closing_balance is not None else None,
+                    'open_items': open_items,
+                    'created_at': run.created_at.isoformat(),
+                })
+        results.sort(key=lambda r: r['business_date'], reverse=True)
+        return Response({'count': len(results), 'results': results})
+
+
+class ReconciliationItemListView(APIView):
+    """GET /api/v1/admin-portal/reconciliation/items/?status=open"""
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        scope = _country_scope(request)
+        wanted_status = request.query_params.get('status', 'open')
+        results = []
+        for alias in financial_db_aliases():
+            qs = ReconciliationItem.objects.using(alias).select_related('run', 'group')
+            if wanted_status != 'all':
+                statuses = ['open', 'investigating'] if wanted_status == 'open' else [wanted_status]
+                qs = qs.filter(status__in=statuses)
+            if scope:
+                qs = qs.filter(run__country=scope)
+            for item in qs.order_by('-created_at')[:200]:
+                results.append({
+                    'id': str(item.id),
+                    'issue_type': item.issue_type,
+                    'status': item.status,
+                    'severity': item.severity,
+                    'account_stream': item.account_stream,
+                    'reference': item.reference,
+                    'provider_reference': item.provider_reference,
+                    'bank_reference': item.bank_reference,
+                    'expected_amount': str(item.expected_amount) if item.expected_amount is not None else None,
+                    'observed_amount': str(item.observed_amount) if item.observed_amount is not None else None,
+                    'currency': item.currency,
+                    'group_name': item.group.name if item.group_id else None,
+                    'run_id': str(item.run_id) if item.run_id else None,
+                    'business_date': str(item.run.business_date) if item.run_id else None,
+                    'details': item.details,
+                    'created_at': item.created_at.isoformat(),
+                })
+        results.sort(key=lambda r: r['created_at'], reverse=True)
+        return Response({'count': len(results), 'results': results})
+
+
+class ReconciliationItemActionView(APIView):
+    """
+    POST /api/v1/admin-portal/reconciliation/items/<item_id>/action/
+    Body: {action: 'investigating'|'resolved'|'escalated', note: '...'}
+    Resolution here NEVER edits the ledger — money corrections are posted as
+    compensating reconciliation_adjustment entries through the ledger service.
+    """
+    permission_classes = [IsPlatformAdmin]
+
+    ALLOWED = {'investigating', 'resolved', 'escalated'}
+
+    def post(self, request, item_id):
+        action = str(request.data.get('action', '')).lower()
+        note = str(request.data.get('note', '')).strip()
+        if action not in self.ALLOWED:
+            return Response(
+                {'error': f"action must be one of {sorted(self.ALLOWED)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if action in ('resolved', 'escalated') and not note:
+            return Response(
+                {'error': 'A note is required when resolving or escalating.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        item = None
+        for alias in financial_db_aliases():
+            item = ReconciliationItem.objects.using(alias).select_related('run').filter(id=item_id).first()
+            if item is not None:
+                break
+        if item is None:
+            return Response({'error': 'Reconciliation item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        scope = _country_scope(request)
+        if scope and item.run_id and item.run.country != scope:
+            return Response({'error': 'Forbidden — different country.'}, status=status.HTTP_403_FORBIDDEN)
+
+        item.status = action
+        details = dict(item.details or {})
+        details.setdefault('resolution_log', []).append({
+            'action': action,
+            'note': note,
+            'by': request.user.email,
+            'at': timezone.now().isoformat(),
+        })
+        item.details = details
+        update_fields = ['status', 'details', 'updated_at']
+        if action == 'resolved':
+            item.resolved_at = timezone.now()
+            item.resolved_by = request.user
+            update_fields += ['resolved_at', 'resolved_by']
+        item.save(update_fields=update_fields)
+
+        from apps.audit.services import log_audit
+        log_audit(
+            action='reconciliation_item_action',
+            actor=request.user,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            metadata={'item_id': str(item.id), 'action': action, 'issue_type': item.issue_type},
+        )
+        logger.info('reconciliation_item_action', item_id=str(item.id), action=action, by=request.user.email)
+        return Response({'status': item.status})

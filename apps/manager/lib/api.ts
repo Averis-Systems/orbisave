@@ -1,5 +1,6 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
+import { useAuthStore } from '@/store/auth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
@@ -14,11 +15,19 @@ api.interceptors.request.use(
   (config) => {
     const token = Cookies.get('access_token')
     const isAuthRoute = config.url?.includes('/auth/login') || config.url?.includes('/auth/register')
-    
+
     if (token && !config.headers.Authorization && !isAuthRoute) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    // For manager portal, we might need X-Country header if the admin manages multiple or to enforce scope
+
+    // Country context for the backend's per-country database routing.
+    // CountryMiddleware runs before JWT auth, so the header is the ONLY
+    // reliable signal on authenticated admin traffic — the manager portal
+    // is country-scoped and MUST send it.
+    const country = useAuthStore.getState().user?.country
+    if (country && !config.headers['X-Country']) {
+      config.headers['X-Country'] = country
+    }
     return config
   },
   (error) => Promise.reject(error)

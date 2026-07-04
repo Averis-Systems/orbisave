@@ -3,11 +3,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from .models import CountryPolicy, KYCProviderConfiguration, MeetingProviderConfiguration, SystemConfiguration
+from .models import (
+    CountryPolicy,
+    KYCProviderConfiguration,
+    MeetingProviderConfiguration,
+    NotificationProviderConfiguration,
+    SystemConfiguration,
+)
 from .serializers import (
     CountryPolicySerializer,
     KYCProviderConfigurationSerializer,
     MeetingProviderConfigurationSerializer,
+    NotificationProviderConfigurationSerializer,
     SystemConfigurationSerializer,
 )
 from .views import IsSuperAdmin
@@ -347,6 +354,153 @@ class MeetingProviderTestView(APIView):
             'success': success,
             'status': provider.last_test_status,
             'message': provider.last_test_message,
+            'missing': missing,
+        })
+
+
+class NotificationProviderListView(APIView):
+    """
+    GET/POST /api/v1/admin-portal/superadmin/notification-providers/
+    SMS/OTP delivery rail (Africa's Talking first) — console-managed.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        qs = NotificationProviderConfiguration.objects.all()
+        serializer = NotificationProviderConfigurationSerializer(qs, many=True)
+        return Response({'count': qs.count(), 'results': serializer.data})
+
+    def post(self, request):
+        serializer = NotificationProviderConfigurationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        provider = serializer.save(configured_by=request.user)
+        _audit_admin_action(
+            request,
+            'notification_provider_create',
+            {
+                'provider_id': str(provider.id),
+                'provider_code': provider.provider_code,
+                'environment': provider.environment,
+            },
+        )
+        return Response(
+            NotificationProviderConfigurationSerializer(provider).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class NotificationProviderDetailView(APIView):
+    """PATCH/DELETE /api/v1/admin-portal/superadmin/notification-providers/<id>/"""
+    permission_classes = [IsSuperAdmin]
+
+    def _get_object(self, provider_id):
+        try:
+            return NotificationProviderConfiguration.objects.get(id=provider_id)
+        except NotificationProviderConfiguration.DoesNotExist:
+            return None
+
+    def patch(self, request, provider_id):
+        provider = self._get_object(provider_id)
+        if provider is None:
+            return Response({'error': 'Notification provider not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = NotificationProviderConfigurationSerializer(provider, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        provider = serializer.save()
+        _audit_admin_action(
+            request,
+            'notification_provider_update',
+            {'provider_id': str(provider.id), 'provider_code': provider.provider_code},
+        )
+        return Response(NotificationProviderConfigurationSerializer(provider).data)
+
+    def delete(self, request, provider_id):
+        provider = self._get_object(provider_id)
+        if provider is None:
+            return Response({'error': 'Notification provider not found.'}, status=status.HTTP_404_NOT_FOUND)
+        metadata = {'provider_id': str(provider.id), 'provider_code': provider.provider_code}
+        provider.delete()
+        _audit_admin_action(request, 'notification_provider_delete', metadata)
+        return Response({'message': 'Notification provider removed.'})
+
+
+class NotificationProviderToggleView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request, provider_id):
+        try:
+            provider = NotificationProviderConfiguration.objects.get(id=provider_id)
+        except NotificationProviderConfiguration.DoesNotExist:
+            return Response({'error': 'Notification provider not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        provider.status = 'inactive' if provider.status == 'active' else 'active'
+        provider.save(update_fields=['status', 'updated_at'])
+        _audit_admin_action(
+            request,
+            'notification_provider_toggle',
+            {'provider_id': str(provider.id), 'new_status': provider.status},
+        )
+        return Response({'status': provider.status})
+
+
+class NotificationProviderTestView(APIView):
+    """
+    POST /api/v1/admin-portal/superadmin/notification-providers/<id>/test/
+    Field-completeness check; when body includes test_phone, also attempts a
+    REAL SMS through this specific provider config.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request, provider_id):
+        try:
+            provider = NotificationProviderConfiguration.objects.get(id=provider_id)
+        except NotificationProviderConfiguration.DoesNotExist:
+            return Response({'error': 'Notification provider not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        missing = [
+            label for label, value in [
+                ('username', provider.username),
+                ('api_key', provider.api_key),
+            ] if not value
+        ]
+        success = not missing
+        message = (
+            'Configuration is ready for SMS delivery.'
+            if success else
+            f"Missing required fields: {', '.join(missing)}."
+        )
+
+        test_phone = str(request.data.get('test_phone') or '').strip()
+        if success and test_phone:
+            from apps.notifications.sms import SmsDeliveryError, send_via_config
+            try:
+                result = send_via_config(
+                    provider, test_phone,
+                    'OrbiSave test message — your SMS provider configuration works.',
+                )
+                message = f"Test SMS dispatched via {result['channel']} to {test_phone}."
+            except SmsDeliveryError as exc:
+                success = False
+                message = f'Test SMS failed: {exc}'
+
+        provider.last_tested_at = timezone.now()
+        provider.last_test_status = 'ready' if success else 'error'
+        provider.last_test_message = message
+        if not success:
+            provider.status = 'error'
+        provider.save(update_fields=[
+            'last_tested_at', 'last_test_status', 'last_test_message',
+            'status', 'updated_at',
+        ])
+        _audit_admin_action(
+            request,
+            'notification_provider_test',
+            {'provider_id': str(provider.id), 'success': success},
+        )
+        return Response({
+            'success': success,
+            'status': provider.last_test_status,
+            'message': message,
             'missing': missing,
         })
 

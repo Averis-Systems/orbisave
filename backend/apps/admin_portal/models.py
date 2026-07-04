@@ -33,6 +33,18 @@ class SystemConfiguration(BaseModel):
     def __str__(self):
         return f"{self.key} ({self.category})"
 
+    @classmethod
+    def get_value(cls, key, default=None):
+        """
+        Resolve a config value, transparently decrypting encrypted entries —
+        the read API for service code (e.g. the translation client).
+        """
+        from common.encryption import decrypt_value
+        config = cls.objects.filter(key=key).first()
+        if config is None or not config.value:
+            return default
+        return decrypt_value(config.value)
+
 
 class KYCProviderConfiguration(BaseModel):
     """
