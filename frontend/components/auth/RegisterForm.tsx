@@ -101,20 +101,11 @@ export function RegisterForm() {
         headers: { Authorization: `Bearer ${access}` },
       })
       setAuth(profileRes.data, access)
-      
-      // 3. Accept invite explicitly if needed
-      if (inviteToken) {
-        try {
-          await api.post(`/invites/${inviteToken}/`, {}, {
-             headers: { Authorization: `Bearer ${access}` }
-          })
-        } catch (inviteErr) {
-          console.error("Invite accept failed", inviteErr)
-          // Continue to dashboard anyway, they are logged in
-        }
-      }
 
-      router.push("/dashboard")
+      // 3. Phone verification is mandatory before joining a group — the
+      // verify page sends the SMS code and accepts the invite on success.
+      const effectiveInvite = inviteToken || data.group_invite_code
+      router.push(effectiveInvite ? `/verify?invite=${encodeURIComponent(effectiveInvite)}` : "/verify")
     } catch (err: any) {
       if (err.response?.data) {
         const d = err.response.data
@@ -130,7 +121,12 @@ export function RegisterForm() {
              const access = tokenRes.data.access_token || tokenRes.data.access
              const profileRes = await api.get("/auth/me/", { headers: { Authorization: `Bearer ${access}` } })
              setAuth(profileRes.data, access)
-             router.push("/dashboard")
+             const retryInvite = inviteToken || data.group_invite_code
+             if (profileRes.data?.phone_verified) {
+               router.push("/dashboard")
+             } else {
+               router.push(retryInvite ? `/verify?invite=${encodeURIComponent(retryInvite)}` : "/verify")
+             }
              return
            } catch (loginErr) {
              // Fall through to original error if auto-login also fails

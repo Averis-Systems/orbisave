@@ -36,7 +36,7 @@ export default function PlatformSettingsPage() {
 
   const fetchConfigs = async () => {
     try {
-      const { data } = await api.get('/superadmin/settings/?category=platform')
+      const { data } = await api.get('/admin-portal/superadmin/settings/?category=platform')
       setConfigs(data)
     } catch (err) {
       toast.error('System Error: Configuration service unavailable.')
@@ -48,7 +48,7 @@ export default function PlatformSettingsPage() {
   const handleUpdate = async (id: string, value: string) => {
     setSaving(id)
     try {
-      await api.patch(`/superadmin/settings/${id}/`, { value })
+      await api.patch(`/admin-portal/superadmin/settings/${id}/`, { value })
       toast.success('System: Parameter updated successfully.')
     } catch (err) {
       toast.error('Configuration update failed.')

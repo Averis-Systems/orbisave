@@ -134,6 +134,17 @@ class GroupInvitePublicView(views.APIView):
         if group.memberships.filter(member=request.user, status__in=['active', 'pending_approval', 'pending_session_refresh']).exists():
             return Response({"error": "User is already linked to this collective."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Money-adjacent action: the phone number that mobile-money flows
+        # through must be verified before joining a group.
+        if not request.user.phone_verified:
+            return Response(
+                {
+                    'error': 'Verify your phone number before joining a group.',
+                    'code': 'phone_unverified',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Production-beta rule: one occupied group slot per user.
         from .services.membership_policy import get_blocking_membership, SingleGroupLimitError
         blocking = get_blocking_membership(request.user, exclude_group=group)

@@ -98,6 +98,17 @@ class GroupViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
+        # Money-adjacent action: the phone number that mobile-money flows
+        # through must be verified before a group can be created.
+        if not request.user.phone_verified:
+            return Response(
+                {
+                    'error': 'Verify your phone number before creating a group.',
+                    'code': 'phone_unverified',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Production-beta rule: one occupied group slot per user. Creating a
         # group makes you its (pending) chairperson, which occupies the slot.
         from .services.membership_policy import get_blocking_membership, SingleGroupLimitError

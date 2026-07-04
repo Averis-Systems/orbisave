@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -36,6 +38,20 @@ def test_chairperson_registers_authenticates_creates_pending_group_and_sets_pin(
 
     authed = APIClient()
     authed.credentials(HTTP_AUTHORIZATION=f"Bearer {access}", HTTP_X_COUNTRY="kenya")
+
+    # Phone verification is mandatory before any group/money action — this is
+    # the real production sequence: register → login → verify phone → create.
+    with patch("apps.accounts.otp_views.send_sms", return_value={"channel": "logged"}) as sender:
+        otp_request = authed.post("/api/v1/auth/otp/request/")
+    assert otp_request.status_code == status.HTTP_200_OK
+    sms_message = sender.call_args.args[1]
+    raw_code = next(
+        part for part in sms_message.replace(".", " ").split()
+        if part.isdigit() and len(part) == 6
+    )
+    otp_confirm = authed.post("/api/v1/auth/otp/confirm/", {"code": raw_code}, format="json")
+    assert otp_confirm.status_code == status.HTTP_200_OK
+
     group_response = authed.post(
         "/api/v1/groups/",
         {

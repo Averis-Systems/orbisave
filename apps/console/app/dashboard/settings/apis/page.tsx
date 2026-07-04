@@ -187,12 +187,12 @@ export default function ApiOperationsPage() {
     setLoading(true)
     try {
       const [configRes, providerRes, kycRes, meetingRes, logRes, metricRes] = await Promise.all([
-        api.get('/superadmin/settings/?category=api_data'),
-        api.get('/superadmin/payment-providers/'),
-        api.get('/superadmin/kyc-providers/'),
-        api.get('/superadmin/meeting-providers/'),
-        api.get('/superadmin/monitoring/logs/'),
-        api.get('/superadmin/monitoring/metrics/'),
+        api.get('/admin-portal/superadmin/settings/?category=api_data'),
+        api.get('/admin-portal/superadmin/payment-providers/'),
+        api.get('/admin-portal/superadmin/kyc-providers/'),
+        api.get('/admin-portal/superadmin/meeting-providers/'),
+        api.get('/admin-portal/superadmin/monitoring/logs/'),
+        api.get('/admin-portal/superadmin/monitoring/metrics/'),
       ])
       setConfigs(configRes.data || [])
       setProviders(providerRes.data.results || [])
@@ -278,9 +278,9 @@ export default function ApiOperationsPage() {
     }
     try {
       if (kycForm.id) {
-        await api.patch(`/superadmin/kyc-providers/${kycForm.id}/`, payload)
+        await api.patch(`/admin-portal/superadmin/kyc-providers/${kycForm.id}/`, payload)
       } else {
-        await api.post('/superadmin/kyc-providers/', payload)
+        await api.post('/admin-portal/superadmin/kyc-providers/', payload)
       }
       toast.success('KYC provider configuration saved.')
       setShowKycDialog(false)
@@ -295,7 +295,7 @@ export default function ApiOperationsPage() {
   const testKycProvider = async (id: string) => {
     setTestingId(id)
     try {
-      const { data } = await api.post(`/superadmin/kyc-providers/${id}/test/`)
+      const { data } = await api.post(`/admin-portal/superadmin/kyc-providers/${id}/test/`)
       if (data.success) {
         toast.success(data.message || 'KYC provider configuration is ready.')
       } else {
@@ -311,7 +311,7 @@ export default function ApiOperationsPage() {
 
   const toggleKycProvider = async (id: string) => {
     try {
-      await api.post(`/superadmin/kyc-providers/${id}/toggle/`)
+      await api.post(`/admin-portal/superadmin/kyc-providers/${id}/toggle/`)
       toast.success('KYC provider status updated.')
       await fetchData()
     } catch (error: any) {
@@ -331,9 +331,9 @@ export default function ApiOperationsPage() {
     }
     try {
       if (meetingForm.id) {
-        await api.patch(`/superadmin/meeting-providers/${meetingForm.id}/`, payload)
+        await api.patch(`/admin-portal/superadmin/meeting-providers/${meetingForm.id}/`, payload)
       } else {
-        await api.post('/superadmin/meeting-providers/', payload)
+        await api.post('/admin-portal/superadmin/meeting-providers/', payload)
       }
       toast.success('Meeting provider configuration saved.')
       setShowMeetingDialog(false)
@@ -348,7 +348,7 @@ export default function ApiOperationsPage() {
   const testMeetingProvider = async (id: string) => {
     setTestingId(id)
     try {
-      const { data } = await api.post(`/superadmin/meeting-providers/${id}/test/`)
+      const { data } = await api.post(`/admin-portal/superadmin/meeting-providers/${id}/test/`)
       if (data.success) {
         toast.success(data.message || 'Meeting provider configuration is ready.')
       } else {
@@ -364,7 +364,7 @@ export default function ApiOperationsPage() {
 
   const toggleMeetingProvider = async (id: string) => {
     try {
-      await api.post(`/superadmin/meeting-providers/${id}/toggle/`)
+      await api.post(`/admin-portal/superadmin/meeting-providers/${id}/toggle/`)
       toast.success('Meeting provider status updated.')
       await fetchData()
     } catch (error: any) {

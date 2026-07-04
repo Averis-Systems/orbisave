@@ -152,6 +152,17 @@ class InitiateContributionView(views.APIView):
         phone      = serializer.validated_data['phone']
         method     = serializer.validated_data['method']
 
+        # Money movement requires a verified phone: the STK push targets the
+        # member's number, and an unverified number is an unowned number.
+        if not request.user.phone_verified:
+            return Response(
+                {
+                    'error': 'Verify your phone number before making contributions.',
+                    'code': 'phone_unverified',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         membership_db_alias = get_db_for_country(getattr(request.user, 'country', None))
         try:
             membership = GroupMember.objects.using(membership_db_alias).select_related('group').get(

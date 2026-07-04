@@ -119,9 +119,20 @@ class KYCDocument(BaseModel):
         ordering = ['-created_at']
 
 class PhoneOTP(BaseModel):
-    """One-time codes for phone number verification."""
+    """
+    One-time codes for phone verification and password reset.
+    Codes are stored HASHED (a password-reset OTP grants account takeover, so
+    a database leak must not expose live codes) and scoped by purpose so a
+    verification code can never be replayed as a reset code.
+    """
+    PURPOSES = [
+        ('phone_verify', 'Phone Verification'),
+        ('password_reset', 'Password Reset'),
+    ]
+
     user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='phone_otps')
-    code           = models.CharField(max_length=6)
+    code           = models.CharField(max_length=128, help_text="Hashed OTP — never stored in plaintext")
+    purpose        = models.CharField(max_length=20, choices=PURPOSES, default='phone_verify')
     expires_at     = models.DateTimeField()
     used           = models.BooleanField(default=False)
     attempt_count  = models.PositiveSmallIntegerField(default=0)

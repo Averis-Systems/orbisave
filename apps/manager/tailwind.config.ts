@@ -19,7 +19,10 @@ const config = {
           mid: "#1c3a5f",
           light: "#1e3a5c",
         },
-        slate: "#4a5c6a",
+        // NOTE: never add a flat `slate: "<hex>"` override here — it replaces
+        // Tailwind's entire slate-50…950 scale and silently breaks every
+        // slate-### class on the functional pages (login, KYC, groups, audit).
+        // Console had the identical bug; both are now fixed.
       },
       boxShadow: {
         "theme-xs": "0px 1px 2px 0px rgba(16, 24, 40, 0.05)",

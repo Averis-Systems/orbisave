@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useForm, FormProvider, useFormContext } from "react-hook-form"
@@ -442,6 +442,23 @@ function StepSecurity() {
 
 import { SuccessOverlay } from "@/components/ui/SuccessOverlay"
 
+function extractApiError(err: any): string {
+  if (err?.response?.data) {
+    const d = err.response.data
+    let message = d.error || d.message || d.detail || d.errors?.detail?.[0] || d.non_field_errors?.[0]
+    if (!message && typeof d === 'object') {
+      const firstKey = Object.keys(d)[0]
+      if (firstKey && Array.isArray(d[firstKey])) {
+        message = `${firstKey}: ${d[firstKey][0]}`
+      } else {
+        message = JSON.stringify(d)
+      }
+    }
+    return message || "An unexpected error occurred."
+  }
+  return err?.message || "Network error. Please check your connection."
+}
+
 export default function ChamaOnboardingPage() {
   const router = useRouter()
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -449,6 +466,11 @@ export default function ChamaOnboardingPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [isSubmittingForm, setIsSubmittingForm] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  // Phone-verification stage between account creation and group creation:
+  // group creation requires a verified phone (the money number).
+  const [verifyStage, setVerifyStage] = useState(false)
+  const [otpCode, setOtpCode] = useState("")
+  const pendingRef = useRef<{ access: string; allData: WizardData } | null>(null)
 
   const methods = useForm<WizardData>({
     resolver: zodResolver((
@@ -482,92 +504,106 @@ export default function ChamaOnboardingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const authHeaders = (access: string, country: string) => ({
+    headers: { Authorization: `Bearer ${access}`, 'X-Country': country },
+  })
+
+  // Stage A: create + authenticate the account, then send the SMS code.
+  // Group creation happens only after the phone is verified (Stage B).
   const onSubmit = async (data: WizardData) => {
     setApiError(null)
     setIsSubmittingForm(true)
-    
+
     // Safety check: ensure we have all data even if the partial resolver missed something
     const allData = { ...getValues(), ...data }
-    
+
     try {
-      // 1. Register the Chairperson
-      await api.post("/auth/register/", {
-        full_name: allData.full_name,
-        email: allData.email,
-        phone: allData.phone,
-        password: allData.password,
-        role: "chairperson",
-        country: allData.country
-      }, {
-        headers: { 'X-Country': allData.country }
-      })
+      // 1. Register the Chairperson (tolerate a retry after partial success)
+      try {
+        await api.post("/auth/register/", {
+          full_name: allData.full_name,
+          email: allData.email,
+          phone: allData.phone,
+          password: allData.password,
+          role: "chairperson",
+          country: allData.country
+        }, {
+          headers: { 'X-Country': allData.country }
+        })
+      } catch (regErr: any) {
+        const d = regErr?.response?.data
+        const alreadyExists = d?.email?.[0]?.includes("already exists") || d?.phone?.[0]?.includes("already exists")
+        if (!alreadyExists) throw regErr
+      }
 
       // 2. Authenticate to get a fresh token
-      const tokenRes = await api.post("/auth/token/", { 
-        email: allData.email, 
-        password: allData.password 
+      const tokenRes = await api.post("/auth/token/", {
+        email: allData.email,
+        password: allData.password
       }, {
         headers: { 'X-Country': allData.country }
       })
       const access = tokenRes.data.access || tokenRes.data.access_token
-      
+
       if (!access) {
         throw new Error("Authentication failed: No access token received.")
       }
 
       // 3. Fetch Profile & Sync Auth Store
-      const profileRes = await api.get("/auth/me/", { 
-        headers: { 
-          Authorization: `Bearer ${access}`,
-          'X-Country': allData.country
-        } 
-      })
+      const profileRes = await api.get("/auth/me/", authHeaders(access, allData.country))
       setAuth(profileRes.data, access)
 
-      // 4. Create Group with explicit headers for isolation
-      await api.post("/groups/", buildExistingAccountChairpersonPayload(allData), { 
-        headers: { 
-          Authorization: `Bearer ${access}`,
-          'X-Country': allData.country 
-        } 
-      })
+      pendingRef.current = { access, allData }
 
-      // 5. Set Transaction PIN
-      await api.post("/auth/transaction-pin/", {
-        pin: allData.transaction_pin,
-        password: allData.password // Verification required by backend
-      }, {
-        headers: { 
-          Authorization: `Bearer ${access}`,
-          'X-Country': allData.country 
-        }
-      })
-
-      setShowSuccess(true)
+      // 4. Send the verification code and hand over to the verify stage
+      if (profileRes.data?.phone_verified) {
+        await createGroupAndPin(access, allData)
+      } else {
+        await api.post("/auth/otp/request/", {}, authHeaders(access, allData.country))
+        setVerifyStage(true)
+      }
     } catch (err: any) {
       console.error("Onboarding submission error:", err.response?.data || err.message)
-      if (err.response?.data) {
-        const d = err.response.data
-        // Standardize error message extraction from the wrapped response
-        // If it's a validation error object, try to format it nicely
-        let errorMessage = d.message || d.detail || d.errors?.detail?.[0] || d.non_field_errors?.[0]
-        
-        if (!errorMessage && typeof d === 'object') {
-          // If we have field-specific errors but no top-level message, show the first one
-          const firstKey = Object.keys(d)[0]
-          if (firstKey && Array.isArray(d[firstKey])) {
-            errorMessage = `${firstKey}: ${d[firstKey][0]}`
-          } else {
-            errorMessage = JSON.stringify(d)
-          }
-        }
-        
-        setApiError(errorMessage || "An unexpected error occurred.")
-      } else {
-        setApiError(err.message || "Network error. Please check your connection.")
-      }
+      setApiError(extractApiError(err))
     } finally {
       setIsSubmittingForm(false)
+    }
+  }
+
+  const createGroupAndPin = async (access: string, allData: WizardData) => {
+    await api.post("/groups/", buildExistingAccountChairpersonPayload(allData), authHeaders(access, allData.country))
+    await api.post("/auth/transaction-pin/", {
+      pin: allData.transaction_pin,
+      password: allData.password // Verification required by backend
+    }, authHeaders(access, allData.country))
+    setShowSuccess(true)
+  }
+
+  // Stage B: confirm the code, then create the group and set the PIN.
+  const handleVerifyAndCreate = async () => {
+    if (!pendingRef.current || otpCode.length !== 6) return
+    const { access, allData } = pendingRef.current
+    setApiError(null)
+    setIsSubmittingForm(true)
+    try {
+      await api.post("/auth/otp/confirm/", { code: otpCode }, authHeaders(access, allData.country))
+      await createGroupAndPin(access, allData)
+    } catch (err: any) {
+      console.error("Verification/creation error:", err.response?.data || err.message)
+      setApiError(extractApiError(err))
+    } finally {
+      setIsSubmittingForm(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (!pendingRef.current) return
+    const { access, allData } = pendingRef.current
+    setApiError(null)
+    try {
+      await api.post("/auth/otp/request/", {}, authHeaders(access, allData.country))
+    } catch (err: any) {
+      setApiError(extractApiError(err))
     }
   }
 
@@ -576,11 +612,58 @@ export default function ChamaOnboardingPage() {
   return (
     <FormProvider {...methods}>
       {showSuccess && (
-        <SuccessOverlay 
-          message="Chama Created!" 
-          submessage="Your collective is ready. Redirecting to your dashboard..." 
+        <SuccessOverlay
+          message="Chama Created!"
+          submessage="Your collective is ready. Redirecting to your dashboard..."
           onComplete={() => router.push("/dashboard")}
         />
+      )}
+      {verifyStage && !showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a2540]/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-2xl dark:bg-gray-950">
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-widest uppercase mb-4">
+              Final Step: Verify Phone
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Verify your phone number</h2>
+            <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground">
+              We sent a 6-digit SMS code to <strong>{pendingRef.current?.allData.phone}</strong>. Contributions
+              and payouts flow through this number, so it must be verified before your chama is created.
+            </p>
+
+            {apiError && (
+              <div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+                {apiError}
+              </div>
+            )}
+
+            <input
+              type="text"
+              inputMode="numeric"
+              autoFocus
+              maxLength={6}
+              value={otpCode}
+              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="mt-6 w-full rounded-lg border border-border bg-muted/30 p-4 text-center text-2xl font-bold tracking-[0.5em] text-foreground outline-none focus:border-primary"
+              placeholder="000000"
+            />
+
+            <button
+              type="button"
+              onClick={handleVerifyAndCreate}
+              disabled={otpCode.length !== 6 || isSubmittingForm}
+              className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-lg bg-primary text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+            >
+              {isSubmittingForm ? "Verifying & creating your chama…" : "Verify & Create Chama"}
+            </button>
+
+            <p className="mt-4 text-center text-xs font-medium text-muted-foreground">
+              Didn&apos;t get the SMS?{" "}
+              <button type="button" onClick={handleResendOtp} className="font-bold text-primary hover:underline">
+                Resend code
+              </button>
+            </p>
+          </div>
+        </div>
       )}
       <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans selection:bg-primary/20 selection:text-primary">
         

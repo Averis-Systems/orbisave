@@ -134,6 +134,55 @@ class MeetingProviderConfiguration(BaseModel):
         return f"{self.name} [{self.provider_code}/{self.environment}]"
 
 
+class NotificationProviderConfiguration(BaseModel):
+    """
+    Super-admin managed SMS/notification provider credentials (Africa's
+    Talking first). Same console-managed, encrypted-at-rest pattern as the
+    payment/KYC/meeting providers: no env-file credentials, kill-switchable,
+    testable. OTP delivery (signup verification, password reset) resolves the
+    active provider at send time; with none active, dev environments fall
+    back to logging the message.
+    """
+    PROVIDER_CHOICES = [
+        ('africastalking', "Africa's Talking"),
+        ('custom', 'Custom / Other'),
+    ]
+    ENVIRONMENT_CHOICES = [('sandbox', 'Sandbox'), ('live', 'Live')]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('testing', 'Testing'),
+        ('error', 'Error'),
+    ]
+
+    name = models.CharField(max_length=150)
+    provider_code = models.CharField(max_length=30, choices=PROVIDER_CHOICES, default='africastalking')
+    environment = models.CharField(max_length=10, choices=ENVIRONMENT_CHOICES, default='sandbox')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
+    username = models.CharField(max_length=150, blank=True, help_text="Provider account username (AT: 'sandbox' for sandbox)")
+    api_key = EncryptedTextField(blank=True)
+    sender_id = models.CharField(max_length=30, blank=True, help_text="Registered SMS sender ID / shortcode")
+    notes = models.TextField(blank=True)
+    configured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='configured_notification_providers',
+    )
+    last_tested_at = models.DateTimeField(null=True, blank=True)
+    last_test_status = models.CharField(max_length=20, blank=True)
+    last_test_message = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'notification_provider_configuration'
+        ordering = ['provider_code', 'environment', 'name']
+        unique_together = [('provider_code', 'environment')]
+
+    def __str__(self):
+        return f"{self.name} [{self.provider_code}/{self.environment}]"
+
+
 class CountryPolicy(BaseModel):
     """
     Super-admin managed country policy guardrails.

@@ -1,16 +1,28 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useState, useRef, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { AuthSlider } from "@/components/auth/AuthSlider"
 import { AppStatePanel } from "@/components/states/AppState"
 import { AlertTriangle } from "lucide-react"
+import { api } from "@/lib/api"
+import { useAuthStore } from "@/store/auth"
 
 const CODE_LENGTH = 6
 
-export default function VerifyPage() {
+function errorMessage(err: unknown, fallback: string) {
+  if (typeof err !== "object" || !err || !("response" in err)) return fallback
+  const response = (err as { response?: { data?: { error?: string; message?: string } } }).response
+  return response?.data?.error || response?.data?.message || fallback
+}
+
+function VerifyPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const inviteToken = searchParams.get("invite")
+  const user = useAuthStore((state) => state.user)
+
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -18,6 +30,22 @@ export default function VerifyPage() {
   const [canResend, setCanResend] = useState(false)
   const [verified, setVerified] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const requestedRef = useRef(false)
+
+  const requestCode = useCallback(async () => {
+    try {
+      await api.post("/auth/otp/request/")
+    } catch (err: unknown) {
+      setError(errorMessage(err, "The code could not be sent. Try resending in a moment."))
+    }
+  }, [])
+
+  // Send the first code automatically when the page opens.
+  useEffect(() => {
+    if (requestedRef.current) return
+    requestedRef.current = true
+    void requestCode()
+  }, [requestCode])
 
   // Countdown timer for resend
   useEffect(() => {
@@ -58,11 +86,22 @@ export default function VerifyPage() {
     setLoading(true)
     setError(null)
     try {
-      // await api.post("/auth/verify/", { code })
-      await new Promise(r => setTimeout(r, 1000))
+      await api.post("/auth/otp/confirm/", { code })
+
+      // Invited members accept their invite once the phone is verified —
+      // joining a group requires a verified number.
+      if (inviteToken) {
+        try {
+          await api.post(`/invites/${inviteToken}/`)
+        } catch (err: unknown) {
+          setError(errorMessage(err, "Phone verified, but the invite could not be accepted. Open your invite link again."))
+          setLoading(false)
+          return
+        }
+      }
       setVerified(true)
-    } catch {
-      setError("Invalid or expired code. Please try again.")
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Invalid or expired code. Please try again."))
       setDigits(Array(CODE_LENGTH).fill(""))
       inputRefs.current[0]?.focus()
     } finally {
@@ -70,11 +109,12 @@ export default function VerifyPage() {
     }
   }
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setCountdown(60)
     setCanResend(false)
     setDigits(Array(CODE_LENGTH).fill(""))
     inputRefs.current[0]?.focus()
+    await requestCode()
   }
 
   const isFull = digits.every(Boolean)
@@ -132,9 +172,10 @@ export default function VerifyPage() {
               <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
               Identity Verification
             </div>
-            <h1 className="auth-heading__title">Verify your email</h1>
+            <h1 className="auth-heading__title">Verify your phone number</h1>
             <p className="auth-heading__sub">
-              We sent a 6-digit code to your email address. Enter it below to verify your account.
+              We sent a 6-digit code by SMS to {user?.phone || "your phone number"}. Enter it below —
+              this is the number your contributions and payouts will flow through.
             </p>
           </div>
 
@@ -179,5 +220,13 @@ export default function VerifyPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={null}>
+      <VerifyPageInner />
+    </Suspense>
   )
 }

@@ -14,6 +14,7 @@ def auth_user(db):
         full_name='Contrib User',
         country='kenya',
         kyc_status='verified',
+        phone_verified=True,
         next_of_kin_name='Contrib Next',
         next_of_kin_phone='+254722222222',
     )
