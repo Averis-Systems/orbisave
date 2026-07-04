@@ -3,18 +3,25 @@ from apps.notifications.models import Notification
 
 logger = structlog.get_logger(__name__)
 
-def notify_user(user, title, body, notification_type='system', related_object_id=None):
+def notify_user(user, title, body, notification_type='admin_alert', related_object_id=None):
     """
     Utility to create a persistent in-app notification for a user.
-    Optionally triggers background push/SMS via Celery (TODO).
+
+    NOTE: field names must match the Notification model (recipient/type/
+    metadata) — a silent kwargs mismatch here previously meant NO in-app
+    notification was ever created platform-wide.
     """
+    valid_types = {choice for choice, _ in Notification.TYPE_CHOICES}
+    if notification_type not in valid_types:
+        notification_type = 'admin_alert'
     try:
         notification = Notification.objects.create(
-            user=user,
+            recipient=user,
             title=title,
             body=body,
-            notification_type=notification_type,
-            related_object_id=related_object_id
+            type=notification_type,
+            channel='in_app',
+            metadata={'related_object_id': str(related_object_id)} if related_object_id else {},
         )
         logger.info("notification_created", user_id=str(user.id), type=notification_type)
         return notification

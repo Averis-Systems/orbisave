@@ -9,10 +9,25 @@ class OrbiSaveRouter:
     PLATFORM_APPS = {'accounts', 'audit', 'notifications', 'auth', 'contenttypes', 'sessions', 'admin', 'token_blacklist', 'django_celery_beat', 'django_celery_results'}
     FINANCIAL_APPS = {'groups', 'contributions', 'loans', 'ledger', 'payouts', 'payments', 'analytics', 'meetings'}
 
+    def _instance_origin(self, hints):
+        """
+        Canonical multi-DB idiom: an instance loaded from a database must be
+        read/written on THAT database. Without this, `instance.save()` under a
+        different thread-local country targets the wrong DB and 'affects 0
+        rows' — silently for updates, catastrophically for financial state.
+        """
+        instance = hints.get('instance')
+        if instance is not None and getattr(instance, '_state', None) is not None:
+            return instance._state.db
+        return None
+
     def db_for_read(self, model, **hints):
         if model._meta.app_label in self.PLATFORM_APPS:
             return 'default'
         if model._meta.app_label in self.FINANCIAL_APPS:
+            origin = self._instance_origin(hints)
+            if origin:
+                return origin
             # Check if a specific db is hinted, otherwise fallback to thread-local
             country = hints.get('country', get_current_country())
             if country in ['kenya', 'rwanda', 'ghana']:
@@ -25,6 +40,9 @@ class OrbiSaveRouter:
         if model._meta.app_label in self.PLATFORM_APPS:
             return 'default'
         if model._meta.app_label in self.FINANCIAL_APPS:
+            origin = self._instance_origin(hints)
+            if origin:
+                return origin
             country = hints.get('country', get_current_country())
             if country in ['kenya', 'rwanda', 'ghana']:
                 return country

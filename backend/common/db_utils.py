@@ -54,3 +54,26 @@ def get_db_for_country(country: str) -> str:
     if alias not in settings.DATABASES:
         return 'default'
     return alias
+
+
+def financial_db_aliases():
+    """
+    Every configured alias that can hold financial rows ('default' first).
+    Cross-country admin views use this to locate a row whose country is not
+    known up front — CountryMiddleware runs before DRF's JWT auth, so
+    thread-local routing cannot be relied on for authenticated admin traffic.
+    """
+    aliases = ['default']
+    for alias in COUNTRY_DB_MAP.values():
+        if alias in settings.DATABASES and alias not in aliases:
+            aliases.append(alias)
+    return aliases
+
+
+def find_across_financial_dbs(model, **filters):
+    """First matching instance of `model` across all financial aliases, or None."""
+    for alias in financial_db_aliases():
+        instance = model.objects.using(alias).filter(**filters).first()
+        if instance is not None:
+            return instance
+    return None

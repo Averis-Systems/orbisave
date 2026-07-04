@@ -30,7 +30,7 @@ class AdminGroupDetailView(APIView):
     def get(self, request, group_id):
         scope = _country_scope(request)
         try:
-            g = Group.objects.select_related('chairperson', 'treasurer', 'verified_by').get(
+            g = Group.objects.get(
                 id=group_id, **scope
             )
         except Group.DoesNotExist:
@@ -46,8 +46,8 @@ class AdminGroupDetailView(APIView):
             total_repaid=Sum('amount', filter=Q(entry_type='loan_repayment', direction='credit')),
         )
 
-        members = GroupMember.objects.filter(group=g).select_related('member')
-        loans = Loan.objects.filter(group=g).select_related('borrower')
+        members = GroupMember.objects.filter(group=g)
+        loans = Loan.objects.filter(group=g)
         contribs = Contribution.objects.filter(group=g)
 
         return Response({
@@ -115,7 +115,7 @@ class AdminGroupMembersView(APIView):
         except Group.DoesNotExist:
             return Response({'error': 'Group not found.'}, status=404)
 
-        members = GroupMember.objects.filter(group=g).select_related('member').order_by('rotation_position')
+        members = GroupMember.objects.filter(group=g).order_by('rotation_position')
         results = []
         for m in members:
             u = m.member
@@ -149,7 +149,7 @@ class AdminGroupContributionsView(APIView):
         except Group.DoesNotExist:
             return Response({'error': 'Group not found.'}, status=404)
 
-        qs = Contribution.objects.filter(group=g).select_related('member').order_by('-created_at')
+        qs = Contribution.objects.filter(group=g).order_by('-created_at')
         s = request.query_params.get('status')
         if s:
             qs = qs.filter(status=s)
@@ -191,7 +191,7 @@ class AdminGroupLoansView(APIView):
         except Group.DoesNotExist:
             return Response({'error': 'Group not found.'}, status=404)
 
-        qs = Loan.objects.filter(group=g).select_related('borrower').order_by('-created_at')
+        qs = Loan.objects.filter(group=g).order_by('-created_at')
         s = request.query_params.get('status')
         if s:
             qs = qs.filter(status=s)
@@ -226,7 +226,7 @@ class AdminGroupLedgerView(APIView):
             return Response({'error': 'Group not found.'}, status=404)
 
         from apps.ledger.models import LedgerEntry
-        qs = LedgerEntry.objects.filter(group=g).select_related('member').order_by('-created_at')
+        qs = LedgerEntry.objects.filter(group=g).order_by('-created_at')
 
         page = int(request.query_params.get('page', 1))
         page_size = 50
@@ -258,11 +258,11 @@ class AdminLoanListView(APIView):
 
     def get(self, request):
         scope = _country_scope(request)
-        qs = Loan.objects.select_related('borrower', 'group').filter(group__country=scope.get('country', None) or Q())
+        qs = Loan.objects.select_related('group').filter(group__country=scope.get('country', None) or Q())
         if 'country' in scope:
-            qs = Loan.objects.select_related('borrower', 'group').filter(group__country=scope['country'])
+            qs = Loan.objects.select_related('group').filter(group__country=scope['country'])
         else:
-            qs = Loan.objects.select_related('borrower', 'group').all()
+            qs = Loan.objects.select_related('group').all()
 
         s = request.query_params.get('status')
         if s:
@@ -291,10 +291,13 @@ class AdminLoanApproveView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def post(self, request, loan_id):
-        try:
-            loan = Loan.objects.select_related('borrower', 'group').get(id=loan_id)
-        except Loan.DoesNotExist:
+        # Admin traffic cannot rely on thread-local country routing (the
+        # middleware runs before JWT auth) — locate the loan wherever it lives.
+        from common.db_utils import find_across_financial_dbs
+        loan = find_across_financial_dbs(Loan, id=loan_id)
+        if loan is None:
             return Response({'error': 'Loan not found.'}, status=404)
+        loan = Loan.objects.using(loan._state.db or 'default').select_related('group').get(id=loan_id)
 
         if request.user.role != 'super_admin':
             if loan.group.country != request.user.country:
@@ -363,7 +366,7 @@ class AdminContributionsView(APIView):
         else:
             qs = Contribution.objects.all()
 
-        qs = qs.select_related('member', 'group').order_by('-created_at')
+        qs = qs.select_related('group').order_by('-created_at')
         s = request.query_params.get('status')
         search = request.query_params.get('search', '').strip()
         if s:

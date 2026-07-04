@@ -72,7 +72,7 @@ class AdminGroupListView(APIView):
         if search:
             qs = qs.filter(name__icontains=search)
 
-        qs = qs.select_related('chairperson', 'verified_by').order_by('-created_at')[:200]
+        qs = qs.order_by('-created_at')[:200]
 
         # Inline minimal serialization (avoid importing full group serializer cross-DB)
         results = []

@@ -39,7 +39,7 @@ class LoanViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         return Loan.objects.filter(
             group__memberships__member=user,
             group__memberships__status='active'
-        ).select_related('borrower', 'group').order_by('-created_at')
+        ).select_related('group').order_by('-created_at')
 
     @action(detail=True, methods=['post'], permission_classes=[IsGroupLeader])
     def approve(self, request, pk=None):
@@ -82,15 +82,7 @@ class LoanViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class LoanApprovalView(views.APIView):
-    """
-    Legacy endpoint for PIN-based Loan verifications.
-    """
-    permission_classes = [IsGroupLeader]
-
-    def post(self, request, loan_pk):
-        # Redirects to the ViewSet logic for consistency
-        viewset = LoanViewSet()
-        viewset.request = request
-        viewset.kwargs = {'pk': loan_pk}
-        return viewset.approve(request, pk=loan_pk)
+# NOTE: the legacy LoanApprovalView shim was removed — it shadowed the
+# router-generated /loans/{pk}/approve/ action with a half-initialized
+# viewset instance (no .action/.format_kwarg), crashing on get_object().
+# The LoanViewSet.approve action serves the same URL correctly.

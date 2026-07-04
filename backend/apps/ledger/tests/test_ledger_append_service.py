@@ -43,6 +43,46 @@ def test_append_ledger_entry_sets_stream_and_chains_hash_per_account_stream(grou
 
 
 @pytest.mark.django_db
+def test_stream_drained_to_exactly_zero_keeps_true_balance(group, user):
+    """
+    Regression for the drain-to-zero corruption: a debit that lands a stream
+    on exactly 0.00 must store 0.00 (not 0 − amount) — the model save()
+    previously treated a legitimate zero as "unset" and recomputed it with no
+    chain context, corrupting the entry and the stream lock while the
+    already-computed hash still proved the original value.
+    """
+    from apps.ledger.services import append_ledger_entry, verify_ledger_stream
+
+    append_ledger_entry(
+        group=group, member=user, account_stream="rotation",
+        entry_type="contribution", direction="credit",
+        amount=Decimal("500.00"), currency="KES",
+        description="Fund the pool", reference="DRAIN-TEST-001",
+        idempotency_key="drain-001",
+    )
+    drained = append_ledger_entry(
+        group=group, member=user, account_stream="rotation",
+        entry_type="payout", direction="debit",
+        amount=Decimal("500.00"), currency="KES",
+        description="Drain the pool to exactly zero", reference="DRAIN-TEST-002",
+        idempotency_key="drain-002",
+    )
+
+    drained.refresh_from_db()
+    assert drained.running_balance == Decimal("0.00")
+    assert drained.hash == drained.compute_hash()
+
+    from apps.ledger.models import LedgerStreamLock
+    lock = LedgerStreamLock.objects.using(drained._state.db or 'default').get(
+        group=group, account_stream="rotation", currency="KES",
+    )
+    assert lock.current_balance == Decimal("0.00")
+
+    result = verify_ledger_stream(group=group, account_stream="rotation", currency="KES")
+    assert result['valid'], result['errors']
+
+
+@pytest.mark.django_db
 def test_append_ledger_entry_is_idempotent_for_same_key(group, user):
     from apps.ledger.services import append_ledger_entry
 

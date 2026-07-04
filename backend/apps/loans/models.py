@@ -89,3 +89,46 @@ class LoanRepayment(BaseModel):
 
     class Meta:
         db_table = 'loans_loan_repayment'
+
+
+class LoanRepaymentPayment(BaseModel):
+    """
+    Payment intent for one loan-repayment collection (STK push) — the loans
+    counterpart of Contribution in the money-in flow. The webhook confirms it,
+    posts the balanced ledger event group (debit provider_settlement / credit
+    loaning), rolls the amount into LoanRepayment.amount_paid, and transitions
+    the loan to 'repaid' once every installment settles.
+    """
+    STATUS = [
+        ('initiated', 'Initiated'),
+        ('confirmed', 'Confirmed'),
+        ('failed', 'Failed'),
+        ('disputed', 'Disputed'),  # amount mismatch — isolated to suspense
+    ]
+
+    repayment          = models.ForeignKey(LoanRepayment, on_delete=models.PROTECT, related_name='payments')
+    loan               = models.ForeignKey(Loan, on_delete=models.PROTECT, related_name='repayment_payments')
+    group              = models.ForeignKey('groups.Group', on_delete=models.PROTECT, related_name='loan_repayment_payments')
+    member             = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='loan_repayment_payments', db_constraint=False)
+    amount             = models.DecimalField(max_digits=14, decimal_places=2)
+    actual_amount      = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    currency           = models.CharField(max_length=5)
+    method             = models.CharField(max_length=30, default='mpesa')
+    mobile_number      = models.CharField(max_length=20)
+    provider_reference = models.CharField(max_length=255, null=True, blank=True)
+    platform_reference = models.CharField(max_length=255, unique=True)
+    status             = models.CharField(max_length=20, choices=STATUS, default='initiated')
+    initiated_at       = models.DateTimeField(null=True, blank=True)
+    confirmed_at       = models.DateTimeField(null=True, blank=True)
+    failure_reason     = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'loans_repayment_payment'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['provider_reference']),
+            models.Index(fields=['repayment', 'status']),
+        ]
+
+    def __str__(self):
+        return f"RepaymentPayment {self.platform_reference} | {self.amount} {self.currency} [{self.status}]"

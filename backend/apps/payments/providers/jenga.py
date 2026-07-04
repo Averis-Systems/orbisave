@@ -19,6 +19,20 @@ from django.utils import timezone
 
 from apps.payments.base import PaymentProvider
 
+# Normalized callback status → ProviderTransaction state. Shared with the
+# stuck-transaction poller (apps.payments.tasks) so both paths advance the
+# state machine identically.
+CALLBACK_STATUS_TO_TX = {
+    'success': 'settled',
+    'failed': 'failed',
+    'cancelled': 'cancelled',
+    'rejected': 'rejected',
+    'settlement_exception': 'settlement_exception',
+    'pending': 'provider_processing',
+    'manual_review': 'manual_review',
+}
+TERMINAL_TX_STATUSES = {'settled', 'failed', 'cancelled', 'rejected', 'reversed'}
+
 logger = logging.getLogger(__name__)
 
 UAT_BASE_URL = "https://uat.finserve.africa"
@@ -471,6 +485,19 @@ class JengaProvider(PaymentProvider):
         if not created and not callback.is_duplicate:
             callback.is_duplicate = True
             callback.save(update_fields=["is_duplicate", "updated_at"])
+
+        # Advance the provider-side transaction state machine from the fresh
+        # callback — this is what makes the lifecycle end-to-end instead of
+        # freezing transactions at 'submitted' forever.
+        if created and tx is not None:
+            new_status = CALLBACK_STATUS_TO_TX.get(parsed.get("status", ""))
+            if new_status and tx.status != new_status:
+                tx.status = new_status
+                update_fields = ["status", "updated_at"]
+                if new_status in TERMINAL_TX_STATUSES and tx.final_at is None:
+                    tx.final_at = timezone.now()
+                    update_fields.append("final_at")
+                tx.save(update_fields=update_fields)
         return callback
 
     def _normalize_submission_status(self, data: Dict[str, Any]) -> str:

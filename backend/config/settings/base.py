@@ -262,6 +262,18 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': timedelta(hours=24),
         'options': {'expires': 7200},
     },
+    # Re-queries provider transactions whose webhooks never arrived
+    'poll-stuck-provider-transactions': {
+        'task': 'apps.payments.tasks.poll_stuck_provider_transactions',
+        'schedule': timedelta(minutes=15),
+        'options': {'expires': 600},
+    },
+    # Daily bank-statement import + auto-match + orphan reconciliation items
+    'import-daily-statements': {
+        'task': 'apps.payments.tasks.import_daily_statements',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 7200},
+    },
     # Full hash-chain/sequence/balance sweep — any violation is a P0 incident
     'verify-ledger-integrity': {
         'task': 'apps.ledger.tasks.verify_all_ledger_streams',

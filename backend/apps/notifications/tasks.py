@@ -13,7 +13,7 @@ def send_invite_notification(invite_id, channel, target_address):
     from apps.groups.models import GroupInvite
     
     try:
-        invite = GroupInvite.objects.select_related('group', 'invited_by').get(id=invite_id)
+        invite = GroupInvite.objects.select_related('group').get(id=invite_id)
     except GroupInvite.DoesNotExist:
         logger.error("invite_task_missing_object", invite_id=invite_id)
         return

@@ -30,7 +30,7 @@ def flag_overdue_loan_repayments(self):
     overdue_repayments = LoanRepayment.objects.filter(
         status='upcoming',
         due_date__lt=today,
-    ).select_related('loan__group', 'loan__borrower')
+    ).select_related('loan__group')
 
     for repayment in overdue_repayments:
         group = repayment.loan.group
@@ -77,7 +77,7 @@ def check_loan_defaults(self):
 
     active_loans = Loan.objects.filter(
         status__in=['approved', 'disbursed', 'active']
-    ).select_related('group', 'borrower', 'group__chairperson')
+    ).select_related('group')
 
     for loan in active_loans:
         group = loan.group

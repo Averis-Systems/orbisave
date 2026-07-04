@@ -22,6 +22,7 @@ def _make_user(email, role="member", kyc_status="verified", phone="+254700000777
         role=role,
         country="kenya",
         kyc_status=kyc_status,
+        phone_verified=True,  # joining/contributing is phone-verified-gated
         is_active=True,
         next_of_kin_name="Next Kin",
         next_of_kin_phone="+254700000999",

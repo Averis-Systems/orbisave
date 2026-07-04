@@ -47,7 +47,7 @@ class RotationViewSet(viewsets.ReadOnlyModelViewSet):
         schedules = RotationSchedule.objects.filter(
             group=cycle.group, 
             cycle_number=cycle.cycle_number
-        ).select_related('member').order_by('scheduled_payout_date')
+        ).order_by('scheduled_payout_date')
         
         return Response(RotationScheduleSerializer(schedules, many=True).data)
 

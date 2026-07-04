@@ -82,7 +82,9 @@ class LedgerEntry(BaseModel):
     direction           = models.CharField(max_length=10, choices=DIRECTIONS)
     amount              = models.DecimalField(max_digits=14, decimal_places=2)
     currency            = models.CharField(max_length=5)
-    running_balance     = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
+    # default=None: "not provided" — save() derives it from the chain. A real
+    # zero balance must survive as zero (see the drain-to-zero note in save()).
+    running_balance     = models.DecimalField(max_digits=14, decimal_places=2, default=None)
     description         = models.TextField()
     reference           = models.CharField(max_length=255, unique=True)
     related_contribution = models.ForeignKey('contributions.Contribution', on_delete=models.PROTECT, null=True, blank=True)
@@ -135,8 +137,19 @@ class LedgerEntry(BaseModel):
             raise PermissionError("Ledger entries are immutable — no updates permitted.")
 
         db_alias = kwargs.get('using') or self._state.db or 'default'
+        # Fetch chain context whenever any auto-derived field is missing.
+        # CRITICAL: only running_balance=None means "unset". Zero is a REAL
+        # balance — a payout that drains a stream to exactly 0.00 previously
+        # tripped this fallback with previous=None (sequence was already set,
+        # so no previous row was fetched) and overwrote the correct 0 with
+        # 0 − amount, corrupting the entry AND the stream lock while the
+        # already-computed hash still proved the original value.
+        from decimal import Decimal
         previous = None
-        if self._state.adding and not self.sequence_number:
+        needs_chain_context = self._state.adding and (
+            not self.sequence_number or self.running_balance is None
+        )
+        if needs_chain_context:
             previous = (
                 LedgerEntry.objects.using(db_alias)
                 .filter(
@@ -147,10 +160,9 @@ class LedgerEntry(BaseModel):
                 .order_by('-sequence_number', '-created_at')
                 .first()
             )
-        
-        # 1. Compute Running Balance Contextually
-        from decimal import Decimal
-        if self._state.adding and (getattr(self, 'running_balance', None) is None or getattr(self, 'running_balance') == Decimal('0.00') or getattr(self, 'running_balance') == 0):
+
+        # 1. Compute Running Balance Contextually (only when truly unset)
+        if self._state.adding and self.running_balance is None:
             prev_balance = previous.running_balance if previous else Decimal('0.00')
             if self.direction == 'credit':
                 self.running_balance = prev_balance + Decimal(str(self.amount))

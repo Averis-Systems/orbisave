@@ -266,13 +266,15 @@ def start_reconciliation_run(
     observed_closing_balance=None,
     source='daily_bank_statement',
     metadata=None,
+    db_alias=None,
 ):
     """
     Create the immutable-ish header for a daily bank/provider reconciliation pass.
     Runs are intentionally explicit per country/provider/account stream so Kenya,
     Rwanda, and Ghana can reconcile independently against their own bank feeds.
+    db_alias overrides the country-derived database (see record_reconciliation_exception).
     """
-    db_alias = get_db_for_country(country)
+    db_alias = db_alias or get_db_for_country(country)
     return ReconciliationRun.objects.using(db_alias).create(
         country=country,
         provider_code=provider_code,
@@ -305,6 +307,7 @@ def record_reconciliation_exception(
     isolate_to_suspense=False,
     member=None,
     source_system='reconciliation',
+    db_alias=None,
 ):
     """
     Record a fail-closed finance exception.
@@ -312,8 +315,12 @@ def record_reconciliation_exception(
     When isolate_to_suspense=True and a group is available, the observed money is
     represented in the suspense stream. We never force it into rotation/savings/
     loaning until a human or a trusted reconciliation rule resolves the mismatch.
+
+    db_alias overrides the country-derived database — callers that already
+    resolved where the related rows live (e.g. webhook handlers) pass it so
+    the exception lands beside them.
     """
-    db_alias = get_db_for_country(country)
+    db_alias = db_alias or get_db_for_country(country)
     details = details or {}
 
     with transaction.atomic(using=db_alias):

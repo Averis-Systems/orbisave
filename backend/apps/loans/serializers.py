@@ -49,8 +49,14 @@ class LoanRequestSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        borrower = self.context['request'].user
-        return Loan.objects.create(borrower=borrower, **validated_data)
+        # perform_create passes borrower via serializer.save(borrower=...);
+        # duplicating it here used to crash the endpoint with a TypeError.
+        validated_data.setdefault('borrower', self.context['request'].user)
+        group = validated_data['group']
+        # Currency and interest rate are GROUP policy — never client-supplied.
+        validated_data.setdefault('currency', group.currency)
+        validated_data.setdefault('interest_rate_monthly', group.loan_interest_rate_monthly)
+        return Loan.objects.create(**validated_data)
 
 
 # ─────────────────────────────────────────────────────────

@@ -83,7 +83,7 @@ class GroupInvitePublicView(views.APIView):
 
     def get(self, request, token):
         try:
-            invite = GroupInvite.objects.select_related('group', 'invited_by').get(token=token, status='pending')
+            invite = GroupInvite.objects.select_related('group').get(token=token, status='pending')
         except GroupInvite.DoesNotExist:
             return Response({"error": "Invite invalid or expired."}, status=status.HTTP_404_NOT_FOUND)
 

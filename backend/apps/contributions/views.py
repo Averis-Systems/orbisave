@@ -68,7 +68,7 @@ class PenaltyViewSet(viewsets.ModelViewSet):
         queryset = Penalty.objects.filter(
             rule__group__memberships__member=user,
             rule__group__memberships__status='active'
-        ).distinct().select_related('member', 'rule').order_by('-created_at')
+        ).distinct().select_related('rule').order_by('-created_at')
 
         if group_id:
             queryset = queryset.filter(rule__group_id=group_id)
