@@ -1,10 +1,23 @@
 # OrbiSave — System Design Map, Code Quality Report & Production-Readiness Plan
 
-**Date:** 2026-07-03
+**Date:** 2026-07-03 (plan) · **Program executed:** 2026-07-04
 **Author:** Claude (full-repo pass: docs, backend, frontend, console, manager)
 **Purpose:** One reference document that (a) explains how the whole system actually works today, (b) gives an honest green/amber/red quality read, and (c) hands Fable 5 an ordered, file-referenced execution plan to reach a real-world-usable production beta — with the ledger/banking core treated as non-negotiable and multi-group membership cut down to one active group at a time.
 
 This supersedes `backend/docs/orbisave_codebase_assessment.md` (dated March 2026, confirmed stale — see §5) as the entry point for understanding current system state. The prior QA docs in `docs/` (2026-06-11, 06-12, 06-20) remain valuable history of what was found and fixed; this doc reflects the state as of today's full pass and should be treated as current.
+
+> ## ⭐ EXECUTION STATUS (2026-07-04) — the plan in §5 has been carried out
+> The Kenya production-readiness program (Phases 0–6) is **complete**. Live feature state now lives in **`FEATURES.md`** at the repo root — read that first. Summary of what shipped:
+> - **Phase 0** (`9358bfd`): repo hygiene, GitHub Actions CI, the INV1 ledger-write guard, hermetic tests.
+> - **Phase 1** (`918445a`): the P0 money bugs — loan disbursement rewritten through the ledger + provider B2C, fake payout endpoint deleted, KYC-gated group verification, encrypted provider secrets, ledger integrity jobs.
+> - **Phase 2** (`c7f474b`): one active group per user (DB constraint + service layer + `useActiveGroup` across 14 pages); the `exit` route was unreachable and is now wired.
+> - **Phase 3** (`f8b37a5`, `264b7ab`): real SMS OTP verify + password reset, phone-verified gates, admin-app URL/Tailwind fixes, dependency security pass, and JWTs moved into httpOnly cookies behind a same-origin proxy.
+> - **Phase 4** (`7807a99`): loan repayment collection (the loan lifecycle now closes at `repaid`), provider transaction lifecycle + stuck-tx polling + daily statement import, the **golden-path E2E test**, and the Jenga cutover runbook. The E2E exposed and fixed seven real bugs — including a **drain-to-zero ledger corruption** and a multi-DB router that saved to the wrong database.
+> - **Phase 5** (`5916a15`): Console SMS provider hub + encrypted platform settings, the Manager **reconciliation queue**, X-Country routing on admin clients, and `AuditLog` choices synced with reality.
+> - **Phase 6**: this doc + `FEATURES.md`.
+>
+> **Backend: 141 tests passing. All three Next.js apps build green. Ledger write-guard green.**
+> Before processing real money, work through `docs/jenga_production_cutover_runbook.md` — the remaining gate is live-credential rehearsal against Equity/Jenga, not code.
 
 ---
 
