@@ -10,6 +10,7 @@ import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { LOCATION_DATA, getLevel1, getLevel2 } from "@/lib/location-data"
 import { GROUP_TYPES, buildExistingAccountChairpersonPayload } from "@/lib/chairperson-onboarding"
+import { MAX_LANGUAGES, SUPPORTED_LANGUAGES } from "@/lib/languages"
 import { ShieldCheck, UserCheck, AlertCircle, Building2, MapPin, Eye, EyeOff, Check, ArrowRight, Loader2, Lock } from "lucide-react"
 import { CustomSelect } from "@/components/ui/select"
 
@@ -32,6 +33,9 @@ const accountSchema = z.object({
   phone: z.string().min(1, "Phone is required"),
   password: z.string().min(8, "Minimum 8 characters"),
   confirmPassword: z.string(),
+  // At least two preferred languages — OrbiSave always serves the user in
+  // one of their selected languages (SMS, notifications, and UI to follow).
+  languages: z.array(z.string()).min(2, "Choose at least 2 languages").max(3, "Choose at most 3 languages"),
 }).superRefine((data, ctx) => {
   if (data.password !== data.confirmPassword) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Passwords do not match", path: ["confirmPassword"] })
@@ -75,6 +79,7 @@ const defaultValues: Partial<WizardData> = {
   group_type: "Corporate",
   contribution_frequency: "Monthly",
   mandatory_savings_amount: 0,
+  languages: ["en", "sw"],
 }
 
 // ─── Components ──────────────────────────────────────────────────────────────
@@ -128,6 +133,14 @@ function StepAccount() {
   const country = watch("country")
   const password = watch("password") || ""
   const phoneHint = country ? LOCATION_DATA[country].phoneHint : ""
+  const selectedLanguages = watch("languages") || []
+
+  const toggleLanguage = (code: string) => {
+    const next = selectedLanguages.includes(code)
+      ? selectedLanguages.filter((c: string) => c !== code)
+      : [...selectedLanguages, code].slice(0, MAX_LANGUAGES)
+    setValue("languages", next, { shouldValidate: true })
+  }
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -159,6 +172,35 @@ function StepAccount() {
         onChange={(val) => setValue("country", val as any)}
         error={errors.country?.message}
       />
+
+      <div>
+        <label className="block text-xs font-bold text-muted-foreground tracking-widest uppercase mb-2">
+          Preferred Languages (choose at least 2)
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {SUPPORTED_LANGUAGES.map((lang) => {
+            const active = selectedLanguages.includes(lang.code)
+            return (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => toggleLanguage(lang.code)}
+                className={`rounded-full border px-4 py-2 text-xs font-bold transition-all ${
+                  active
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                {lang.label}
+              </button>
+            )
+          })}
+        </div>
+        {errors.languages && <p className="text-xs text-destructive mt-1.5">{errors.languages.message as string}</p>}
+        <p className="mt-1.5 text-[0.7rem] text-muted-foreground">
+          OrbiSave will always communicate with you in one of your selected languages.
+        </p>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="md:col-span-2">
@@ -488,7 +530,7 @@ export default function ChamaOnboardingPage() {
 
   const handleNext = async () => {
     let isValid = true
-    if (step === 1) isValid = await trigger(["country", "full_name", "email", "phone", "password", "confirmPassword"])
+    if (step === 1) isValid = await trigger(["country", "full_name", "email", "phone", "password", "confirmPassword", "languages"])
     if (step === 2) isValid = await trigger(["group_name", "group_type", "group_type_other", "contribution_amount", "contribution_frequency", "mandatory_savings_amount"])
     if (step === 3) isValid = await trigger(["level1", "level2"])
     if (step === 4) isValid = await trigger(["agreePrivacy", "agreeTerms"])
@@ -528,7 +570,8 @@ export default function ChamaOnboardingPage() {
           phone: allData.phone,
           password: allData.password,
           role: "chairperson",
-          country: allData.country
+          country: allData.country,
+          languages: allData.languages,
         }, {
           headers: { 'X-Country': allData.country }
         })

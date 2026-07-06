@@ -78,12 +78,22 @@ This is the single source of truth for *what works, how complete it is, and wher
 | Meetings + attendance + quorum | 🟡 | ~50 | Models + Daily.co provisioning exist; UI partial. |
 | Secretary role | 🟡 | ~10 | Role exists; minimal capabilities. |
 
+## Languages & translation (updated 2026-07-04)
+
+| Feature | Status | % | Notes |
+|---|---|---|---|
+| Language capture at signup (min 2) | ✅ | 100 | Both registration flows have pickers (en/sw/rw/fr/tw); backend validates min-2/max-3; per-country defaults for API clients. |
+| Translation service (Google Cloud Translation) | ✅ | 100 | `common/translation.py` — chosen for African coverage (only major API with sw+rw+tw; DeepL/Azure lack them). Cached 30 days; **failure never blocks delivery**. Key: Console → Settings → Platform APIs → `google_translate_api_key` (encrypted). |
+| SMS + in-app notifications in user's language | ✅ | 100 | OTP/reset SMS and `notify_user` serve the first supported selected language. |
+| UI chrome i18n (dashboard strings) | ⏸ | ~10 | The remaining slice: adopt `next-intl` with dictionaries for en/sw/rw/fr/tw, resolve locale from `user.languages`. The capture + service layers it needs are done. |
+
 ## Expansion (post-Kenya)
 
 | Feature | Status | % | Notes |
 |---|---|---|---|
-| Rwanda / Ghana payment rails | ⏸ | ~10 scaffold | Multi-country DB routing + provider selector are built and tested. Adding a country = onboard its bank provider row + repeat `docs/jenga_production_cutover_runbook.md`. MTN MoMo / Bank of Kigali / Ecobank classes not written. |
-| Full i18n (Swahili, Kinyarwanda) | ⏸ | scaffold only | English ships. Translation provider config slot exists in Console. |
+| **MTN MoMo rail (Rwanda + Ghana)** | ✅ sandbox-ready | ~85 | `providers/momo.py`, selector-wired, 9 tests against the verified sandbox contract. Needs: portal subscription keys (15-min setup, see `docs/rwanda_ghana_rails_onboarding.md`), and a `pending_settlement` payout state before live (MoMo transfers are async). |
+| Bank of Kigali trust-account rail | 🟡 | ~15 | **BK Open API portal + sandbox are live** (developer.bk.rw, launched 2026-03). Founder action: register + due-diligence track. Provider class stubbed in selector (`bk_rw`). |
+| Ecobank Ghana trust-account rail | 🟡 | ~15 | Developer portal + sandbox live (developer.ecobank.com; Collection/Payment services). Founder action: register. Provider class stubbed (`ecobank_gh`). |
 | Mobile app (Flutter) | ❌ | 0 | Out of scope; web-first. |
 | Advanced analytics | 🟡 | ~15 | Endpoints exist; dashboards stubbed. Analytics + audit apps have no tests yet. |
 

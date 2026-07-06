@@ -8,7 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { AlertTriangle, User, Users, Shield, CheckCircle, Key, Info, Loader2 } from "lucide-react"
+import { MAX_LANGUAGES, MIN_LANGUAGES, SUPPORTED_LANGUAGES } from "@/lib/languages"
+import { AlertTriangle, User, Users, Shield, CheckCircle, Key, Info, Loader2, Languages } from "lucide-react"
 
 const memberSchema = z.object({
   full_name: z.string().min(3, "Full name is required"),
@@ -17,6 +18,11 @@ const memberSchema = z.object({
   password: z.string().min(8, "Minimum 8 characters"),
   confirmPassword: z.string(),
   group_invite_code: z.string().optional(),
+  // Product rule: at least two preferred languages — the system always
+  // serves the user in one of their selected languages.
+  languages: z.array(z.string())
+    .min(MIN_LANGUAGES, `Choose at least ${MIN_LANGUAGES} languages`)
+    .max(MAX_LANGUAGES, `Choose at most ${MAX_LANGUAGES} languages`),
   terms: z.boolean().refine(val => val === true, "You must accept the terms"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -46,8 +52,19 @@ export function RegisterForm() {
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
   const [loadingInvite, setLoadingInvite] = useState(false)
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } =
-    useForm<MemberFormValues>({ resolver: zodResolver(memberSchema) })
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } =
+    useForm<MemberFormValues>({
+      resolver: zodResolver(memberSchema),
+      defaultValues: { languages: ["en", "sw"] },
+    })
+
+  const selectedLanguages = watch("languages") || []
+  const toggleLanguage = (code: string) => {
+    const next = selectedLanguages.includes(code)
+      ? selectedLanguages.filter((c) => c !== code)
+      : [...selectedLanguages, code].slice(0, MAX_LANGUAGES)
+    setValue("languages", next, { shouldValidate: true })
+  }
 
   useEffect(() => {
     if (inviteToken) {
@@ -86,6 +103,7 @@ export function RegisterForm() {
         phone: data.phone,
         password: data.password,
         role: "member",
+        languages: data.languages,
         invite_token: inviteToken || data.group_invite_code
       }
       await api.post("/auth/register/", regPayload)
@@ -281,6 +299,36 @@ export function RegisterForm() {
           />
           {errors.group_invite_code && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.group_invite_code.message}</p>}
           <p className="mt-1.5 text-[0.65rem] text-[#4a5c6a] flex items-center gap-1"><Info className="w-3 h-3" /> If you were invited by a Chairperson, enter the code here.</p>
+        </div>
+
+        {/* Preferred languages */}
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">
+            <span className="inline-flex items-center gap-1.5"><Languages className="w-3.5 h-3.5" /> Preferred languages</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const active = selectedLanguages.includes(lang.code)
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => toggleLanguage(lang.code)}
+                  className={`rounded-full border px-4 py-2 text-xs font-bold transition-all ${
+                    active
+                      ? "border-[#00ab00] bg-[#e9f3ed] text-[#016828]"
+                      : "border-black/10 bg-[#f3f4f1] text-[#4a5c6a] hover:border-black/20"
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              )
+            })}
+          </div>
+          {errors.languages && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.languages.message as string}</p>}
+          <p className="mt-1.5 text-[0.65rem] text-[#4a5c6a] flex items-center gap-1">
+            <Info className="w-3 h-3" /> Pick at least two — OrbiSave will always speak to you in one of them.
+          </p>
         </div>
 
         {/* Terms agreement */}

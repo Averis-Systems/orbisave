@@ -1,5 +1,27 @@
 from rest_framework import serializers
+from common.translation import SUPPORTED_LANGUAGES, default_languages_for_country
 from .models import User, KYCDocument
+
+
+def _validate_language_choice(value):
+    """
+    Product rule: users pick AT LEAST TWO preferred languages (the system
+    always serves them in one of the selected). Cap at three to keep the
+    preference meaningful.
+    """
+    if not isinstance(value, list):
+        raise serializers.ValidationError("languages must be a list of language codes.")
+    unsupported = [code for code in value if code not in SUPPORTED_LANGUAGES]
+    if unsupported:
+        supported = ', '.join(sorted(SUPPORTED_LANGUAGES))
+        raise serializers.ValidationError(
+            f"Unsupported language(s): {', '.join(unsupported)}. Supported: {supported}."
+        )
+    if len(set(value)) < 2:
+        raise serializers.ValidationError("Choose at least 2 preferred languages.")
+    if len(set(value)) > 3:
+        raise serializers.ValidationError("Choose at most 3 preferred languages.")
+    return list(dict.fromkeys(value))  # dedupe, keep order (first = primary)
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,9 +45,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_languages(self, value):
-        if len(value) > 2:
-            raise serializers.ValidationError("Choose at most 2 preferred languages.")
-        return value
+        return _validate_language_choice(value)
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -36,12 +56,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         default='member',
         required=False,
     )
+    # Preferred languages (min 2). The UI always sends an explicit choice;
+    # when absent (API clients / legacy), a per-country default applies so
+    # the system can ALWAYS serve the user in a known language.
+    languages = serializers.JSONField(required=False)
 
     class Meta:
         model = User
-        fields = ['email', 'phone', 'full_name', 'password', 'country', 'role']
+        fields = ['email', 'phone', 'full_name', 'password', 'country', 'role', 'languages']
+
+    def validate_languages(self, value):
+        return _validate_language_choice(value)
 
     def create(self, validated_data):
+        if not validated_data.get('languages'):
+            validated_data['languages'] = default_languages_for_country(validated_data.get('country'))
         return User.objects.create_user(**validated_data)
 
 

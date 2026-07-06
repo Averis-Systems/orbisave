@@ -28,6 +28,7 @@ from apps.accounts.models import PhoneOTP, User
 from apps.audit.services import log_audit
 from apps.notifications.sms import SmsDeliveryError, send_sms
 from common.exceptions import success_response
+from common.translation import translate_for_user
 
 logger = structlog.get_logger(__name__)
 
@@ -104,10 +105,13 @@ class RequestPhoneOTPView(views.APIView):
 
         raw_code = _issue_otp(user, 'phone_verify')
         try:
-            delivery = send_sms(
-                user.phone,
+            # Served in the user's preferred language ("always serve them in
+            # at least one among the selected"). The code itself stays digits.
+            message = translate_for_user(
                 f'Your OrbiSave verification code is {raw_code}. It expires in {OTP_TTL_MINUTES} minutes.',
+                user,
             )
+            delivery = send_sms(user.phone, message)
         except SmsDeliveryError as exc:
             logger.error('otp_delivery_failed', user_id=str(user.id), error=str(exc))
             return Response(
@@ -166,9 +170,12 @@ class PasswordResetRequestView(views.APIView):
                 raw_code = _issue_otp(user, 'password_reset')
                 send_sms(
                     user.phone,
-                    f'Your OrbiSave password reset code is {raw_code}. '
-                    f'It expires in {OTP_TTL_MINUTES} minutes. '
-                    'If you did not request this, ignore this message.',
+                    translate_for_user(
+                        f'Your OrbiSave password reset code is {raw_code}. '
+                        f'It expires in {OTP_TTL_MINUTES} minutes. '
+                        'If you did not request this, ignore this message.',
+                        user,
+                    ),
                 )
             except (ValueError, SmsDeliveryError) as exc:
                 # Still return the generic message — throttling/delivery state

@@ -82,12 +82,15 @@ def _instantiate_provider(record) -> PaymentProvider:
     """Map a BankProvider record to its implementation class."""
     from apps.payments.providers.jenga import JengaProvider
     from apps.payments.providers.mock import MockProvider
+    from apps.payments.providers.momo import MTNMoMoProvider
 
     mapping = {
         'jenga_ke': JengaProvider,
         'jenga_rw': JengaProvider,
+        'mtn_momo': MTNMoMoProvider,   # Rwanda + Ghana mobile-money rail
         'mock': MockProvider,
-        # 'ecobank_gh': EcobankProvider,  # coming soon
+        # 'bk_rw': BankOfKigaliProvider,   # trust-account rail — see docs/rwanda_ghana_rails_onboarding.md
+        # 'ecobank_gh': EcobankProvider,   # trust-account rail — see docs/rwanda_ghana_rails_onboarding.md
     }
 
     # The instant-success mock can never run against real money: it is only

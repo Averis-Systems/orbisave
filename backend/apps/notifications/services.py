@@ -1,11 +1,13 @@
 import structlog
 from apps.notifications.models import Notification
+from common.translation import translate_for_user
 
 logger = structlog.get_logger(__name__)
 
 def notify_user(user, title, body, notification_type='admin_alert', related_object_id=None):
     """
-    Utility to create a persistent in-app notification for a user.
+    Utility to create a persistent in-app notification for a user, served in
+    their preferred language (translation degrades gracefully to English).
 
     NOTE: field names must match the Notification model (recipient/type/
     metadata) — a silent kwargs mismatch here previously meant NO in-app
@@ -17,8 +19,8 @@ def notify_user(user, title, body, notification_type='admin_alert', related_obje
     try:
         notification = Notification.objects.create(
             recipient=user,
-            title=title,
-            body=body,
+            title=translate_for_user(title, user),
+            body=translate_for_user(body, user),
             type=notification_type,
             channel='in_app',
             metadata={'related_object_id': str(related_object_id)} if related_object_id else {},
