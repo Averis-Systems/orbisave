@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd backend && venv\\Scripts\\python.exe manage.py migrate --noinput && venv\\Scripts\\python.exe manage.py runserver 8000"],
+      "port": 8000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd frontend && npm run dev"],
+      "port": 3000
+    },
+    {
+      "name": "console",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd apps\\console && npm run dev"],
+      "port": 3002
+    },
+    {
+      "name": "manager",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd apps\\manager && npm run dev"],
+      "port": 3003
+    }
+  ]
+}
