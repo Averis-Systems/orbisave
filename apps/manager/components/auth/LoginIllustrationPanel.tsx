@@ -1,16 +1,19 @@
-import { MapPinned, ShieldCheck } from 'lucide-react'
+import { MapPinned } from 'lucide-react'
 
 /**
  * Left panel of the split-screen auth layout (login/register/forgot-password).
  * Light, warm tone — correct for country-ops staff (KYC review, group
  * verification) rather than Console's dark "global command" treatment.
  *
- * The centered graphic is a placeholder "clustered circles" motif (a group
- * of overlapping rings — echoes reviewing/verifying a chama's membership)
- * built as inline SVG so the page never looks unfinished. Swap it for a real
- * Icons8 3D illustration once the icons8mcp tools are connected — search
- * terms: "document verification 3d", "team review 3d", "checklist approval".
- * See docs/PROGRAM_REPORT_2026-07.md follow-ups.
+ * The centered graphic is a custom "clustered circles" motif (a group of
+ * overlapping rings — echoes reviewing/verifying a chama's membership), kept
+ * as inline SVG rather than a stock illustration since it's a brand-specific
+ * mark. Both stat chips use self-hosted Icons8 icons (Pastel/"cotton" style —
+ * the closest available match to a friendly 3D look; Icons8's actual 3D
+ * platforms have too sparse a catalog for finance/KYC terms). Sources:
+ * apps/manager/public/icons/id-verified.png (Icons8 "Checked Identification
+ * Documents", id 92068) and money-box.png ("Money Box", id 64877), both
+ * cotton platform.
  */
 export function LoginIllustrationPanel() {
   return (
@@ -61,10 +64,13 @@ export function LoginIllustrationPanel() {
 
         <div className="mt-8 flex gap-3">
           <div className="flex items-center gap-2 rounded-lg border border-navy/10 bg-white/60 px-4 py-2.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/id-verified.png" alt="" className="h-4 w-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">KYC Reviewed</span>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-navy/10 bg-white/60 px-4 py-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/money-box.png" alt="" className="h-4 w-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reconciled Daily</span>
           </div>
         </div>

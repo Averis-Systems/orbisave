@@ -1,15 +1,17 @@
-import { Globe2, ShieldCheck } from 'lucide-react'
+import { Globe2 } from 'lucide-react'
 
 /**
  * Left panel of the split-screen auth layout (login/register/forgot-password).
  * Dark, global-command tone — correct for the cross-country oversight app.
  *
- * The centered graphic is a placeholder "orbit" motif (concentric rings +
- * nodes — echoes the OrbiSave name and Console's cross-country reach) built
- * as inline SVG so the page never looks unfinished. Swap it for a real
- * Icons8 3D illustration once the icons8mcp tools are connected — search
- * terms: "global network 3d", "world map connections", "data center 3d".
- * See docs/PROGRAM_REPORT_2026-07.md follow-ups.
+ * The centered graphic is a custom "orbit" motif (concentric rings + nodes —
+ * echoes the OrbiSave name and Console's cross-country reach), kept as inline
+ * SVG rather than a stock illustration since it's a brand-specific mark. The
+ * "Live Oversight" stat chip uses a self-hosted Icons8 icon (Pastel/"cotton"
+ * style — the closest available match to a friendly 3D look; Icons8's actual
+ * 3D platforms have too sparse a catalog for finance/security terms).
+ * Source: apps/console/public/icons/shield-check.png (Icons8 "Security
+ * Shield", id 92085, cotton platform).
  */
 export function LoginIllustrationPanel() {
   return (
@@ -66,7 +68,8 @@ export function LoginIllustrationPanel() {
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Countries Live</span>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/shield-check.png" alt="" className="h-4 w-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Live Oversight</span>
           </div>
         </div>
