@@ -195,6 +195,35 @@ class NotificationProviderConfiguration(BaseModel):
         return f"{self.name} [{self.provider_code}/{self.environment}]"
 
 
+class PlatformBranding(BaseModel):
+    """
+    Singleton: the platform-wide logo and favicon, editable by super_admin
+    from Console, served publicly (unauthenticated) so all three frontends
+    (member, Console, Manager) can fetch it before login. Falls back to each
+    app's built-in static branding (Logo.tsx, favicon.ico) when unset.
+    """
+    logo = models.ImageField(upload_to='branding/', null=True, blank=True)
+    favicon = models.ImageField(upload_to='branding/', null=True, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='platform_branding_updates',
+    )
+
+    class Meta:
+        db_table = 'platform_branding'
+
+    def __str__(self):
+        return 'Platform branding'
+
+    @classmethod
+    def current(cls):
+        obj = cls.objects.order_by('created_at').first()
+        return obj if obj is not None else cls.objects.create()
+
+
 class CountryPolicy(BaseModel):
     """
     Super-admin managed country policy guardrails.

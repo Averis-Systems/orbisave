@@ -1,19 +1,132 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { 
-  Settings, 
-  Shield, 
-  Cpu, 
-  Save, 
+import { useState, useEffect, useRef } from 'react'
+import {
+  Settings,
+  Shield,
+  Cpu,
+  Save,
   Loader2,
   CheckCircle2,
   Info,
   Activity,
-  History
+  History,
+  ImageIcon,
+  Upload
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+
+function BrandingCard() {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState<'logo' | 'favicon' | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const faviconInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    api.get('/platform-branding/')
+      .then(({ data }) => {
+        setLogoUrl(data.logo_url)
+        setFaviconUrl(data.favicon_url)
+      })
+      .catch(() => toast.error('Could not load current branding.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleUpload = async (field: 'logo' | 'favicon', file: File) => {
+    setUploading(field)
+    try {
+      const formData = new FormData()
+      formData.append(field, file)
+      const { data } = await api.patch('/admin-portal/platform-branding/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setLogoUrl(data.logo_url)
+      setFaviconUrl(data.favicon_url)
+      toast.success(`Platform ${field} updated — live across all three apps.`)
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || `Failed to update ${field}.`)
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm space-y-6">
+      <div className="flex items-center gap-2">
+        <ImageIcon size={16} className="text-primary" />
+        <h3 className="font-black text-navy uppercase tracking-widest text-[10px]">Platform Branding</h3>
+      </div>
+      <p className="text-sm font-bold text-navy/80 -mt-4">
+        Applies immediately across the member app, Console, and Manager. Leave a slot empty to keep the built-in default.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Logo */}
+        <div className="space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Logo</p>
+          <div className="h-20 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-md">
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+            ) : logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="Current logo" className="h-12 w-auto max-w-[80%] object-contain" />
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400">Using built-in "O" mark</span>
+            )}
+          </div>
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleUpload('logo', e.target.files[0])}
+          />
+          <button
+            onClick={() => logoInputRef.current?.click()}
+            disabled={uploading === 'logo'}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-widest text-navy transition-all disabled:opacity-50"
+          >
+            {uploading === 'logo' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            Upload Logo
+          </button>
+        </div>
+
+        {/* Favicon */}
+        <div className="space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Favicon</p>
+          <div className="h-20 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-md">
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+            ) : faviconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={faviconUrl} alt="Current favicon" className="h-8 w-8 object-contain" />
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400">Using built-in favicon</span>
+            )}
+          </div>
+          <input
+            ref={faviconInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleUpload('favicon', e.target.files[0])}
+          />
+          <button
+            onClick={() => faviconInputRef.current?.click()}
+            disabled={uploading === 'favicon'}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-widest text-navy transition-all disabled:opacity-50"
+          >
+            {uploading === 'favicon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            Upload Favicon
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 interface Config {
   id: string
@@ -76,6 +189,8 @@ export default function PlatformSettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Settings Body */}
         <div className="lg:col-span-8 space-y-6">
+          <BrandingCard />
+
           {configs.length === 0 ? (
             <div className="bg-white rounded-lg p-20 border border-slate-100 text-center space-y-4">
               <Cpu className="w-12 h-12 text-slate-200 mx-auto" />

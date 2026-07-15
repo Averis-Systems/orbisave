@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 import { Providers } from "@/components/providers";
+import { BrandingFaviconInjector } from "@/components/BrandingFaviconInjector";
 
 export default function RootLayout({
   children,
@@ -19,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${montserrat.variable} ${montserrat.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
+        <BrandingFaviconInjector />
         <Providers>
           {children}
         </Providers>

@@ -8,6 +8,7 @@ import { useGSAP } from "@gsap/react"
 import { Menu, X, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/store/auth"
+import { usePlatformBranding } from "@/lib/useBranding"
 
 const NAV_LINKS = [
   { label: "How It Works", href: "#how-it-works" },
@@ -21,6 +22,7 @@ export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
   const [scrolled, setScrolled] = useState(false)
   const { isAuthenticated } = useAuthStore()
   const [isMounted, setIsMounted] = useState(false)
+  const { logoUrl } = usePlatformBranding()
 
   useEffect(() => setIsMounted(true), [])
 
@@ -64,19 +66,30 @@ export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
             className="nav-item flex items-center gap-2.5 group"
             aria-label="OrbiSave Home"
           >
-            <div
-              className="w-8 h-8 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:rotate-6"
-              style={{ background: "#00ab00", borderRadius: "5px" }}
-            >
-              <span className="text-white font-semibold text-sm leading-none">O</span>
-            </div>
-            <span
-              className={`text-lg font-bold tracking-tight transition-colors duration-200 ${
-                !scrolled && variant === "dark" ? "text-white" : "text-[#0a2540]"
-              }`}
-            >
-              OrbiSave
-            </span>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt="OrbiSave"
+                className="h-8 w-auto max-w-[140px] object-contain flex-shrink-0 transition-transform duration-300 group-hover:rotate-6"
+              />
+            ) : (
+              <>
+                <div
+                  className="w-8 h-8 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:rotate-6"
+                  style={{ background: "#00ab00", borderRadius: "5px" }}
+                >
+                  <span className="text-white font-semibold text-sm leading-none">O</span>
+                </div>
+                <span
+                  className={`text-lg font-bold tracking-tight transition-colors duration-200 ${
+                    !scrolled && variant === "dark" ? "text-white" : "text-[#0a2540]"
+                  }`}
+                >
+                  OrbiSave
+                </span>
+              </>
+            )}
           </Link>
 
           <div className="hidden md:flex items-center gap-1">

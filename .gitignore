@@ -23,6 +23,10 @@ backend/secrets/
 *.sqlite3-journal
 *.db
 
+# User-uploaded media — NEVER commit these (KYC documents, selfies,
+# avatars, platform branding uploads)
+backend/media/
+
 # Python
 __pycache__/
 *.py[cod]
