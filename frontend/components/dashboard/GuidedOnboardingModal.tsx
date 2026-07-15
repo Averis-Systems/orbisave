@@ -184,9 +184,9 @@ export function GuidedOnboardingModal() {
                   <button
                     key={g.id}
                     onClick={() => setFormData({ ...formData, gender: g.id })}
-                    className={`w-full py-3.5 px-6 rounded-lg font-black text-sm transition-all border text-left flex items-center justify-between ${
-                      formData.gender === g.id 
-                        ? 'bg-[#0a2540] text-white border-[#0a2540]' 
+                    className={`w-full py-3.5 px-6 rounded-lg font-bold text-sm transition-all border text-left flex items-center justify-between ${
+                      formData.gender === g.id
+                        ? 'bg-primary/10 text-navy border-primary'
                         : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
                     }`}
                   >
@@ -217,14 +217,14 @@ export function GuidedOnboardingModal() {
                   <button
                     key={l.id}
                     onClick={() => toggleLanguage(l.id)}
-                    className={`py-3.5 px-6 rounded-lg font-black text-sm transition-all border text-center flex items-center justify-center gap-2 ${
-                      formData.languages.includes(l.id) 
-                        ? 'bg-[#0a2540] text-white border-[#0a2540]' 
+                    className={`py-3.5 px-6 rounded-lg font-bold text-sm transition-all border text-center flex items-center justify-center gap-2 ${
+                      formData.languages.includes(l.id)
+                        ? 'bg-primary/10 text-navy border-primary'
                         : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
                     }`}
                   >
                     {l.label}
-                    {formData.languages.includes(l.id) && <CheckCircle2 size={14} className="text-[#00ab00]" />}
+                    {formData.languages.includes(l.id) && <CheckCircle2 size={14} className="text-primary" />}
                   </button>
                 ))}
               </div>
@@ -310,21 +310,19 @@ export function GuidedOnboardingModal() {
                       key={m.id}
                       onClick={() => setFormData({ ...formData, disbursement_method: m.id })}
                       className={`w-full p-6 rounded-lg border text-left flex gap-4 transition-all ${
-                        formData.disbursement_method === m.id 
-                          ? 'bg-[#0a2540] text-white border-[#0a2540]' 
+                        formData.disbursement_method === m.id
+                          ? 'bg-primary/10 text-navy border-primary'
                           : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
                       }`}
                     >
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
-                        formData.disbursement_method === m.id ? 'bg-[#00ab00] text-white' : 'bg-slate-50 text-[#0a2540]'
+                        formData.disbursement_method === m.id ? 'bg-primary text-white' : 'bg-slate-50 text-navy'
                       }`}>
                         <Icon size={24} />
                       </div>
                       <div className="flex-1">
                         <p className="font-black uppercase tracking-tight text-xs mb-1">{m.label}</p>
-                        <p className={`text-xs font-medium leading-relaxed ${
-                          formData.disbursement_method === m.id ? 'text-white/60' : 'text-slate-400'
-                        }`}>{m.description}</p>
+                        <p className="text-xs font-medium leading-relaxed text-slate-400">{m.description}</p>
                       </div>
                     </button>
                   )
@@ -382,7 +380,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={loading}
                 onClick={handleSubmit}
-                className="w-full py-4 bg-[#0a2540] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#0a2540]/30 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
               >
                 {loading ? 'FINISHING...' : 'FINISH'}
                 {!loading && <CheckCircle2 size={16} />}

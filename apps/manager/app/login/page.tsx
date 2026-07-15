@@ -150,7 +150,7 @@ export default function LoginPage() {
                 onClick={() => router.push('/register')}
                 className="text-primary hover:text-primary/80 text-sm font-bold transition-all border-b border-primary/20 pb-0.5"
               >
-                Need Manager access? Ask your country lead
+                New Averis team member? Request Manager access
               </button>
             </div>
 
