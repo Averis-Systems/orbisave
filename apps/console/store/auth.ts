@@ -14,7 +14,7 @@ interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
-  setAuth: (user: User, token: string) => void
+  setAuth: (user: User, token: string, remember?: boolean) => void
   logout: () => void
 }
 
@@ -24,11 +24,14 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      setAuth: (user, token) => {
-        Cookies.set('access_token', token, { 
-          secure: process.env.NODE_ENV === 'production', 
-          sameSite: 'strict', 
-          expires: 7 
+      setAuth: (user, token, remember = true) => {
+        // Unchecked "Remember me" -> session cookie (dies when the browser
+        // closes) instead of a 7-day persistent one. Real behavior change,
+        // not a decorative checkbox.
+        Cookies.set('access_token', token, {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          ...(remember ? { expires: 7 } : {}),
         })
         set({ user, token, isAuthenticated: true })
       },

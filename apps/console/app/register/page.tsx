@@ -139,6 +139,7 @@ export default function RegisterPage() {
               onChange={(e) => setForm({...form, password: e.target.value})}
               placeholder="••••••••"
               showStrength
+              light
               required
             />
 
