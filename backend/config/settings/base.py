@@ -304,11 +304,26 @@ CACHES = {
 }
 
 # ─── Email ────────────────────────────────────────────────────────────────────
-EMAIL_BACKEND = os.environ.get(
-    'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend',
-)
+# Resend via SMTP relay (https://resend.com/docs/send-with-smtp) — no extra
+# package needed, Django's built-in SMTP backend + send_mail() is enough.
+# Set RESEND_API_KEY and this auto-switches from the dev-safe console
+# backend (prints instead of sending) to real delivery. Nothing else to
+# configure — Resend's SMTP host/port/user are fixed values, not per-account.
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@orbisave.com')
+
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.resend.com'
+    EMAIL_PORT = 587
+    EMAIL_HOST_USER = 'resend'
+    EMAIL_HOST_PASSWORD = RESEND_API_KEY
+    EMAIL_USE_TLS = True
+else:
+    EMAIL_BACKEND = os.environ.get(
+        'EMAIL_BACKEND',
+        'django.core.mail.backends.console.EmailBackend',
+    )
 
 # ─── Storage ──────────────────────────────────────────────────────────────────
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'

@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'phone', 'full_name', 'role', 'country', 'kyc_status',
+            'email_verified', 'phone_verified',
             'gender', 'next_of_kin_name', 'next_of_kin_phone', 'disbursement_method',
             'bank_name', 'bank_account_number', 'onboarding_popup_seen',
             'languages', 'created_at'

@@ -7,6 +7,7 @@ from .otp_views import (
     ConfirmPhoneOTPView, PasswordResetConfirmView,
     PasswordResetRequestView, RequestPhoneOTPView,
 )
+from .email_views import ConfirmEmailOTPView, ResendEmailOTPView
 from .pin_views import TransactionPinView
 
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -27,4 +28,7 @@ urlpatterns = [
     path('otp/confirm/',               ConfirmPhoneOTPView.as_view(),      name='otp-confirm'),
     path('password-reset/request/',    PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('password-reset/confirm/',    PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    # Email verification (signup) — required before login
+    path('email/confirm/',             ConfirmEmailOTPView.as_view(),      name='email-confirm'),
+    path('email/resend/',              ResendEmailOTPView.as_view(),       name='email-resend'),
 ]

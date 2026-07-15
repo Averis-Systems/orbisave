@@ -42,6 +42,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     kyc_status             = models.CharField(max_length=20, choices=KYC_STATUS, default='pending')
     kyc_provider_ref       = models.CharField(max_length=255, null=True, blank=True)
     phone_verified         = models.BooleanField(default=False)
+    email_verified         = models.BooleanField(default=False)
     two_factor_enabled     = models.BooleanField(default=False)
     mobile_money_provider  = models.CharField(max_length=50, null=True, blank=True)
     mobile_money_number    = models.CharField(max_length=20, null=True, blank=True)
@@ -140,6 +141,38 @@ class PhoneOTP(BaseModel):
 
     class Meta:
         db_table = 'accounts_phone_otp'
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    def is_exhausted(self):
+        return self.attempt_count >= self.max_attempts
+
+
+class EmailOTP(BaseModel):
+    """
+    One-time codes for email verification. Same shape as PhoneOTP (hashed,
+    purpose-scoped, expiring, attempt-limited) — kept as a separate model
+    rather than unifying the two, since email and phone delivery/throttling
+    are wired to different provider code (apps.notifications.sms vs.
+    django.core.mail) and the only two OTP use cases don't yet justify a
+    shared abstraction.
+    """
+    PURPOSES = [
+        ('email_verify', 'Email Verification'),
+    ]
+
+    user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_otps')
+    code           = models.CharField(max_length=128, help_text="Hashed OTP — never stored in plaintext")
+    purpose        = models.CharField(max_length=20, choices=PURPOSES, default='email_verify')
+    expires_at     = models.DateTimeField()
+    used           = models.BooleanField(default=False)
+    attempt_count  = models.PositiveSmallIntegerField(default=0)
+    max_attempts   = models.PositiveSmallIntegerField(default=5)
+
+    class Meta:
+        db_table = 'accounts_email_otp'
 
     def is_expired(self):
         from django.utils import timezone

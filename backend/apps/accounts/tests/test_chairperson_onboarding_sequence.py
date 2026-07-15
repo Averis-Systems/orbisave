@@ -14,27 +14,35 @@ def test_chairperson_registers_authenticates_creates_pending_group_and_sets_pin(
     email = "newchair@test.orbisave.com"
     password = "SecurePass123!"
 
-    register_response = client.post(
-        "/api/v1/auth/register/",
-        {
-            "full_name": "New Chair",
-            "email": email,
-            "phone": "+254700009901",
-            "password": password,
-            "role": "chairperson",
-            "country": "kenya",
-        },
-        format="json",
-    )
+    with patch("apps.accounts.email_views.send_mail") as email_sender:
+        register_response = client.post(
+            "/api/v1/auth/register/",
+            {
+                "full_name": "New Chair",
+                "email": email,
+                "phone": "+254700009901",
+                "password": password,
+                "role": "chairperson",
+                "country": "kenya",
+            },
+            format="json",
+        )
     assert register_response.status_code == status.HTTP_201_CREATED
 
-    token_response = client.post(
-        "/api/v1/auth/token/",
-        {"email": email, "password": password},
+    # Login is gated on email verification — confirm the code (which logs
+    # the user in) before it's usable, same as the real signup sequence.
+    email_message = email_sender.call_args.kwargs["message"]
+    email_code = next(
+        part for part in email_message.replace(".", " ").split()
+        if part.isdigit() and len(part) == 6
+    )
+    email_confirm = client.post(
+        "/api/v1/auth/email/confirm/",
+        {"email": email, "code": email_code},
         format="json",
     )
-    assert token_response.status_code == status.HTTP_200_OK
-    access = token_response.data["access"]
+    assert email_confirm.status_code == status.HTTP_200_OK
+    access = email_confirm.data["data"]["access"]
 
     authed = APIClient()
     authed.credentials(HTTP_AUTHORIZATION=f"Bearer {access}", HTTP_X_COUNTRY="kenya")

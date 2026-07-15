@@ -43,6 +43,15 @@ def extract_otp(sender):
     raise AssertionError(f'No OTP in: {message!r}')
 
 
+def extract_email_otp(sender):
+    # send_mail() is called with keyword args (message=...), unlike send_sms's positional signature.
+    message = sender.call_args.kwargs['message']
+    for part in message.replace('.', ' ').split():
+        if part.isdigit() and len(part) == 6:
+            return part
+    raise AssertionError(f'No OTP in: {message!r}')
+
+
 def make_provider_mock(prefix):
     """Instant-success provider double with per-call unique references."""
     provider = MagicMock()
@@ -84,20 +93,21 @@ def fire_repayment_webhook(provider, prov_ref, amount):
 
 
 def register_and_verify(email, phone, full_name, role='member'):
-    """Register through the API, log in, complete SMS OTP verification."""
+    """Register, confirm the email OTP (which logs in), complete SMS OTP verification."""
     client = APIClient()
-    register = client.post('/api/v1/auth/register/', {
-        'full_name': full_name, 'email': email, 'phone': phone,
-        'password': 'GoldenPath123!', 'role': role, 'country': 'kenya',
-    }, format='json')
+    with patch('apps.accounts.email_views.send_mail') as email_sender:
+        register = client.post('/api/v1/auth/register/', {
+            'full_name': full_name, 'email': email, 'phone': phone,
+            'password': 'GoldenPath123!', 'role': role, 'country': 'kenya',
+        }, format='json')
     assert register.status_code == 201, register.data
 
-    token = client.post('/api/v1/auth/token/', {
-        'email': email, 'password': 'GoldenPath123!',
+    email_confirm = client.post('/api/v1/auth/email/confirm/', {
+        'email': email, 'code': extract_email_otp(email_sender),
     }, format='json')
-    assert token.status_code == 200
+    assert email_confirm.status_code == 200, email_confirm.data
     authed = APIClient()
-    authed.credentials(HTTP_AUTHORIZATION=f"Bearer {token.data['access']}", HTTP_X_COUNTRY='kenya')
+    authed.credentials(HTTP_AUTHORIZATION=f"Bearer {email_confirm.data['data']['access']}", HTTP_X_COUNTRY='kenya')
 
     with patch('apps.accounts.otp_views.send_sms', return_value={'channel': 'logged'}) as sender:
         assert authed.post('/api/v1/auth/otp/request/').status_code == 200
