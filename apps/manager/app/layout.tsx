@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "OrbiSave Manager | Country Operations",
@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full bg-[#f8fafc]">
-      <body className={`${outfit.variable} ${outfit.className} h-full antialiased text-[#0a2540]`}>
+      <body className={`${montserrat.variable} ${montserrat.className} h-full antialiased text-[#0a2540]`}>
         {children}
       </body>
     </html>

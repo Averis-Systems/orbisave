@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "OrbiSave - Collective Capital Coordination",
@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className={`${outfit.variable} ${outfit.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
+      <body className={`${montserrat.variable} ${montserrat.className} antialiased bg-background text-foreground`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>
