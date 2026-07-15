@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import { Mail, ArrowRight, Loader2, ShieldCheck } from 'lucide-react'
+import { Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { LoginIllustrationPanel } from '@/components/auth/LoginIllustrationPanel'
@@ -143,20 +143,12 @@ export default function LoginPage() {
                   </>
                 )}
               </button>
-
-              <div className="flex items-center justify-center gap-1.5 text-slate-400">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-semibold">Encrypted connection · credentials never stored in plaintext</span>
-              </div>
             </form>
 
             <div className="mt-8 pt-8 border-t border-slate-100 text-center">
-              <p className="text-slate-500 text-sm font-medium">
-                Access is limited to verified country and platform administrators.
-              </p>
               <button
                 onClick={() => router.push('/register')}
-                className="mt-3 text-primary hover:text-primary/80 text-sm font-bold transition-all border-b border-primary/20 pb-0.5"
+                className="text-primary hover:text-primary/80 text-sm font-bold transition-all border-b border-primary/20 pb-0.5"
               >
                 Need Manager access? Ask your country lead
               </button>
