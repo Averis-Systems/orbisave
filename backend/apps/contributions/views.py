@@ -1,6 +1,7 @@
 import hashlib
 import uuid
 import structlog
+from django.conf import settings
 from django.utils import timezone as tz
 from rest_framework import views, status, viewsets, mixins
 from rest_framework.response import Response
@@ -154,7 +155,7 @@ class InitiateContributionView(views.APIView):
 
         # Money movement requires a verified phone: the STK push targets the
         # member's number, and an unverified number is an unowned number.
-        if not request.user.phone_verified:
+        if settings.PHONE_VERIFICATION_ENFORCED and not request.user.phone_verified:
             return Response(
                 {
                     'error': 'Verify your phone number before making contributions.',

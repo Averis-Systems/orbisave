@@ -336,6 +336,13 @@ MTN_CALLBACK_URL = os.environ.get('MTN_CALLBACK_URL', '')
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
 AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
 
+# Phone verification is fully built (apps/accounts/otp_views.py) but sending
+# real SMS costs money via Africa's Talking. Off by default until that's
+# funded — flip PHONE_VERIFICATION_ENFORCED=True in the environment (no code
+# change needed) once it's paid for. The four call sites this gates are
+# tagged with 'phone_unverified' in their response code.
+PHONE_VERIFICATION_ENFORCED = os.environ.get('PHONE_VERIFICATION_ENFORCED', 'False') == 'True'
+
 # ─── LiveKit ─────────────────────────────────────────────────────────────────
 LIVEKIT_API_KEY = os.environ.get('LIVEKIT_API_KEY', '')
 LIVEKIT_API_SECRET = os.environ.get('LIVEKIT_API_SECRET', '')

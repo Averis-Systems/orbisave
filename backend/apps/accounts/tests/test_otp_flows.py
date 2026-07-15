@@ -168,7 +168,11 @@ class TestPasswordReset:
 
 class TestPhoneVerifiedGates:
 
-    def test_unverified_phone_cannot_create_group(self, unverified_user):
+    def test_unverified_phone_cannot_create_group(self, unverified_user, settings):
+        # Phone verification enforcement is off by default (no Africa's
+        # Talking budget yet) — this test targets the gate logic itself, so
+        # it turns enforcement on for its own scope.
+        settings.PHONE_VERIFICATION_ENFORCED = True
         client = APIClient()
         client.force_authenticate(user=unverified_user)
         response = client.post('/api/v1/groups/', {

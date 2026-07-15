@@ -16,6 +16,7 @@ import uuid
 from decimal import Decimal, ROUND_HALF_UP
 
 import structlog
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone as tz
 from rest_framework import status, views
@@ -45,7 +46,7 @@ class InitiateRepaymentView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, loan_pk, repayment_pk):
-        if not request.user.phone_verified:
+        if settings.PHONE_VERIFICATION_ENFORCED and not request.user.phone_verified:
             return Response(
                 {'error': 'Verify your phone number before making repayments.',
                  'code': 'phone_unverified'},

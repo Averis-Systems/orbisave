@@ -2,6 +2,7 @@ from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Prefetch
 from django.utils import timezone
@@ -100,7 +101,7 @@ class GroupViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         # Money-adjacent action: the phone number that mobile-money flows
         # through must be verified before a group can be created.
-        if not request.user.phone_verified:
+        if settings.PHONE_VERIFICATION_ENFORCED and not request.user.phone_verified:
             return Response(
                 {
                     'error': 'Verify your phone number before creating a group.',

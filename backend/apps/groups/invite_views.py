@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.utils.crypto import get_random_string
 from django.utils import timezone
 from datetime import timedelta
@@ -136,7 +137,7 @@ class GroupInvitePublicView(views.APIView):
 
         # Money-adjacent action: the phone number that mobile-money flows
         # through must be verified before joining a group.
-        if not request.user.phone_verified:
+        if settings.PHONE_VERIFICATION_ENFORCED and not request.user.phone_verified:
             return Response(
                 {
                     'error': 'Verify your phone number before joining a group.',
