@@ -1,16 +1,20 @@
 /**
  * Left panel of the split-screen auth layout (login/register/forgot-password).
  *
- * Real photography instead of abstract shapes + copy — a curated shot
- * already used elsewhere in the product (frontend/public/images/categories/
- * women-bg.jpg, paired with "Digitizing Africa's oldest savings tradition"
- * in AuthImage.tsx), not a stock placeholder. A navy/green gradient overlay
- * ties it to the brand palette. No text on this side by design — the form
- * panel carries all the messaging.
+ * Real photography instead of abstract shapes + copy. coops-bg.jpg is an
+ * existing curated shot (frontend/public/images/categories/) — a real
+ * savings/farming cooperative at work, which fits Manager's actual job
+ * (country-level group verification) better than a generic community photo.
+ * A navy/green gradient overlay ties it to the brand palette. No text on
+ * this side by design — the form panel carries all the messaging.
  *
- * Follow-up: swap for a Magnific-generated image once OAuth is set up
- * (registered as the `magnific` MCP server — needs a sign-in step this
- * session can't complete non-interactively).
+ * A Lottie animation (verification.lottie, ID Card & Face Scan) was tried
+ * here first, per the "different image or lottie" ask — but that specific
+ * asset's actual artwork is icon-scale (a small centered glyph) no matter
+ * the layout/fit settings, so it read as a stray dot at this panel's size.
+ * LottieFiles' search API (needed to find a better full-scene animation)
+ * returns 403 — same auth wall as Magnific. Swap back to a Lottie once
+ * that's sorted and a better-suited animation is found.
  */
 export function LoginIllustrationPanel() {
   return (
