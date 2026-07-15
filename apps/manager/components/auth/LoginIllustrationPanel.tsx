@@ -1,4 +1,4 @@
-import { MapPinned } from 'lucide-react'
+import { MapPinned, ShieldCheck, PiggyBank } from 'lucide-react'
 
 /**
  * Left panel of the split-screen auth layout (login/register/forgot-password).
@@ -8,12 +8,10 @@ import { MapPinned } from 'lucide-react'
  * The centered graphic is a custom "clustered circles" motif (a group of
  * overlapping rings — echoes reviewing/verifying a chama's membership), kept
  * as inline SVG rather than a stock illustration since it's a brand-specific
- * mark. Both stat chips use self-hosted Icons8 icons (Pastel/"cotton" style —
- * the closest available match to a friendly 3D look; Icons8's actual 3D
- * platforms have too sparse a catalog for finance/KYC terms). Sources:
- * apps/manager/public/icons/id-verified.png (Icons8 "Checked Identification
- * Documents", id 92068) and money-box.png ("Money Box", id 64877), both
- * cotton platform.
+ * mark. Stat-chip icons use lucide (already a dependency, MIT licensed, no
+ * attribution) rather than Icons8 — reverted after the Icons8 free tier's
+ * attribution requirement turned out to be an open question for this
+ * account. See docs/PROGRAM_REPORT_2026-07.md follow-ups.
  */
 export function LoginIllustrationPanel() {
   return (
@@ -64,13 +62,11 @@ export function LoginIllustrationPanel() {
 
         <div className="mt-8 flex gap-3">
           <div className="flex items-center gap-2 rounded-lg border border-navy/10 bg-white/60 px-4 py-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/id-verified.png" alt="" className="h-4 w-4" />
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">KYC Reviewed</span>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-navy/10 bg-white/60 px-4 py-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/money-box.png" alt="" className="h-4 w-4" />
+            <PiggyBank className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reconciled Daily</span>
           </div>
         </div>
