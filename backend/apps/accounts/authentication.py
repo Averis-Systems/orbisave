@@ -14,9 +14,17 @@ class RS256JWTAuthentication(BaseAuthentication):
     The Next.js Better Auth layer holds the session, and sends the JWT as a Bearer token
     or via an encrypted cookie. Django simply verifies the signature using the Public Key.
     """
+    def authenticate_header(self, request):
+        # Without this, DRF downgrades every authentication failure to 403
+        # (NotAuthenticated and expired tokens alike). The Next.js proxies
+        # key their transparent token refresh on 401, and the frontends key
+        # session-expiry logout on 401 — so the missing header made expired
+        # sessions die silently instead of refreshing.
+        return 'Bearer realm="api"'
+
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization')
-        
+
         if not auth_header:
             return None
 

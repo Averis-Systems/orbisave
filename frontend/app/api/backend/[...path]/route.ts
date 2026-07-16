@@ -83,6 +83,50 @@ async function passThrough(upstream: Response, pending: PendingCookies) {
   return applyCookies(response, pending)
 }
 
+type MintedTokens = { access: string; refresh?: string }
+
+// Refresh rotation blacklists the old token on first use, so two parallel
+// requests refreshing with the same cookie would kill the session the first
+// one just renewed. Dedup: concurrent callers share one in-flight refresh.
+const refreshesInFlight = new Map<string, Promise<MintedTokens | null>>()
+
+function mintAccess(refreshToken: string): Promise<MintedTokens | null> {
+  const existing = refreshesInFlight.get(refreshToken)
+  if (existing) return existing
+
+  const attempt = (async () => {
+    try {
+      const response = await fetch(`${BACKEND_ORIGIN}/api/v1/${REFRESH_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refresh: refreshToken }),
+        cache: 'no-store',
+      })
+      if (!response.ok) return null
+      const tokens = await response.json()
+      if (!tokens.access) return null
+      return { access: tokens.access, refresh: tokens.refresh } as MintedTokens
+    } catch {
+      return null
+    }
+  })()
+
+  refreshesInFlight.set(refreshToken, attempt)
+  attempt.finally(() => refreshesInFlight.delete(refreshToken))
+  return attempt
+}
+
+// The session is over: 401 is the signal the client interceptors log out on.
+function sessionExpired() {
+  return applyCookies(
+    NextResponse.json(
+      { success: false, data: null, message: 'Session expired. Please sign in again.', errors: null, meta: null },
+      { status: 401 },
+    ),
+    { clear: true },
+  )
+}
+
 async function handler(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path: segments } = await context.params
   const path = `${segments.join('/')}/`.replace(/\/+$/, '/')
@@ -98,32 +142,57 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
   const isTokenPath = TOKEN_PATHS.has(path)
   const isRefreshPath = path === REFRESH_PATH
   const accessToken = req.cookies.get(ACCESS_COOKIE)?.value
+  const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value
 
   // Buffer the body once so a refresh-retry can resend it (streams are
   // single-use). KYC uploads are a few MB — well within buffering range.
   const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.arrayBuffer()
 
-  let upstream = await backendFetch(req, path, search, body, isTokenPath || isRefreshPath ? undefined : accessToken)
+  // The access cookie expires out of the browser (20 min) long before the
+  // 7-day refresh cookie. Without pre-minting, every request after that
+  // window went upstream unauthenticated and hard-failed — sessions died
+  // silently mid-use (e.g. the onboarding FINISH doing nothing). Mint a
+  // fresh access token first, then call upstream once, authenticated.
+  let effectiveAccess = accessToken
+  let refreshExhausted = false
+  if (!effectiveAccess && refreshToken && !isTokenPath && !isRefreshPath) {
+    const minted = await mintAccess(refreshToken)
+    if (minted) {
+      effectiveAccess = minted.access
+      pending.access = minted.access
+      if (minted.refresh) pending.refresh = minted.refresh
+    } else {
+      // Dead refresh chain: drop the cookies and forward unauthenticated —
+      // public endpoints still work, protected ones return the 401 the
+      // client interceptors log out on.
+      pending.clear = true
+      refreshExhausted = true
+    }
+  }
 
-  // Transparent single-retry refresh for expired access tokens.
-  if (upstream.status === 401 && !isTokenPath && !isRefreshPath) {
-    const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value
-    if (refreshToken) {
-      const refreshResponse = await fetch(`${BACKEND_ORIGIN}/api/v1/${REFRESH_PATH}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ refresh: refreshToken }),
-        cache: 'no-store',
-      })
-      if (refreshResponse.ok) {
-        const tokens = await refreshResponse.json()
-        pending.access = tokens.access
-        if (tokens.refresh) pending.refresh = tokens.refresh
-        upstream = await backendFetch(req, path, search, body, tokens.access)
-      } else {
-        // Refresh chain is dead — clear cookies so the client re-authenticates.
-        return applyCookies(await passThrough(upstream, {}), { clear: true })
-      }
+  let upstream = await backendFetch(req, path, search, body, isTokenPath || isRefreshPath ? undefined : effectiveAccess)
+
+  // Mid-window expiry (token present but rejected upstream): refresh once
+  // and retry. 403 counts too — auth failures surfaced as 403 before the
+  // backend's authenticate_header fix, and the belt-and-braces retry costs
+  // at most one extra round-trip on genuine permission denials.
+  if (
+    (upstream.status === 401 || upstream.status === 403) &&
+    !isTokenPath && !isRefreshPath &&
+    refreshToken && !refreshExhausted && !pending.access
+  ) {
+    const minted = await mintAccess(refreshToken)
+    if (minted) {
+      pending.access = minted.access
+      if (minted.refresh) pending.refresh = minted.refresh
+      upstream = await backendFetch(req, path, search, body, minted.access)
+    } else if (upstream.status === 401) {
+      // Unauthenticated upstream + dead refresh: the session is over.
+      return sessionExpired()
+    } else {
+      // Genuine 403 (e.g. role denial) alongside a dead refresh chain —
+      // pass the denial through but drop the dead cookies.
+      pending.clear = true
     }
   }
 

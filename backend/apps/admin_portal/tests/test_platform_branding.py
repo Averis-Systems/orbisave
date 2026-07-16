@@ -109,15 +109,16 @@ class TestUpdatePlatformBranding:
         assert response.status_code == 403
 
     def test_unauthenticated_cannot_update(self):
-        # JWT-only auth (no session/basic fallback) returns 403 for both
-        # "not authenticated" and "authenticated but forbidden" here —
-        # matches every other permission test in this codebase.
+        # 401 for "not authenticated" (RS256JWTAuthentication.authenticate_header
+        # makes DRF emit the standards-correct status); 403 stays reserved for
+        # authenticated-but-forbidden. The 401 is also what drives the member
+        # proxy's transparent token refresh and the frontends' session logout.
         response = APIClient().patch(
             '/api/v1/admin-portal/platform-branding/',
             {'logo': _test_image()},
             format='multipart',
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_empty_body_rejected(self, super_admin):
         client = APIClient()
