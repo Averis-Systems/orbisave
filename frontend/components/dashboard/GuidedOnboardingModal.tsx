@@ -24,13 +24,16 @@ const GENDERS = [
   { id: 'prefer_not_to_say', label: 'Prefer not to say' }
 ]
 
+// IDs must match backend/common/translation.py SUPPORTED_LANGUAGES exactly —
+// that dict (not this file) is authoritative. A prior mismatch here (full
+// words like 'english' vs the backend's ISO codes) meant every selection
+// silently no-op'd against a user's already-populated default languages.
 const LANGUAGES = [
-  { id: 'english', label: 'English' },
-  { id: 'swahili', label: 'Swahili' },
-  { id: 'kinyarwanda', label: 'Kinyarwanda' },
-  { id: 'twi', label: 'Twi' },
-  { id: 'ga', label: 'Ga' },
-  { id: 'french', label: 'French' },
+  { id: 'en', label: 'English' },
+  { id: 'sw', label: 'Kiswahili' },
+  { id: 'rw', label: 'Kinyarwanda' },
+  { id: 'fr', label: 'Français' },
+  { id: 'tw', label: 'Twi' },
 ]
 
 const DISBURSEMENT_METHODS = [
