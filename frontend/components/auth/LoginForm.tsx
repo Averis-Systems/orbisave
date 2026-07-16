@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { AlertTriangle, Shield, CheckCircle, Key, Loader2 } from "lucide-react"
+import { AlertTriangle, Mail, Lock, Loader2, ArrowRight } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -63,51 +63,77 @@ export function LoginForm() {
 
   return (
     <div className="w-full">
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        {error && <div className="mb-6 p-4 rounded bg-[#ffdad6] text-[#93000a] text-sm font-medium flex gap-2 items-center"><AlertTriangle className="w-4 h-4" /> {error}</div>}
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+        {error && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-600 animate-in fade-in slide-in-from-top-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
+          </div>
+        )}
 
-        <div className="mb-5">
-          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Email Address</label>
-          <input
-            type="email"
-            placeholder="you@example.com"
-            autoComplete="email"
-            className={`w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.email ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
-            {...register("email")}
-          />
-          {errors.email && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.email.message}</p>}
+        <div className="space-y-2">
+          <label className="ml-1 block text-sm font-semibold text-slate-700">Email Address</label>
+          <div className="group relative">
+            <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary" />
+            <input
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              className={`w-full rounded-lg border bg-slate-50/50 py-4 pl-12 pr-4 text-sm text-navy outline-none transition-all placeholder:text-slate-300 focus:ring-4 ${
+                errors.email
+                  ? "border-red-300 focus:border-red-400 focus:ring-red-500/10"
+                  : "border-slate-200 focus:border-primary focus:ring-primary/10"
+              }`}
+              {...register("email")}
+            />
+          </div>
+          {errors.email && <p className="ml-1 text-xs font-medium text-red-600">{errors.email.message}</p>}
         </div>
 
-        <div className="mb-8 relative">
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight">Password</label>
-            <Link href="/forgot-password" className="text-xs font-bold text-[#00ab00] hover:text-[#008a00]">Forgot password?</Link>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <label className="block text-sm font-semibold text-slate-700">Password</label>
+            <Link href="/forgot-password" className="text-xs font-bold text-primary transition-colors hover:text-primary/80">
+              Forgot password?
+            </Link>
           </div>
-          <div className="relative">
+          <div className="group relative">
+            <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary" />
             <input
               type={showPassword ? "text" : "password"}
               placeholder="••••••••••••"
               autoComplete="current-password"
-              className={`w-full h-11 px-4 pr-10 bg-[#f3f4f1] border-none rounded text-sm text-[#1a1c1a] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#012d1d] focus:outline-none transition-all ${errors.password ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+              className={`w-full rounded-lg border bg-slate-50/50 py-4 pl-12 pr-11 text-sm text-navy outline-none transition-all placeholder:text-slate-300 focus:ring-4 ${
+                errors.password
+                  ? "border-red-300 focus:border-red-400 focus:ring-red-500/10"
+                  : "border-slate-200 focus:border-primary focus:ring-primary/10"
+              }`}
               {...register("password")}
             />
-            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#717973] hover:text-[#1a1c1a] focus:outline-none" onClick={() => setShowPassword(v => !v)}>
+            <button
+              type="button"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-navy focus:outline-none"
+              onClick={() => setShowPassword(v => !v)}
+            >
               <EyeIcon open={showPassword} />
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.password.message}</p>}
+          {errors.password && <p className="ml-1 text-xs font-medium text-red-600">{errors.password.message}</p>}
         </div>
 
-        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-70" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className="group flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
+          disabled={isSubmitting}
+        >
           {isSubmitting ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Authenticating…
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Signing in…</span>
             </>
           ) : (
             <>
-              Sign In to My Account
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              <span className="tracking-wide">Sign In to My Account</span>
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
             </>
           )}
         </button>

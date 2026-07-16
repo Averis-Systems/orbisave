@@ -9,7 +9,7 @@ import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { MAX_LANGUAGES, MIN_LANGUAGES, SUPPORTED_LANGUAGES } from "@/lib/languages"
-import { AlertTriangle, User, Users, Shield, CheckCircle, Key, Info, Loader2, Languages } from "lucide-react"
+import { AlertTriangle, User, Users, Info, Loader2, Languages } from "lucide-react"
 
 const memberSchema = z.object({
   full_name: z.string().min(3, "Full name is required"),
@@ -31,6 +31,17 @@ const memberSchema = z.object({
 
 type MemberFormValues = z.infer<typeof memberSchema>
 type Role = "member" | "chairperson"
+
+// Manager/Console-style bordered input, shared across every field.
+const inputClass = (hasError?: boolean) =>
+  `w-full rounded-lg border bg-slate-50/50 px-4 py-3.5 text-sm text-navy outline-none transition-all placeholder:text-slate-300 focus:ring-4 ${
+    hasError
+      ? "border-red-300 focus:border-red-400 focus:ring-red-500/10"
+      : "border-slate-200 focus:border-primary focus:ring-primary/10"
+  }`
+
+const labelClass = "ml-1 block text-sm font-semibold text-slate-700 mb-2"
+const errorClass = "mt-1 ml-1 text-xs font-medium text-red-600"
 
 interface InvitePreview {
   group_name: string
@@ -188,123 +199,135 @@ export function RegisterForm() {
       {/* Role Selector - Only show if NO invite token */}
       {!inviteToken && (
         <>
-          <p className="text-[10px] font-bold text-[#717973] tracking-widest uppercase mb-3 text-left">Select Account Purpose</p>
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <p className="mb-3 ml-1 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Select Account Purpose</p>
+          <div className="mb-8 grid grid-cols-2 gap-4">
             <button
               type="button"
-              className={`relative p-4 rounded bg-white text-left transition-colors border ${selectedRole === "member" ? "border-[#00ab00] shadow-sm" : "border-black/5 hover:bg-[#f3f4f1]"}`}
+              className={`relative rounded-xl border p-4 text-left transition-all ${
+                selectedRole === "member"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
               onClick={() => handleRoleSelect("member")}
             >
-              <User className="w-5 h-5 text-[#00ab00] mb-3" />
-              <div className="text-sm font-bold text-[#0a2540] mb-1">Member</div>
-              <div className="text-[0.65rem] text-[#4a5c6a] leading-snug">Individual savings and yield tracking.</div>
+              <User className="mb-3 h-5 w-5 text-primary" />
+              <div className="mb-1 text-sm font-bold text-navy">Member</div>
+              <div className="text-[0.65rem] leading-snug text-slate-500">Individual savings and yield tracking.</div>
             </button>
             <button
               type="button"
-              className={`relative p-4 rounded bg-white text-left transition-colors border ${selectedRole === "chairperson" ? "border-[#00ab00] shadow-sm" : "border-black/5 hover:bg-[#f3f4f1]"}`}
+              className={`relative rounded-xl border p-4 text-left transition-all ${
+                selectedRole === "chairperson"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
               onClick={() => handleRoleSelect("chairperson")}
             >
-              <Users className="w-5 h-5 text-[#00ab00] mb-3" />
-              <div className="text-sm font-bold text-[#0a2540] mb-1">Chama Leader</div>
-              <div className="text-[0.65rem] text-[#4a5c6a] leading-snug">Group management and cycle coordination.</div>
+              <Users className="mb-3 h-5 w-5 text-primary" />
+              <div className="mb-1 text-sm font-bold text-navy">Chama Leader</div>
+              <div className="text-[0.65rem] leading-snug text-slate-500">Group management and cycle coordination.</div>
             </button>
           </div>
         </>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        {error && <div className="mb-6 p-4 rounded bg-[#ffdad6] text-[#93000a] text-sm font-medium flex gap-2 items-center"><AlertTriangle className="w-4 h-4" /> {error}</div>}
+        {error && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-600 animate-in fade-in slide-in-from-top-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
+          </div>
+        )}
 
         <div className="mb-5">
-          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Full Name</label>
+          <label className={labelClass}>Full Name</label>
           <input
             type="text"
             placeholder="As it appears on ID"
             autoComplete="name"
-            className={`w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.full_name ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+            className={inputClass(!!errors.full_name)}
             {...register("full_name")}
           />
-          {errors.full_name && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.full_name.message}</p>}
+          {errors.full_name && <p className={errorClass}>{errors.full_name.message}</p>}
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Email Address</label>
+          <label className={labelClass}>Email Address</label>
           <input
             type="email"
             placeholder="name@domain.com"
             autoComplete="email"
-            className={`w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.email ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+            className={inputClass(!!errors.email)}
             {...register("email")}
           />
-          {errors.email && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.email.message}</p>}
+          {errors.email && <p className={errorClass}>{errors.email.message}</p>}
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Phone Number</label>
+          <label className={labelClass}>Phone Number</label>
           <div className="flex gap-2">
-            <div className="h-11 px-4 bg-[#f3f4f1] rounded flex items-center gap-2 w-28 text-sm text-[#0a2540]">
+            <div className="flex w-28 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3.5 text-sm text-navy">
               +254 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="ml-auto opacity-50"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
             <input
               type="tel"
               placeholder="700 000 000"
               autoComplete="tel"
-              className={`flex-1 h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.phone ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+              className={`flex-1 ${inputClass(!!errors.phone)}`}
               {...register("phone")}
             />
           </div>
-          {errors.phone && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.phone.message}</p>}
+          {errors.phone && <p className={errorClass}>{errors.phone.message}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Password</label>
+            <label className={labelClass}>Password</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className={`w-full h-11 px-4 pr-10 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.password ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+                className={`${inputClass(!!errors.password)} pr-10`}
                 {...register("password")}
               />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a0a5a1] hover:text-[#0a2540] focus:outline-none" onClick={() => setShowPassword(v => !v)}>
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-navy focus:outline-none" onClick={() => setShowPassword(v => !v)}>
                 <EyeIcon open={showPassword} />
               </button>
             </div>
-            {errors.password && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.password.message}</p>}
+            {errors.password && <p className={errorClass}>{errors.password.message}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Confirm Password</label>
+            <label className={labelClass}>Confirm Password</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className={`w-full h-11 px-4 pr-10 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.confirmPassword ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+                className={`${inputClass(!!errors.confirmPassword)} pr-10`}
                 {...register("confirmPassword")}
               />
             </div>
-            {errors.confirmPassword && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.confirmPassword.message}</p>}
+            {errors.confirmPassword && <p className={errorClass}>{errors.confirmPassword.message}</p>}
           </div>
         </div>
 
         <div className="mb-5">
-          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">Group Referral Code (Optional)</label>
+          <label className={labelClass}>Group Referral Code (Optional)</label>
           <input
             type="text"
             placeholder="e.g. ABC-123-XYZ"
-            className={`w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all ${errors.group_invite_code ? "border-l-2 border-l-[#ba1a1a]" : ""}`}
+            className={inputClass(!!errors.group_invite_code)}
             {...register("group_invite_code")}
           />
-          {errors.group_invite_code && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.group_invite_code.message}</p>}
-          <p className="mt-1.5 text-[0.65rem] text-[#4a5c6a] flex items-center gap-1"><Info className="w-3 h-3" /> If you were invited by a Chairperson, enter the code here.</p>
+          {errors.group_invite_code && <p className={errorClass}>{errors.group_invite_code.message}</p>}
+          <p className="mt-1.5 ml-1 flex items-center gap-1 text-[0.65rem] text-slate-500"><Info className="h-3 w-3" /> If you were invited by a Chairperson, enter the code here.</p>
         </div>
 
         {/* Preferred languages */}
         <div className="mb-6">
-          <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight mb-2">
-            <span className="inline-flex items-center gap-1.5"><Languages className="w-3.5 h-3.5" /> Preferred languages</span>
+          <label className={labelClass}>
+            <span className="inline-flex items-center gap-1.5"><Languages className="h-3.5 w-3.5" /> Preferred languages</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {SUPPORTED_LANGUAGES.map((lang) => {
@@ -316,8 +339,8 @@ export function RegisterForm() {
                   onClick={() => toggleLanguage(lang.code)}
                   className={`rounded-full border px-4 py-2 text-xs font-bold transition-all ${
                     active
-                      ? "border-[#00ab00] bg-[#e9f3ed] text-[#016828]"
-                      : "border-black/10 bg-[#f3f4f1] text-[#4a5c6a] hover:border-black/20"
+                      ? "border-primary bg-primary/10 text-navy"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   }`}
                 >
                   {lang.label}
@@ -325,46 +348,46 @@ export function RegisterForm() {
               )
             })}
           </div>
-          {errors.languages && <p className="mt-1 text-xs text-[#ba1a1a] font-medium">{errors.languages.message as string}</p>}
-          <p className="mt-1.5 text-[0.65rem] text-[#4a5c6a] flex items-center gap-1">
-            <Info className="w-3 h-3" /> Pick at least two — OrbiSave will always speak to you in one of them.
+          {errors.languages && <p className={errorClass}>{errors.languages.message as string}</p>}
+          <p className="mt-1.5 ml-1 flex items-center gap-1 text-[0.65rem] text-slate-500">
+            <Info className="h-3 w-3" /> Pick at least two — OrbiSave will always speak to you in one of them.
           </p>
         </div>
 
         {/* Terms agreement */}
-        <div className="mb-8 bg-[#f3f4f1] p-4 rounded flex items-start gap-4 border border-black/5">
+        <div className="mb-8 flex items-start gap-4 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
           <div className="mt-0.5">
-            <input 
-              type="checkbox" 
-              id="terms" 
-              className="w-4 h-4 rounded border-gray-300 text-[#00ab00] focus:ring-[#00ab00]"
+            <input
+              type="checkbox"
+              id="terms"
+              className="h-4 w-4 rounded border-slate-300 text-primary accent-primary focus:ring-primary/20"
               {...register("terms")}
             />
           </div>
-          <label htmlFor="terms" className="text-[0.65rem] leading-relaxed text-[#4a5c6a]">
-            By creating an account, you agree to our <Link href="/terms" className="underline decoration-black/30 hover:text-black">Terms of Use</Link> and <Link href="/privacy" className="underline decoration-black/30 hover:text-black">Privacy Policy</Link>. Your data is encrypted with enterprise-grade AES-256 standards.
+          <label htmlFor="terms" className="text-[0.65rem] leading-relaxed text-slate-500">
+            By creating an account, you agree to our <Link href="/terms" className="underline decoration-slate-300 hover:text-navy">Terms of Use</Link> and <Link href="/privacy" className="underline decoration-slate-300 hover:text-navy">Privacy Policy</Link>. Your data is encrypted with enterprise-grade AES-256 standards.
           </label>
         </div>
+        {errors.terms && <p className={`${errorClass} -mt-6 mb-6`}>{errors.terms.message}</p>}
 
-        <button type="submit" className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-70" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className="group flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
+          disabled={isSubmitting}
+        >
           {isSubmitting ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Securing Account…
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Securing Account…</span>
             </>
           ) : (
             <>
-              Join the Collective
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              <span className="tracking-wide">Join the Collective</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </>
           )}
         </button>
       </form>
-
-      {/* Simple Security Footer */}
-      <div className="mt-12 pt-8 border-t border-black/5">
-        <p className="text-[11px] text-[#a0a5a1] font-bold tracking-tight text-center">© {new Date().getFullYear()} OrbiSave</p>
-      </div>
     </div>
   )
 }

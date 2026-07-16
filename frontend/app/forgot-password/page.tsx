@@ -3,8 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AuthImage } from "@/components/auth/AuthImage"
-import { AlertTriangle, KeyRound, ShieldCheck } from "lucide-react"
+import { AuthIllustrationPanel } from "@/components/auth/AuthIllustrationPanel"
+import { AlertTriangle, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react"
 import { useConfirmPasswordReset, useRequestPasswordReset } from "@/hooks/useAuth"
 
 function errorMessage(err: unknown, fallback: string) {
@@ -12,6 +12,10 @@ function errorMessage(err: unknown, fallback: string) {
   const response = (err as { response?: { data?: { error?: string; message?: string } } }).response
   return response?.data?.error || response?.data?.message || fallback
 }
+
+// Manager/Console-style bordered input, matching LoginForm/RegisterForm.
+const inputClass =
+  "w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3.5 text-sm text-navy outline-none transition-all placeholder:text-slate-300 focus:border-primary focus:ring-4 focus:ring-primary/10"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -49,49 +53,54 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f9faf6]">
-      {/* Global Topbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 py-6 w-full bg-[#f9faf6] absolute top-0 z-50 gap-4 sm:gap-0">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold text-[#0a2540] tracking-tight self-start sm:self-center">
-          <div className="w-8 h-8 rounded-lg bg-[#00ab00] flex items-center justify-center text-white text-sm tracking-normal flex-shrink-0">O</div>
-          OrbiSave
-        </Link>
-        <div className="text-sm font-medium text-[#4a5c6a] self-end sm:self-center">
-          Remembered your password? <Link href="/login" className="text-[#00ab00] font-bold ml-1 hover:text-[#008a00] transition-colors whitespace-nowrap">Sign In</Link>
-        </div>
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 font-sans lg:p-10">
+      <div className="flex w-full max-w-[1180px] overflow-hidden rounded-2xl bg-white shadow-2xl shadow-slate-900/10 lg:min-h-[640px]">
+        <AuthIllustrationPanel
+          illustration="/illustrations/security.svg"
+          caption="Reset codes go straight to the phone number on your account, and every change is recorded on your account's audit trail."
+        />
 
-      <div className="flex flex-1 pt-[140px] sm:pt-[88px]">
-        {/* Left Image Panel */}
-        <div className="hidden lg:block relative w-[48%] bg-[#f3f4f1]">
-          <AuthImage />
-        </div>
+        <div className="flex flex-1 items-center justify-center p-6 sm:p-10 lg:p-12">
+          <div className="w-full max-w-[420px]">
+            <Link
+              href="/login"
+              className="group mb-8 flex items-center gap-2 text-slate-400 transition-colors hover:text-navy"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              <span className="text-sm font-bold uppercase tracking-widest">Back to Login</span>
+            </Link>
 
-        {/* Right Panel */}
-        <div className="flex-1 flex flex-col items-center p-8 overflow-y-auto">
-          <div className="w-full max-w-md mt-16 pb-12">
             {step === "request" && (
               <>
-                <h1 className="text-3xl font-bold text-[#0a2540] mb-3 tracking-tight">Reset your password</h1>
-                <p className="text-[#4a5c6a] mb-10 text-[0.95rem] font-medium">
-                  Enter the phone number on your account and we&apos;ll text you a 6-digit reset code.
-                </p>
+                <div className="mb-10 text-center lg:text-left">
+                  <Link
+                    href="/"
+                    className="mb-8 inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm text-white">O</span>
+                    OrbiSave
+                  </Link>
+                  <h1 className="mb-2 text-3xl font-bold tracking-tight text-navy">Reset your password</h1>
+                  <p className="text-sm font-medium leading-relaxed text-slate-500">
+                    Enter the phone number on your account and we&apos;ll text you a 6-digit reset code.
+                  </p>
+                </div>
 
                 <form onSubmit={handleRequest} className="space-y-6" noValidate>
                   {error && (
-                    <div className="p-4 rounded bg-[#ffdad6] text-[#93000a] text-sm font-medium flex gap-2 items-center animate-in fade-in slide-in-from-top-2">
-                      <AlertTriangle className="w-4 h-4" /> {error}
+                    <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-600 animate-in fade-in slide-in-from-top-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
                     </div>
                   )}
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight" htmlFor="phone">Phone Number</label>
+                    <label className="ml-1 block text-sm font-semibold text-slate-700" htmlFor="phone">Phone Number</label>
                     <input
                       id="phone"
                       type="tel"
                       placeholder="+254 7XX XXX XXX"
                       autoComplete="tel"
-                      className="w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all"
+                      className={inputClass}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       required
@@ -100,7 +109,7 @@ export default function ForgotPasswordPage() {
 
                   <button
                     type="submit"
-                    className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
                     disabled={requestReset.isPending || phone.trim().length < 9}
                   >
                     {requestReset.isPending ? "Sending code…" : "Send reset code"}
@@ -111,27 +120,29 @@ export default function ForgotPasswordPage() {
 
             {step === "confirm" && (
               <>
-                <h1 className="text-3xl font-bold text-[#0a2540] mb-3 tracking-tight">Enter your reset code</h1>
-                <p className="text-[#4a5c6a] mb-10 text-[0.95rem] font-medium">
-                  If an account exists for <strong className="text-[#0a2540]">{phone}</strong>, an SMS with a
-                  6-digit code is on its way. Enter it with your new password.
-                </p>
+                <div className="mb-10 text-center lg:text-left">
+                  <h1 className="mb-2 text-3xl font-bold tracking-tight text-navy">Enter your reset code</h1>
+                  <p className="text-sm font-medium leading-relaxed text-slate-500">
+                    If an account exists for <strong className="text-navy">{phone}</strong>, an SMS with a
+                    6-digit code is on its way. Enter it with your new password.
+                  </p>
+                </div>
 
                 <form onSubmit={handleConfirm} className="space-y-6" noValidate>
                   {error && (
-                    <div className="p-4 rounded bg-[#ffdad6] text-[#93000a] text-sm font-medium flex gap-2 items-center animate-in fade-in slide-in-from-top-2">
-                      <AlertTriangle className="w-4 h-4" /> {error}
+                    <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-600 animate-in fade-in slide-in-from-top-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
                     </div>
                   )}
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight" htmlFor="code">6-digit code</label>
+                    <label className="ml-1 block text-sm font-semibold text-slate-700" htmlFor="code">6-digit code</label>
                     <input
                       id="code"
                       type="text"
                       inputMode="numeric"
                       placeholder="000000"
-                      className="w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-center text-lg tracking-[0.4em] text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all"
+                      className={`${inputClass} text-center text-lg tracking-[0.4em]`}
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       required
@@ -139,13 +150,13 @@ export default function ForgotPasswordPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-bold text-[#4a5c6a] tracking-tight" htmlFor="new-password">New password</label>
+                    <label className="ml-1 block text-sm font-semibold text-slate-700" htmlFor="new-password">New password</label>
                     <input
                       id="new-password"
                       type="password"
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
-                      className="w-full h-11 px-4 bg-[#f3f4f1] border-none rounded text-sm text-[#0a2540] placeholder-[#a0a5a1] focus:bg-[#e9eae7] focus:ring-1 focus:ring-[#00ab00] focus:outline-none transition-all"
+                      className={inputClass}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
@@ -154,16 +165,20 @@ export default function ForgotPasswordPage() {
 
                   <button
                     type="submit"
-                    className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
                     disabled={confirmReset.isPending || code.length !== 6 || newPassword.length < 8}
                   >
-                    <KeyRound className="w-4 h-4" />
+                    <KeyRound className="h-4 w-4" />
                     {confirmReset.isPending ? "Updating password…" : "Set new password"}
                   </button>
 
-                  <p className="text-xs text-[#4a5c6a] font-medium text-center">
+                  <p className="text-center text-xs font-medium text-slate-500">
                     Didn&apos;t get it?{" "}
-                    <button type="button" onClick={() => { setStep("request"); setCode(""); setError(null) }} className="text-[#00ab00] font-bold hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => { setStep("request"); setCode(""); setError(null) }}
+                      className="font-bold text-primary hover:underline"
+                    >
                       Request a new code
                     </button>
                   </p>
@@ -172,35 +187,42 @@ export default function ForgotPasswordPage() {
             )}
 
             {step === "done" && (
-              <div className="text-center py-8 animate-in fade-in zoom-in-95 duration-500">
-                <div className="w-16 h-16 bg-[#e9f3ed] rounded-full flex items-center justify-center mx-auto mb-6">
-                  <ShieldCheck className="w-8 h-8 text-[#00ab00]" />
+              <div className="py-6 text-center animate-in fade-in zoom-in-95 duration-500">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <ShieldCheck className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#0a2540] mb-3">Password updated</h2>
-                <p className="text-[#4a5c6a] mb-8 text-[0.95rem] font-medium">
+                <h2 className="mb-3 text-2xl font-bold text-navy">Password updated</h2>
+                <p className="mb-8 text-sm font-medium leading-relaxed text-slate-500">
                   Your password has been changed. Sign in with your new password to continue.
                 </p>
                 <button
                   onClick={() => router.push("/login")}
-                  className="w-full h-11 bg-[#00ab00] hover:bg-[#008a00] text-white text-sm font-bold rounded transition-all"
+                  className="w-full rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98]"
                 >
                   Back to sign in
                 </button>
               </div>
             )}
-          </div>
 
-          {/* Simple Global Footer */}
-          <div className="w-full max-w-md mt-auto pt-12">
-             <div className="flex flex-col items-center gap-4 border-t border-black/5 pt-8">
-                <div className="flex justify-between w-full text-[11px] text-[#a0a5a1] font-bold tracking-tight">
-                  <span>© {new Date().getFullYear()} OrbiSave</span>
-                  <div className="flex gap-4">
-                    <Link href="/privacy" className="hover:text-[#0a2540] transition-colors">Privacy Policy</Link>
-                    <Link href="/terms" className="hover:text-[#0a2540] transition-colors">Terms of Service</Link>
-                  </div>
-                </div>
-             </div>
+            <div className="mt-10 flex justify-between px-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                &copy; {new Date().getFullYear()} OrbiSave
+              </p>
+              <div className="flex gap-4">
+                <Link
+                  href="/privacy"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-600"
+                >
+                  Privacy
+                </Link>
+                <Link
+                  href="/terms"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-600"
+                >
+                  Terms
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>
