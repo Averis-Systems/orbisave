@@ -65,8 +65,39 @@ const config = {
           mid: "#1c3a5f",
           light: "#1e3a5c",
         },
-        slate: "#4a5c6a",
+        // Full slate scale restored: the previous flat override
+        // (slate: "#4a5c6a") silently killed every text-slate-500 /
+        // border-slate-200 / bg-slate-50 utility in the app — they didn't
+        // compile at all and elements fell back to inherited colors.
+        slate: {
+          DEFAULT: "#4a5c6a",
+          50: "#f8fafc",
+          100: "#f1f5f9",
+          200: "#e2e8f0",
+          300: "#cbd5e1",
+          400: "#94a3b8",
+          500: "#64748b",
+          600: "#475569",
+          700: "#334155",
+          800: "#1e293b",
+          900: "#0f172a",
+          950: "#020617",
+        },
         ink: "#0f1924",
+      },
+      // Design rule: corner radius never exceeds 5px — flat, professional
+      // banking look. Every rounded-md/lg/xl/2xl/3xl in the codebase (cards,
+      // buttons, inputs, dashboards) collapses to the 5px cap here instead
+      // of being chased through hundreds of class strings. rounded-full is
+      // intentionally untouched (circles: avatars, dots, pill badges).
+      borderRadius: {
+        DEFAULT: "4px",
+        sm: "2px",
+        md: "5px",
+        lg: "5px",
+        xl: "5px",
+        "2xl": "5px",
+        "3xl": "5px",
       },
       boxShadow: {
         "theme-xs": "0px 1px 2px 0px rgba(16, 24, 40, 0.05)",

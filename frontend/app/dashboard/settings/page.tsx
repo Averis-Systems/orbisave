@@ -47,8 +47,8 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {SETTING_CARDS.map(card => (
           <Link key={card.title} href={card.href} className="group block no-underline">
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8 hover:shadow-xl hover:shadow-[#0a2540]/5 hover:-translate-y-1 transition-all duration-300 flex items-start gap-6 h-full border-l-4 border-l-[#0a2540]">
-              <div className={`w-14 h-14 rounded-lg ${card.color} text-white flex items-center justify-center flex-shrink-0 shadow-lg`}>
+            <div className="bg-white rounded-lg border border-gray-100 p-8 transition-all duration-300 flex items-start gap-6 h-full border-l-4 border-l-[#0a2540]">
+              <div className={`w-14 h-14 rounded-lg ${card.color} text-white flex items-center justify-center flex-shrink-0`}>
                 <card.icon size={24} />
               </div>
               <div className="flex-1">

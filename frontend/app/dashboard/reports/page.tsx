@@ -44,7 +44,7 @@ export default function ReportsPage() {
         </div>
         <button 
           onClick={handleExport}
-          className="flex items-center gap-2 px-6 py-3 bg-[#0a2540] text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460] transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-[#0a2540] text-white rounded-lg font-black text-xs uppercase tracking-widest hover:bg-[#0f3460] transition-all"
         >
           <Download size={14} /> Export Spreadsheet
         </button>

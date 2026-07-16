@@ -151,7 +151,7 @@ export function GuidedOnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0a2540]/60 backdrop-blur-[2px] animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-[440px] rounded-lg overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative animate-in zoom-in-95 duration-300 border border-slate-100">
+      <div className="bg-white w-full max-w-[440px] rounded overflow-hidden relative animate-in zoom-in-95 duration-300 border border-slate-200">
         
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 w-full h-1.5 flex gap-1 px-8 pt-6">
@@ -201,7 +201,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={!formData.gender}
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50"
               >
                 Continue
               </button>
@@ -234,7 +234,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={formData.languages.length === 0}
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50"
               >
                 Continue
               </button>
@@ -291,7 +291,7 @@ export function GuidedOnboardingModal() {
                   formData.next_of_kin_phone.length < 10
                 }
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50"
               >
                 Continue
               </button>
@@ -353,7 +353,7 @@ export function GuidedOnboardingModal() {
 
               <button
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all"
               >
                 Continue
               </button>
@@ -383,7 +383,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={loading}
                 onClick={handleSubmit}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? 'FINISHING...' : 'FINISH'}
                 {!loading && <CheckCircle2 size={16} />}

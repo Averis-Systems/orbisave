@@ -79,7 +79,7 @@ export default function ProfilePage() {
           {/* Profile Card */}
           <div className="bg-white rounded-[24px] p-8 border border-gray-100 shadow-sm">
             <div className="flex items-center gap-6 mb-10 pb-8 border-b border-gray-50">
-              <div className="w-20 h-20 rounded-2xl bg-[#0a2540] flex items-center justify-center text-white text-3xl font-black shadow-lg">
+              <div className="w-20 h-20 rounded-2xl bg-[#0a2540] flex items-center justify-center text-white text-3xl font-black">
                 {user.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || "ME"}
               </div>
               <div>
@@ -269,7 +269,7 @@ export default function ProfilePage() {
              {user.kyc_status !== 'verified' && user.kyc_status !== 'submitted' && (
                 <button 
                   onClick={() => setIsKycModalOpen(true)}
-                  className="mt-8 w-full py-4 bg-[#00ab00] text-white rounded-xl font-black text-sm hover:bg-[#008a00] transition-all shadow-lg shadow-[#00ab00]/20"
+                  className="mt-8 w-full py-4 bg-[#00ab00] text-white rounded-xl font-black text-sm hover:bg-[#008a00] transition-all"
                 >
                   Start Verification
                 </button>

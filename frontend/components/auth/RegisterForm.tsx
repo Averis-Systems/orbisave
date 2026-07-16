@@ -8,8 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { MAX_LANGUAGES, MIN_LANGUAGES, SUPPORTED_LANGUAGES } from "@/lib/languages"
-import { AlertTriangle, User, Users, Info, Loader2, Languages } from "lucide-react"
+import { AlertTriangle, User, Users, Info, Loader2 } from "lucide-react"
 
 const memberSchema = z.object({
   full_name: z.string().min(3, "Full name is required"),
@@ -18,11 +17,6 @@ const memberSchema = z.object({
   password: z.string().min(8, "Minimum 8 characters"),
   confirmPassword: z.string(),
   group_invite_code: z.string().optional(),
-  // Product rule: at least two preferred languages — the system always
-  // serves the user in one of their selected languages.
-  languages: z.array(z.string())
-    .min(MIN_LANGUAGES, `Choose at least ${MIN_LANGUAGES} languages`)
-    .max(MAX_LANGUAGES, `Choose at most ${MAX_LANGUAGES} languages`),
   terms: z.boolean().refine(val => val === true, "You must accept the terms"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -63,19 +57,10 @@ export function RegisterForm() {
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
   const [loadingInvite, setLoadingInvite] = useState(false)
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<MemberFormValues>({
       resolver: zodResolver(memberSchema),
-      defaultValues: { languages: ["en", "sw"] },
     })
-
-  const selectedLanguages = watch("languages") || []
-  const toggleLanguage = (code: string) => {
-    const next = selectedLanguages.includes(code)
-      ? selectedLanguages.filter((c) => c !== code)
-      : [...selectedLanguages, code].slice(0, MAX_LANGUAGES)
-    setValue("languages", next, { shouldValidate: true })
-  }
 
   useEffect(() => {
     if (inviteToken) {
@@ -108,13 +93,15 @@ export function RegisterForm() {
     setError(null)
     try {
       // 1. Register Member
+      // No languages here on purpose: the backend applies per-country
+      // defaults on register, and the guided onboarding dialog collects the
+      // member's real preferences right after first login.
       const regPayload: any = {
         full_name: data.full_name,
         email: data.email,
         phone: data.phone,
         password: data.password,
         role: "member",
-        languages: data.languages,
         invite_token: inviteToken || data.group_invite_code
       }
       await api.post("/auth/register/", regPayload)
@@ -205,7 +192,7 @@ export function RegisterForm() {
               type="button"
               className={`relative rounded-xl border p-4 text-left transition-all ${
                 selectedRole === "member"
-                  ? "border-primary bg-primary/5 shadow-sm"
+                  ? "border-primary bg-primary/5"
                   : "border-slate-200 bg-white hover:border-slate-300"
               }`}
               onClick={() => handleRoleSelect("member")}
@@ -218,7 +205,7 @@ export function RegisterForm() {
               type="button"
               className={`relative rounded-xl border p-4 text-left transition-all ${
                 selectedRole === "chairperson"
-                  ? "border-primary bg-primary/5 shadow-sm"
+                  ? "border-primary bg-primary/5"
                   : "border-slate-200 bg-white hover:border-slate-300"
               }`}
               onClick={() => handleRoleSelect("chairperson")}
@@ -324,36 +311,6 @@ export function RegisterForm() {
           <p className="mt-1.5 ml-1 flex items-center gap-1 text-[0.65rem] text-slate-500"><Info className="h-3 w-3" /> If you were invited by a Chairperson, enter the code here.</p>
         </div>
 
-        {/* Preferred languages */}
-        <div className="mb-6">
-          <label className={labelClass}>
-            <span className="inline-flex items-center gap-1.5"><Languages className="h-3.5 w-3.5" /> Preferred languages</span>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {SUPPORTED_LANGUAGES.map((lang) => {
-              const active = selectedLanguages.includes(lang.code)
-              return (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => toggleLanguage(lang.code)}
-                  className={`rounded-full border px-4 py-2 text-xs font-bold transition-all ${
-                    active
-                      ? "border-primary bg-primary/10 text-navy"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  {lang.label}
-                </button>
-              )
-            })}
-          </div>
-          {errors.languages && <p className={errorClass}>{errors.languages.message as string}</p>}
-          <p className="mt-1.5 ml-1 flex items-center gap-1 text-[0.65rem] text-slate-500">
-            <Info className="h-3 w-3" /> Pick at least two — OrbiSave will always speak to you in one of them.
-          </p>
-        </div>
-
         {/* Terms agreement */}
         <div className="mb-8 flex items-start gap-4 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
           <div className="mt-0.5">
@@ -372,7 +329,7 @@ export function RegisterForm() {
 
         <button
           type="submit"
-          className="group flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
+          className="group flex w-full items-center justify-center gap-3 rounded bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50"
           disabled={isSubmitting}
         >
           {isSubmitting ? (

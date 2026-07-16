@@ -589,7 +589,7 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button aria-label="Close dialog" className="absolute inset-0 bg-[#0a2540]/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-2xl dark:bg-gray-950">
+      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-gray-950">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5 dark:border-white/10">
           <div>
             <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Create Group</h2>

@@ -406,7 +406,7 @@ function RejectDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button aria-label="Close dialog" className="absolute inset-0 bg-[#0a2540]/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-950">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-gray-950">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5 dark:border-white/10">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-200">

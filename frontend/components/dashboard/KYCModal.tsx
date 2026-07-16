@@ -370,7 +370,7 @@ export function KYCModal({ isOpen, onClose }: KYCModalProps) {
       />
       
       {/* Modal Container */}
-      <div className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-2xl animate-in fade-in zoom-in duration-300 dark:bg-gray-950">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white animate-in fade-in zoom-in duration-300 dark:border-white/10 dark:bg-gray-950">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-white/10">
           <div className="flex items-center gap-2">

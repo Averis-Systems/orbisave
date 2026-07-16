@@ -58,7 +58,7 @@ export default function RotationSettingsPage() {
         <button 
           onClick={handleSave} 
           className={`flex items-center gap-2 px-8 py-4 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
-            saved ? 'bg-green-50 text-[#00ab00] border border-green-100' : 'bg-[#0a2540] text-white shadow-xl shadow-[#0a2540]/10 hover:bg-[#0f3460]'
+            saved ? 'bg-green-50 text-[#00ab00] border border-green-100' : 'bg-[#0a2540] text-white hover:bg-[#0f3460]'
           }`}
         >
           {saved ? <><CheckCircle size={16} /> Rules Saved</> : <><Save size={16} /> Update Sequence</>}

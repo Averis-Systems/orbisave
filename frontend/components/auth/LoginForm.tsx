@@ -122,7 +122,7 @@ export function LoginForm() {
 
         <button
           type="submit"
-          className="group flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
+          className="group flex w-full items-center justify-center gap-3 rounded bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50"
           disabled={isSubmitting}
         >
           {isSubmitting ? (

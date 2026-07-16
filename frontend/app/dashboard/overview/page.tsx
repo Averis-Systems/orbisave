@@ -172,7 +172,7 @@ function TargetCard({
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-100">
-      <div className="rounded-2xl bg-white px-5 pb-11 pt-5 shadow-[0_1px_3px_rgba(16,24,40,0.1)] sm:px-6 sm:pt-6">
+      <div className="rounded-2xl bg-white px-5 pb-11 pt-5 sm:px-6 sm:pt-6">
         <div className="flex justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
@@ -243,7 +243,7 @@ function StatisticsChart({ currency }: { currency: string }) {
               <button
                 key={label}
                 className={`rounded-md px-3 py-2 text-xs font-medium ${
-                  index === 0 ? "bg-white text-gray-900 shadow-[0_1px_2px_rgba(16,24,40,0.05)]" : "text-gray-500"
+                  index === 0 ? "bg-white text-gray-900" : "text-gray-500"
                 }`}
               >
                 {label}
@@ -380,11 +380,11 @@ function RecentActivityTable({
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:bg-gray-50 hover:text-gray-800">
+          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800">
             <Filter size={18} />
             Filter
           </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:bg-gray-50 hover:text-gray-800">
+          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800">
             See all
           </button>
         </div>

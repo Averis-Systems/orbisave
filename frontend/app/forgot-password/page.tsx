@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AuthIllustrationPanel } from "@/components/auth/AuthIllustrationPanel"
+import { AuthFooter } from "@/components/auth/AuthFooter"
 import { AlertTriangle, ArrowLeft, KeyRound, ShieldCheck } from "lucide-react"
 import { useConfirmPasswordReset, useRequestPasswordReset } from "@/hooks/useAuth"
 
@@ -54,11 +55,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 font-sans lg:p-10">
-      <div className="flex w-full max-w-[1180px] overflow-hidden rounded-2xl bg-white shadow-2xl shadow-slate-900/10 lg:min-h-[640px]">
-        <AuthIllustrationPanel
-          illustration="/illustrations/security.svg"
-          caption="Reset codes go straight to the phone number on your account, and every change is recorded on your account's audit trail."
-        />
+      <div className="flex w-full max-w-[1180px] overflow-hidden rounded-lg border border-slate-200 bg-white lg:min-h-[640px]">
+        <AuthIllustrationPanel illustration="/illustrations/security.svg" />
 
         <div className="flex flex-1 items-center justify-center p-6 sm:p-10 lg:p-12">
           <div className="w-full max-w-[420px]">
@@ -73,11 +71,13 @@ export default function ForgotPasswordPage() {
             {step === "request" && (
               <>
                 <div className="mb-10 text-center lg:text-left">
+                  {/* The logo lives on the illustration panel at lg+; keep it
+                      here for small screens where that panel is hidden. */}
                   <Link
                     href="/"
-                    className="mb-8 inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy"
+                    className="mb-8 inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy lg:hidden"
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm text-white">O</span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm text-white">O</span>
                     OrbiSave
                   </Link>
                   <h1 className="mb-2 text-3xl font-bold tracking-tight text-navy">Reset your password</h1>
@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
 
                   <button
                     type="submit"
-                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
+                    className="flex w-full items-center justify-center gap-3 rounded bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50"
                     disabled={requestReset.isPending || phone.trim().length < 9}
                   >
                     {requestReset.isPending ? "Sending code…" : "Send reset code"}
@@ -165,7 +165,7 @@ export default function ForgotPasswordPage() {
 
                   <button
                     type="submit"
-                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50 disabled:shadow-none"
+                    className="flex w-full items-center justify-center gap-3 rounded bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50"
                     disabled={confirmReset.isPending || code.length !== 6 || newPassword.length < 8}
                   >
                     <KeyRound className="h-4 w-4" />
@@ -197,32 +197,14 @@ export default function ForgotPasswordPage() {
                 </p>
                 <button
                   onClick={() => router.push("/login")}
-                  className="w-full rounded-lg bg-primary py-4 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-[#009200] active:scale-[0.98]"
+                  className="w-full rounded bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98]"
                 >
                   Back to sign in
                 </button>
               </div>
             )}
 
-            <div className="mt-10 flex justify-between px-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                &copy; {new Date().getFullYear()} OrbiSave
-              </p>
-              <div className="flex gap-4">
-                <Link
-                  href="/privacy"
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-600"
-                >
-                  Privacy
-                </Link>
-                <Link
-                  href="/terms"
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 transition-colors hover:text-slate-600"
-                >
-                  Terms
-                </Link>
-              </div>
-            </div>
+            <AuthFooter />
           </div>
         </div>
       </div>
