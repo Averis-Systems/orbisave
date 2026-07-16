@@ -49,35 +49,42 @@ export function buildDashboardMetrics(input: MetricInput): DashboardMetric[] {
   const currency = input.currency || "KES"
   const memberCount = input.memberCount ?? 0
   const maxMembers = input.maxMembers ?? 0
+  // maxMembers is a required group field, so it is only undefined when the
+  // member has no active group yet — the cards then read as a true zero
+  // state instead of claiming a cadence/capacity that doesn't exist.
+  const hasGroup = input.maxMembers != null
+  const capacity = maxMembers > 0 ? Math.round((memberCount / maxMembers) * 100) : 0
 
+  // No fabricated trend percentages: real movement stats need wallet
+  // history, so until that's wired we only badge what we actually know.
   return [
     {
       label: t("dashboard.metrics.totalMembers"),
       value: `${memberCount}`,
-      sub: `${memberCount} of ${maxMembers} active seats`,
-      trend: "up",
-      trendLabel: "11.01%",
+      sub: hasGroup ? `${memberCount} of ${maxMembers} active seats` : "Join or create a group to begin",
+      trend: "neutral",
+      trendLabel: hasGroup ? `${capacity}% full` : "",
     },
     {
       label: t("dashboard.metrics.rotationSavingsTotal"),
       value: formatCurrency(input.rotationPool ?? 0, currency),
-      sub: `${normalizeFrequency(input.frequency)} payout cadence`,
-      trend: "down",
-      trendLabel: "9.05%",
+      sub: hasGroup ? `${normalizeFrequency(input.frequency)} payout cadence` : "No rotation schedule yet",
+      trend: "neutral",
+      trendLabel: "",
     },
     {
       label: t("dashboard.metrics.loanPool"),
       value: formatCurrency(input.loanPool ?? 0, currency),
-      sub: "Available for internal credit",
-      trend: "up",
-      trendLabel: "4.28%",
+      sub: hasGroup ? "Available for internal credit" : "Unlocks after group setup",
+      trend: "neutral",
+      trendLabel: "",
     },
     {
       label: t("dashboard.metrics.totalGroupWallet"),
       value: formatCurrency(input.totalPool ?? 0, currency),
-      sub: "Trust account balance",
+      sub: hasGroup ? "Trust account balance" : "Unlocks after group setup",
       trend: "neutral",
-      trendLabel: "Live",
+      trendLabel: hasGroup ? "Live" : "",
     },
   ]
 }

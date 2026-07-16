@@ -179,7 +179,7 @@ export function GuidedOnboardingModal() {
           {step === 1 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black text-navy tracking-tight">How do you identify?</h2>
+                <h2 className="text-2xl font-bold text-navy tracking-tight">How do you identify?</h2>
                 <p className="text-slate-400 font-medium">This information will always be private.</p>
               </div>
               <div className="grid grid-cols-1 gap-3">
@@ -201,7 +201,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={!formData.gender}
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
               >
                 Continue
               </button>
@@ -212,7 +212,7 @@ export function GuidedOnboardingModal() {
           {step === 2 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black text-navy tracking-tight">Your primary languages</h2>
+                <h2 className="text-2xl font-bold text-navy tracking-tight">Your primary languages</h2>
                 <p className="text-slate-400 font-medium leading-relaxed">Select up to 2. We use this to translate your dashboard into your local dialect.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -234,7 +234,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={formData.languages.length === 0}
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
               >
                 Continue
               </button>
@@ -245,12 +245,12 @@ export function GuidedOnboardingModal() {
           {step === 3 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black text-navy tracking-tight">Safeguarding your legacy</h2>
+                <h2 className="text-2xl font-bold text-navy tracking-tight">Safeguarding your legacy</h2>
                 <p className="text-slate-400 font-medium">Set your Next of Kin. This is mandatory for security.</p>
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Full Name</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                     <input
@@ -258,12 +258,12 @@ export function GuidedOnboardingModal() {
                       value={formData.next_of_kin_name}
                       onChange={e => setFormData({ ...formData, next_of_kin_name: e.target.value })}
                       placeholder="e.g. Jane Doe"
-                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-lg text-sm font-black focus:border-[#00ab00] outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-lg text-sm font-medium focus:border-[#00ab00] outline-none transition-all"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
                   <div className="relative">
                     <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                     <input
@@ -279,7 +279,7 @@ export function GuidedOnboardingModal() {
                         }
                       }}
                       placeholder={user?.country ? `e.g. ${COUNTRY_CODES[user.country.toLowerCase()]} ...` : "e.g. +254 700 ..."}
-                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-lg text-sm font-black focus:border-[#00ab00] outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-lg text-sm font-medium focus:border-[#00ab00] outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export function GuidedOnboardingModal() {
                   formData.next_of_kin_phone.length < 10
                 }
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none"
               >
                 Continue
               </button>
@@ -302,7 +302,7 @@ export function GuidedOnboardingModal() {
           {step === 4 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black text-navy tracking-tight">Financial Connectivity</h2>
+                <h2 className="text-2xl font-bold text-navy tracking-tight">Financial Connectivity</h2>
                 <p className="text-slate-400 font-medium">How would you like to receive your payouts?</p>
               </div>
               <div className="grid grid-cols-1 gap-4">
@@ -324,7 +324,7 @@ export function GuidedOnboardingModal() {
                         <Icon size={24} />
                       </div>
                       <div className="flex-1">
-                        <p className="font-black uppercase tracking-tight text-xs mb-1">{m.label}</p>
+                        <p className="font-bold uppercase tracking-tight text-xs mb-1">{m.label}</p>
                         <p className="text-xs font-medium leading-relaxed text-slate-400">{m.description}</p>
                       </div>
                     </button>
@@ -339,21 +339,21 @@ export function GuidedOnboardingModal() {
                     value={formData.bank_name}
                     onChange={e => setFormData({ ...formData, bank_name: e.target.value })}
                     placeholder="Bank Name (e.g. Equity)"
-                    className="px-4 py-3.5 bg-white border border-slate-100 rounded-lg text-xs font-black focus:border-[#00ab00] outline-none transition-all"
+                    className="px-4 py-3.5 bg-white border border-slate-100 rounded-lg text-xs font-medium focus:border-[#00ab00] outline-none transition-all"
                   />
                   <input
                     type="text"
                     value={formData.bank_account_number}
                     onChange={e => setFormData({ ...formData, bank_account_number: e.target.value })}
                     placeholder="Account Number"
-                    className="px-4 py-3.5 bg-white border border-slate-100 rounded-lg text-xs font-black focus:border-[#00ab00] outline-none transition-all"
+                    className="px-4 py-3.5 bg-white border border-slate-100 rounded-lg text-xs font-medium focus:border-[#00ab00] outline-none transition-all"
                   />
                 </div>
               )}
 
               <button
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all"
               >
                 Continue
               </button>
@@ -367,7 +367,7 @@ export function GuidedOnboardingModal() {
                 <CheckCircle2 size={32} className="text-[#00ab00]" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-black text-navy tracking-tight">You're all set!</h2>
+                <h2 className="text-2xl font-bold text-navy tracking-tight">You're all set!</h2>
                 <p className="text-slate-400 font-medium leading-relaxed">
                   Head over to your <strong>Billing Settings</strong> to set your preferred contribution method (e.g. M-Pesa) and finalize your financial connection.
                 </p>
@@ -383,7 +383,7 @@ export function GuidedOnboardingModal() {
               <button
                 disabled={loading}
                 onClick={handleSubmit}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs hover:shadow-lg hover:shadow-[#00ab00]/30 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
               >
                 {loading ? 'FINISHING...' : 'FINISH'}
                 {!loading && <CheckCircle2 size={16} />}

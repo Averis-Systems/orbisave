@@ -30,7 +30,6 @@ import { useActiveGroup } from "@/hooks/useGroups"
 import { useMeetings } from "@/hooks/useMeetings"
 import { useLoans } from "@/hooks/useLoans"
 import { useContributions } from "@/hooks/useContributions"
-import { AppStatePanel } from "@/components/states/AppState"
 import {
   buildDashboardMetrics,
   getTargetTitle,
@@ -42,6 +41,8 @@ import { formatCurrency, formatDate } from "@/lib/formatters"
 function MetricBadge({ trend, label }: { trend: DashboardMetric["trend"]; label: string }) {
   const isUp = trend === "up"
   const isDown = trend === "down"
+
+  if (!label) return null
 
   return (
     <span
@@ -141,6 +142,8 @@ function PoolBarChart({
       ) : (
         <div className="mt-3 flex h-[210px] min-w-[520px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center">
           <div className="max-w-xs">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/illustrations/empty-wallet.svg" alt="" className="mx-auto mb-3 h-20 w-auto" loading="lazy" />
             <p className="text-sm font-semibold text-gray-800">No confirmed contributions yet</p>
             <p className="mt-2 text-sm text-gray-500">Confirmed contribution collections will appear here once mobile money or manual records are posted.</p>
           </div>
@@ -200,9 +203,6 @@ function TargetCard({
           <div className="absolute inset-0 flex items-center justify-center pt-4">
             <span className="text-4xl font-semibold text-gray-800">{progress}%</span>
           </div>
-          <span className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-[#ecfdf3] px-3 py-1 text-xs font-medium text-[#039855]">
-            +10%
-          </span>
         </div>
 
         <p className="mx-auto mt-2 max-w-[380px] text-center text-sm text-gray-500 sm:text-base">
@@ -214,7 +214,7 @@ function TargetCard({
         {[
           ["Target", formatCurrency(target, currency)],
           ["Collected", formatCurrency(collected, currency)],
-          ["Today", formatCurrency(Math.round(collected * 0.08), currency)],
+          ["Remaining", formatCurrency(Math.max(target - collected, 0), currency)],
         ].map(([label, value], index) => (
           <div key={label} className="flex items-center gap-5 sm:gap-8">
             {index > 0 && <div className="h-7 w-px bg-gray-200" />}
@@ -259,9 +259,8 @@ function StatisticsChart({ currency }: { currency: string }) {
 
       <div className="flex h-[310px] min-w-[760px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center">
         <div className="max-w-sm">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#ecfdf3] text-[#00ab00]">
-            <Activity size={22} />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/illustrations/finance.svg" alt="" className="mx-auto mb-4 h-28 w-auto" loading="lazy" />
           <p className="text-sm font-semibold text-gray-800">No wallet history yet</p>
           <p className="mt-2 text-sm text-gray-500">
             We will chart contribution collections, rotation payouts, and loan pool movements here after live group wallet events are available in {currency}.
@@ -276,7 +275,8 @@ function CommunityCard({ memberCount, maxMembers }: { memberCount: number; maxMe
   const capacity = maxMembers > 0 ? Math.round((memberCount / maxMembers) * 100) : 0
   const rows = [
     { name: "Active Members", detail: `${memberCount} members`, percent: capacity || 0 },
-    { name: "Available Seats", detail: `${Math.max(maxMembers - memberCount, 0)} seats`, percent: Math.max(100 - capacity, 0) },
+    // Without a group there are no seats at all — don't show a full bar for 0 of 0.
+    { name: "Available Seats", detail: `${Math.max(maxMembers - memberCount, 0)} seats`, percent: maxMembers > 0 ? Math.max(100 - capacity, 0) : 0 },
   ]
 
   return (
@@ -466,35 +466,67 @@ export default function OverviewPage() {
     [activeGroup, currency, wallet]
   )
 
-  if (!activeGroup && !groupsLoading) {
-    return <AppStatePanel stateKey="groups.empty" className="min-h-[60vh]" />
-  }
+  const showGetStarted = !activeGroup && !groupsLoading
 
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <div className="col-span-12">
-        <div className="rounded-2xl border border-[#bfe8c4] bg-[#ecfdf3] p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                Hello <strong>{user?.full_name}</strong>. {activeGroup?.name || "Your group"} status is{" "}
-                <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium uppercase text-[#00ab00]">
-                  {activeGroup?.status || "loading"}
-                </span>
-                {upcomingMeeting && <>. Next meeting is scheduled for {formatDate(upcomingMeeting.scheduled_at)}.</>}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Contribution cadence: {normalizeFrequency(activeGroup?.contribution_frequency)}
-              </p>
+        {showGetStarted ? (
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <div className="flex flex-col items-center gap-8 p-6 sm:p-10 lg:flex-row lg:justify-between">
+              <div className="max-w-xl text-center lg:text-left">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#00ab00]">Get started</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0a2540] sm:text-3xl">
+                  Start or join your savings group
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  Hello <strong className="font-semibold text-gray-700">{user?.full_name}</strong> — contributions,
+                  rotation payouts, savings, and loans all begin with a group. Create yours or accept an invite,
+                  and this dashboard fills in from there.
+                </p>
+                <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
+                  <button
+                    onClick={() => router.push("/dashboard/my-group")}
+                    className="rounded-lg bg-[#00ab00] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#009200]"
+                  >
+                    Create or manage group
+                  </button>
+                  <button
+                    onClick={() => router.push("/how-loaning-works")}
+                    className="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-[#0a2540] transition-colors hover:bg-gray-50"
+                  >
+                    See how groups work
+                  </button>
+                </div>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/illustrations/savings.svg" alt="" className="h-36 w-auto sm:h-48" loading="lazy" />
             </div>
-            <button
-              onClick={() => router.push("/dashboard/my-group")}
-              className="rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-[#00ab00] hover:bg-[#e9f3ed]"
-            >
-              Manage Group
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-[#bfe8c4] bg-[#ecfdf3] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">
+                  Hello <strong>{user?.full_name}</strong>. {activeGroup?.name || "Your group"} status is{" "}
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium uppercase text-[#00ab00]">
+                    {activeGroup?.status || "loading"}
+                  </span>
+                  {upcomingMeeting && <>. Next meeting is scheduled for {formatDate(upcomingMeeting.scheduled_at)}.</>}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Contribution cadence: {normalizeFrequency(activeGroup?.contribution_frequency)}
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/dashboard/my-group")}
+                className="rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-[#00ab00] hover:bg-[#e9f3ed]"
+              >
+                Manage Group
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="col-span-12 space-y-6 xl:col-span-7">
