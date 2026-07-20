@@ -1,13 +1,17 @@
 """Super Admin only views — global oversight, country drilldown, system health, admin management."""
+from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
+from django.db.models.functions import TruncMonth
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.groups.models import Group
 from apps.accounts.models import User
 from apps.loans.models import Loan
 from apps.contributions.models import Contribution
+from apps.ledger.models import LedgerEntry
 from apps.audit.models import AuditLog
+from common.db_utils import get_db_for_country
 from .views import IsSuperAdmin
 import structlog, time
 
@@ -15,12 +19,99 @@ logger = structlog.get_logger(__name__)
 
 COUNTRIES = ['kenya', 'rwanda', 'ghana']
 
+# Each country settles in its own currency, so revenue is reported per country
+# and never summed into one platform figure. Summing KES + RWF + GHS would be a
+# meaningless number presented as if it meant something.
+COUNTRY_CURRENCY = {'kenya': 'KES', 'rwanda': 'RWF', 'ghana': 'GHS'}
+
+MEMBER_ROLES = ['member', 'chairperson', 'treasurer']
+
+
+def _month_starts(count):
+    """The first-of-month datetimes for the last `count` months, oldest first."""
+    now = timezone.now()
+    anchor = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    for i in range(count - 1, -1, -1):
+        # Walk back i months by stepping through the first of each month.
+        m = anchor
+        for _ in range(i):
+            m = (m - timedelta(days=1)).replace(day=1)
+        months.append(m)
+    return months
+
+
+def _signups_trend(months=6):
+    """
+    New members per month across the platform.
+
+    Reads accounts on `default`, which is genuinely global (not sharded), so
+    this is one grouped query and needs no fan-out. Counts are people, not
+    money, so they are safe to aggregate platform-wide. Only member-facing
+    roles are counted; staff and super admins are excluded so the curve tracks
+    real product growth rather than internal account creation.
+    """
+    starts = _month_starts(months)
+    window_start = starts[0]
+    rows = (
+        User.objects.filter(created_at__gte=window_start, role__in=MEMBER_ROLES)
+        .annotate(m=TruncMonth('created_at'))
+        .values('m')
+        .annotate(n=Count('id'))
+    )
+    by_month = {r['m'].strftime('%Y-%m'): r['n'] for r in rows if r['m'] is not None}
+    return [
+        {'month': s.strftime('%b'), 'key': s.strftime('%Y-%m'), 'signups': by_month.get(s.strftime('%Y-%m'), 0)}
+        for s in starts
+    ]
+
+
+def _country_revenue(country):
+    """
+    Platform service-fee revenue for one country, in that country's currency.
+
+    Revenue is the immutable ledger record, never recomputed from group
+    settings: credits to the company_revenue stream with entry_type
+    service_fee, written when a rotation payout succeeds. Read with an explicit
+    .using(alias) for the same sharding reason as _country_kpis.
+    """
+    alias = get_db_for_country(country)
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    qs = LedgerEntry.objects.using(alias).filter(
+        group__country=country,
+        account_stream='company_revenue',
+        entry_type='service_fee',
+        direction='credit',
+    )
+    return {
+        'country': country,
+        'currency': COUNTRY_CURRENCY.get(country, ''),
+        'mtd': float(qs.filter(created_at__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0),
+        'total': float(qs.aggregate(t=Sum('amount'))['t'] or 0),
+    }
+
 
 def _country_kpis(country):
-    gq = Group.objects.filter(country=country)
+    """
+    KPIs for one country.
+
+    Group, Contribution and Loan are sharded per country by OrbiSaveRouter, so
+    they must be read with an explicit .using(alias). Filtering by the country
+    column alone is not enough: CountryMiddleware runs before DRF's JWT auth,
+    so request.user is anonymous when routing is decided, and a super admin has
+    country=None and therefore resolves to 'default'. Without .using(), every
+    financial figure on this endpoint silently read the wrong database and
+    reported zero rather than erroring.
+
+    User lives in a platform app on 'default' and is genuinely global, so it is
+    filtered by column and left unrouted on purpose.
+    """
+    alias = get_db_for_country(country)
+    gq = Group.objects.using(alias).filter(country=country)
     uq = User.objects.filter(country=country)
-    cq = Contribution.objects.filter(group__country=country)
-    lq = Loan.objects.filter(group__country=country)
+    cq = Contribution.objects.using(alias).filter(group__country=country)
+    lq = Loan.objects.using(alias).filter(group__country=country)
     return {
         'country': country,
         'total_groups':       gq.count(),
@@ -67,6 +158,8 @@ class SuperAdminOverviewView(APIView):
         return Response({
             'totals': totals,
             'by_country': per_country,
+            'signups_trend': _signups_trend(6),
+            'revenue_by_country': [_country_revenue(c) for c in COUNTRIES],
             'recent_alerts': recent_alerts,
         })
 
@@ -89,7 +182,8 @@ class SuperAdminCountryView(APIView):
             ms = (now.replace(day=1) - timedelta(days=30*i)).replace(
                 day=1, hour=0, minute=0, second=0, microsecond=0)
             me = (ms + timedelta(days=32)).replace(day=1)
-            val = Contribution.objects.filter(
+            # Same sharding rule as _country_kpis: read the country's own DB.
+            val = Contribution.objects.using(get_db_for_country(country)).filter(
                 group__country=country, status='confirmed',
                 confirmed_at__gte=ms, confirmed_at__lt=me
             ).aggregate(t=Sum('amount'))['t'] or 0

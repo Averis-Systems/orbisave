@@ -253,17 +253,28 @@ class AdminPlatformAdminListView(APIView):
     """
     GET /api/v1/admin-portal/platform-admins/
     Super admin only. Lists all country admins across all countries.
+
+    Returns an explicit field list rather than UserSerializer. Console's staff
+    view needs is_active and last_login to tell a working account from a
+    suspended or never-used one, and UserSerializer carries neither. Widening
+    that serializer was the alternative, but it also serves the member app's
+    own profile endpoints, so the extra fields are scoped to this view instead.
     """
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):
         from apps.accounts.models import User
-        from apps.accounts.serializers import UserSerializer
 
         qs = User.objects.filter(role='platform_admin').order_by('country', '-created_at')
         country = request.query_params.get('country')
         if country:
             qs = qs.filter(country=country)
 
-        serializer = UserSerializer(qs, many=True)
-        return Response({'count': qs.count(), 'results': serializer.data})
+        results = list(qs.values(
+            'id', 'email', 'full_name', 'phone', 'country',
+            'is_active', 'email_verified', 'last_login', 'created_at',
+        ))
+        for row in results:
+            row['id'] = str(row['id'])
+
+        return Response({'count': len(results), 'results': results})
