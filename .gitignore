@@ -73,3 +73,6 @@ yarn-error.log*
 # Docker volumes (local data)
 postgres_data/
 redis_data/
+
+# Vendored Claude Code design skills — reinstallable tooling, not product code
+.claude/skills/

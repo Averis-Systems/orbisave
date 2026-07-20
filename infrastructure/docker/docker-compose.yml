@@ -70,12 +70,7 @@ services:
       redis:
         condition: service_healthy
     command: >
-      sh -c "python manage.py migrate --noinput &&
-             for db in kenya rwanda ghana; do
-               for app in groups contributions loans ledger payouts meetings; do
-                 python manage.py migrate $$app --database=$$db --noinput;
-               done;
-             done &&
+      sh -c "python manage.py migrate_all &&
              python manage.py collectstatic --noinput &&
              daphne -b 0.0.0.0 -p 8000 config.asgi:application"
 
