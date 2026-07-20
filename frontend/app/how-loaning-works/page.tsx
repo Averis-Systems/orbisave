@@ -134,7 +134,7 @@ export default function HowLoaningWorks() {
             <span style={{ color: "#00ab00" }}>Safely.</span>
           </h1>
           <p className="hlw-hero-text text-lg sm:text-xl font-medium leading-relaxed max-w-2xl" style={{ color: "rgba(255,255,255,0.65)" }}>
-            You don't need a bank to get a loan. Your group saves money together, and any member can borrow from that savings when they need it. Your leaders work together to approve every loan, and every shilling is tracked.
+            You don&apos;t need a bank to get a loan. Your group saves money together, and any member can borrow from that savings when they need it. Your leaders work together to approve every loan, and every shilling is tracked.
           </p>
           <div className="hlw-hero-text flex flex-wrap gap-4 mt-10">
             <Link href="/onboarding">
@@ -207,7 +207,7 @@ export default function HowLoaningWorks() {
               How do I get a loan?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Any member can request a loan. The money comes from your group's own loan pool — not from a bank. Two leaders must say yes before the money moves.
+              Any member can request a loan. The money comes from your group&apos;s own loan pool — not from a bank. Two leaders must say yes before the money moves.
             </p>
           </div>
 
@@ -262,7 +262,7 @@ export default function HowLoaningWorks() {
                 A Good Name for Your Group.
               </h2>
               <p className="text-base font-medium leading-relaxed mb-6" style={{ color: "#4a5c6a" }}>
-                After saving for a few months, your treasurer creates a simple report. Everyone in the group checks it to make sure it's correct. This report becomes your group's proof of hard work. You can show it to a bank to get bigger support.
+                After saving for a few months, your treasurer creates a simple report. Everyone in the group checks it to make sure it&apos;s correct. This report becomes your group&apos;s proof of hard work. You can show it to a bank to get bigger support.
               </p>
               <p className="text-base font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
                 <span className="font-bold" style={{ color: "#0a2540" }}>The more you save, the bigger the loans you can get</span> — for your farm, your business, and your group.

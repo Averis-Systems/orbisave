@@ -105,7 +105,7 @@ export function NarrativeHook() {
             >
               <div className="text-xs font-black text-[#00ab00] uppercase tracking-widest mb-3">Legacy</div>
               <p className="text-xl font-bold leading-tight" style={{ color: "#0a2540" }}>
-                "We are building a future where our children don't just survive—they thrive."
+                &quot;We are building a future where our children don&apos;t just survive—they thrive.&quot;
               </p>
             </div>
           </div>

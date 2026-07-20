@@ -211,7 +211,7 @@ function VerifyPageInner() {
             </button>
 
             <p className="auth-resend" style={{ marginTop: "1.25rem" }}>
-              Didn't receive the code?
+              Didn&apos;t receive the code?
               <button onClick={handleResend} disabled={!canResend}>
                 {canResend ? "Resend now" : `Resend in ${countdown}s`}
               </button>

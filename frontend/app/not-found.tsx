@@ -1,17 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useHydrated } from "@/hooks/useHydrated"
 
 import { FullPageState } from "@/components/states/AppState"
 import { useAuthStore } from "@/store/auth"
 
 export default function NotFound() {
   const { isAuthenticated } = useAuthStore()
-  const [isMounted, setIsMounted] = useState(false)
-
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  const isHydrated = useHydrated()
 
   return (
     <FullPageState
@@ -23,8 +20,8 @@ export default function NotFound() {
         eyebrow: "Error 404",
         code: "404",
         primaryAction: {
-          label: isMounted && isAuthenticated ? "Go to dashboard" : "Go home",
-          href: isMounted && isAuthenticated ? "/dashboard" : "/",
+          label: isHydrated && isAuthenticated ? "Go to dashboard" : "Go home",
+          href: isHydrated && isAuthenticated ? "/dashboard" : "/",
         },
         secondaryAction: { label: "Go back" },
       }}

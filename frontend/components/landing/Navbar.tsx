@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
+import { useHydrated } from "@/hooks/useHydrated"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import gsap from "gsap"
@@ -21,10 +22,8 @@ export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const { isAuthenticated } = useAuthStore()
-  const [isMounted, setIsMounted] = useState(false)
+  const isHydrated = useHydrated()
   const { logoUrl } = usePlatformBranding()
-
-  useEffect(() => setIsMounted(true), [])
 
   // Scroll detection for blur/border effect
   useEffect(() => {
@@ -110,7 +109,7 @@ export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-2 nav-item">
-            {isMounted && isAuthenticated ? (
+            {isHydrated && isAuthenticated ? (
               <Link href="/dashboard">
                 <Button
                   className="h-9 px-5 text-sm font-semibold text-white rounded-[5px] flex items-center gap-1.5 group border-0"
@@ -204,7 +203,7 @@ export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
               </Link>
             ))}
             <div className="border-t border-[#d6e4df] mt-4 pt-4 flex flex-col gap-2">
-              {isMounted && isAuthenticated ? (
+              {isHydrated && isAuthenticated ? (
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
                   <Button
                     className="w-full h-10 text-sm font-semibold text-white rounded-[5px] gap-2 border-0"

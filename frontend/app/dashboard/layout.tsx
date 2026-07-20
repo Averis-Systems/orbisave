@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useHydrated } from "@/hooks/useHydrated"
 import {
   Bell,
   CheckCircle,
@@ -372,29 +373,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, isAuthenticated, logout } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
-  const [isMounted, setIsMounted] = useState(false)
   const [isKycModalOpen, setIsKycModalOpen] = useState(false)
   const sidebar = useDashboardSidebar()
 
   const { activeGroup } = useActiveGroup()
+  const isHydrated = useHydrated()
   // Notifications are addressed to the RECIPIENT, not to a group, so they must
   // load even before the user belongs to one (activation nudges arrive exactly
   // then). Passing the group id only keys the cache.
   const { data: notifications } = useNotifications(activeGroup?.id || null)
   const unreadCount = notifications?.filter((notification) => !notification.read_at).length || 0
 
-  useEffect(() => setIsMounted(true), [])
-
   useEffect(() => {
-    if (isMounted && !isAuthenticated) router.replace("/login")
-  }, [isMounted, isAuthenticated, router])
+    if (isHydrated && !isAuthenticated) router.replace("/login")
+  }, [isHydrated, isAuthenticated, router])
 
   const navSections = useMemo(() => {
     if (!user) return []
     return getUserDashboardNavItems(user.role, (activeGroup?.wallet?.loan_pool ?? 0) > 0, unreadCount)
   }, [activeGroup?.wallet?.loan_pool, user, unreadCount])
 
-  if (!isMounted || !isAuthenticated || !user) return null
+  if (!isHydrated || !isAuthenticated || !user) return null
 
   const mainContentMargin = sidebar.isMobileOpen
     ? "ml-0"

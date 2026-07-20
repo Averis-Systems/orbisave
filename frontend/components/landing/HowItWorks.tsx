@@ -138,7 +138,7 @@ export function HowItWorks() {
             A secure, transparent wealth-building engine.
           </h2>
           <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-            We take the group savings you know and trust, and move them to your phone. It's the same chama you love, but much safer and easier to manage for everyone.
+            We take the group savings you know and trust, and move them to your phone. It&apos;s the same chama you love, but much safer and easier to manage for everyone.
           </p>
         </div>
 

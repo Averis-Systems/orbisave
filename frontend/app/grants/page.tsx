@@ -67,7 +67,7 @@ export default function GrantsPage() {
             <span style={{ color: "#00ab00" }}>for Your Group.</span>
           </h1>
           <p className="gr-hero text-lg font-medium max-w-2xl mx-auto mb-10" style={{ color: "#4a5c6a" }}>
-            NGOs and support groups want to fund reliable farmers. OrbiSave keeps clear records of your group's savings, proving that your group is ready for support.
+            NGOs and support groups want to fund reliable farmers. OrbiSave keeps clear records of your group&apos;s savings, proving that your group is ready for support.
           </p>
         </div>
       </section>

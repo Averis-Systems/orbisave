@@ -377,7 +377,7 @@ export function RotationPool() {
 
             <Link href="/chama-onboarding">
               <button className="w-full h-[52px] bg-[#00ab00] text-white font-bold rounded-[8px] flex items-center justify-center gap-2 hover:bg-[#009900] transition-colors mt-2">
-                Start Your Group's Cycle
+                Start Your Group&apos;s Cycle
               </button>
             </Link>
           </div>

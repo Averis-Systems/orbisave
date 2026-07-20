@@ -105,7 +105,7 @@ export function BentoFeatures() {
             <Fingerprint className="text-[#00ab00] w-10 h-10" />
             <div className="space-y-2">
               <h4 className="text-2xl font-black text-white">Biometric Safety</h4>
-              <p className="text-white/60 text-sm font-medium">Secure your group's wealth with multi-sig and biometric auth.</p>
+              <p className="text-white/60 text-sm font-medium">Secure your group&apos;s wealth with multi-sig and biometric auth.</p>
             </div>
           </div>
 

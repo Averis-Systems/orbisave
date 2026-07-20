@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -48,7 +48,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-simple-maps": "^3.0.6",
-    "eslint": "^8",
+    "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",

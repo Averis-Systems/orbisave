@@ -85,7 +85,7 @@ export function InputFinancingTeaser() {
               className="text-lg font-medium leading-relaxed mb-8"
               style={{ color: "rgba(255,255,255,0.65)" }}
             >
-              We connect your group to companies that provide seeds, fertilizer, and tools on credit. Your group's savings record is your proof. You don't need to ask anyone else to sign for you.
+              We connect your group to companies that provide seeds, fertilizer, and tools on credit. Your group&apos;s savings record is your proof. You don&apos;t need to ask anyone else to sign for you.
             </p>
             <Link
               href="/input-financing"

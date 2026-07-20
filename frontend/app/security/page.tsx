@@ -67,7 +67,7 @@ export default function SecurityPage() {
             <span style={{ color: "#00ab00" }}>for Your Group.</span>
           </h1>
           <p className="sec-hero text-lg font-medium max-w-2xl mx-auto mb-10" style={{ color: "rgba(255,255,255,0.7)" }}>
-            Trust is the most important thing for your group. OrbiSave makes that trust even stronger with safe approvals on your phone and clear records that can't be changed.
+            Trust is the most important thing for your group. OrbiSave makes that trust even stronger with safe approvals on your phone and clear records that can&apos;t be changed.
           </p>
         </div>
       </section>

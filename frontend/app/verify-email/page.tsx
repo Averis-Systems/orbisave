@@ -16,31 +16,43 @@ function errorMessage(err: unknown, fallback: string) {
   return response?.data?.error || response?.data?.message || fallback
 }
 
+/**
+ * sessionStorage does not exist during server render, so this is called from a
+ * lazy useState initialiser, which only ever runs on the client.
+ */
+function readPendingValue(key: string) {
+  if (typeof window === "undefined") return null
+  return sessionStorage.getItem(key)
+}
+
 function VerifyEmailInner() {
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
   const user = useAuthStore((state) => state.user)
 
-  const [email, setEmail] = useState("")
-  const [pendingInvite, setPendingInvite] = useState<string | null>(null)
+  // Read once, lazily, on the client. These were previously copied out of
+  // sessionStorage inside an effect, which meant an extra render pass and a
+  // first paint addressed to an empty email.
+  // Seeded from sessionStorage, but still editable: someone who lands here
+  // without that value gets an email field to fill in.
+  const [email, setEmail] = useState(() => readPendingValue("orbisave_pending_email") || "")
+  const [pendingInvite] = useState(() => readPendingValue("orbisave_pending_invite"))
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(60)
-  const [canResend, setCanResend] = useState(false)
   // Post-verification state: email is the ONLY gate to the dashboard, so we
   // land the member on a welcome step here rather than a phone-OTP detour.
   const [verified, setVerified] = useState(false)
   const [joinedGroup, setJoinedGroup] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  useEffect(() => {
-    setEmail(sessionStorage.getItem("orbisave_pending_email") || "")
-    setPendingInvite(sessionStorage.getItem("orbisave_pending_invite"))
-  }, [])
+  // Derived, not stored. Holding this in state meant the effect had to write it
+  // back on every tick, and the two could disagree for a render.
+  const canResend = !verified && countdown <= 0
 
   useEffect(() => {
-    if (verified || countdown <= 0) { if (countdown <= 0) setCanResend(true); return }
+    if (verified || countdown <= 0) return
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
     return () => clearTimeout(t)
   }, [countdown, verified])
@@ -113,8 +125,8 @@ function VerifyEmailInner() {
       setError("Enter the email address you registered with.")
       return
     }
+    // canResend derives from countdown, so resetting the clock is enough.
     setCountdown(60)
-    setCanResend(false)
     setDigits(Array(CODE_LENGTH).fill(""))
     setError(null)
     try {

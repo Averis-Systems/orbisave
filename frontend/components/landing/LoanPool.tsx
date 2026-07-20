@@ -112,7 +112,7 @@ export function LoanPool() {
             Money Set Aside for You.
           </h2>
           <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-            We set aside 30% of the group's money for loans. If you need money for an emergency or to grow your business, you can borrow from the group easily and safely.
+            We set aside 30% of the group&apos;s money for loans. If you need money for an emergency or to grow your business, you can borrow from the group easily and safely.
           </p>
         </div>
 
@@ -191,7 +191,7 @@ export function LoanPool() {
                   Interest Helps the Group
                 </h4>
                 <p className="text-xs font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-                  When you pay back a loan with a small interest, that extra money goes back to the group. It makes everyone's payout bigger!
+                  When you pay back a loan with a small interest, that extra money goes back to the group. It makes everyone&apos;s payout bigger!
                 </p>
                 <div className="flex items-center gap-1.5 mt-3 text-xs font-bold" style={{ color: "#00ab00" }}>
                   KES 900 interest → loan pool → +KES 150 per member
@@ -315,7 +315,7 @@ export function LoanPool() {
                 />
                 <div className="flex-1">
                   <div className="text-sm font-bold" style={{ color: "#0a2540" }}>Ready to Send</div>
-                  <div className="text-xs font-medium" style={{ color: "#4a5c6a" }}>KES 15,000 → Njeri's Phone</div>
+                  <div className="text-xs font-medium" style={{ color: "#4a5c6a" }}>KES 15,000 → Njeri&apos;s Phone</div>
                 </div>
                 <span
                   className="text-xs font-bold px-2.5 py-1"
@@ -327,7 +327,7 @@ export function LoanPool() {
             </div>
 
             <p className="text-xs font-medium leading-relaxed px-1" style={{ color: "#4a5c6a" }}>
-              Leaders use their own secret PINs to approve money. No one can move the group's money without everyone knowing.
+              Leaders use their own secret PINs to approve money. No one can move the group&apos;s money without everyone knowing.
             </p>
 
             {/* Learn more CTA */}

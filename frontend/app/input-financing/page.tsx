@@ -367,7 +367,7 @@ export default function InputFinancingPage() {
             Free grants for farming groups
           </h2>
           <p className="text-base font-medium leading-relaxed mb-8 max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Some groups want to help farmers by giving them money that doesn't have to be paid back. These are called grants. On OrbiSave, groups that save regularly can be matched with these grant providers. The app helps you get connected.
+            Some groups want to help farmers by giving them money that doesn&apos;t have to be paid back. These are called grants. On OrbiSave, groups that save regularly can be matched with these grant providers. The app helps you get connected.
           </p>
           <div className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest" style={{ color: "#00ab00", background: "rgba(0,171,0,0.1)", borderRadius: "4px", border: "1px solid rgba(0,171,0,0.2)" }}>
             Coming soon · Start saving now

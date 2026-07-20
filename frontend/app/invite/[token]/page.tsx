@@ -1,6 +1,7 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
+import { useHydrated } from "@/hooks/useHydrated"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AlertCircle, CheckCircle2, Loader2, UserPlus } from "lucide-react"
@@ -24,7 +25,7 @@ export default function InviteLandingPage({ params }: { params: Promise<{ token:
   const { token } = use(params)
   const router = useRouter()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const [isMounted, setIsMounted] = useState(false)
+  const isHydrated = useHydrated()
   const [error, setError] = useState<string | null>(null)
   const [needsProfile, setNeedsProfile] = useState(false)
   const [joined, setJoined] = useState(false)
@@ -35,8 +36,6 @@ export default function InviteLandingPage({ params }: { params: Promise<{ token:
   // Auth state is persisted client-side, so wait for hydration before deciding
   // which path this visitor gets. Otherwise a signed-in member briefly sees the
   // signed-out call to action.
-  useEffect(() => setIsMounted(true), [])
-
   const handleAccept = async () => {
     setError(null)
     setNeedsProfile(false)
@@ -120,7 +119,7 @@ export default function InviteLandingPage({ params }: { params: Promise<{ token:
                 </div>
               )}
 
-              {isMounted && (
+              {isHydrated && (
                 <div className="mt-7">
                   {isAuthenticated ? (
                     <button

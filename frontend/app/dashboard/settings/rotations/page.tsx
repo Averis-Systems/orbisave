@@ -188,7 +188,7 @@ function RotationRules() {
           </Rule>
           <Rule icon={Clock} title="A payout settles once the cycle is fully collected">
             When every active member has a confirmed contribution for the current cycle, the payout for that
-            position is released to the recipient's mobile money number. The recipient is chosen server side from the
+            position is released to the recipient&apos;s mobile money number. The recipient is chosen server side from the
             rotation schedule, never picked by hand.
           </Rule>
           <Rule icon={AlertTriangle} title="Late contributions hold the payout, they do not skip it">

@@ -131,8 +131,18 @@ function MeetingsSettings() {
   const [attendanceTracking, setAttendanceTracking] = useState(true)
   const [minutesRequired, setMinutesRequired] = useState(true)
 
-  useEffect(() => {
-    if (!settings) return
+  // Seed the form from the server once per group, adjusting during render
+  // rather than in an effect.
+  //
+  // This previously ran on every change of the `settings` object identity,
+  // which react-query produces on every background refetch. A refetch while
+  // someone was part-way through editing silently threw their input away and
+  // put the saved values back, with no indication anything had happened. Keying
+  // on the group id means the form is seeded when it loads and when the user
+  // switches group, and never underneath them.
+  const [seededGroupId, setSeededGroupId] = useState<string | null>(null)
+  if (settings && activeGroup && seededGroupId !== activeGroup.id) {
+    setSeededGroupId(activeGroup.id)
     setFrequency(settings.frequency)
     setNoticeDays(String(settings.notice_days))
     setQuorum(String(settings.quorum_percent))
@@ -140,7 +150,7 @@ function MeetingsSettings() {
     setProviderMode(settings.provider_mode)
     setAttendanceTracking(settings.attendance_tracking)
     setMinutesRequired(settings.minutes_required)
-  }, [settings])
+  }
 
   const backLink = (
     <Link

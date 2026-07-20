@@ -41,6 +41,21 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * A ledger row's timestamp, or an honest blank when the record carries none.
+ *
+ * This used to fall back to Date.now(), which stamped undated rows with the
+ * moment the page happened to render. That is a fabricated figure on a
+ * financial statement, and it also made the render impure: the same data
+ * produced a different result on every pass.
+ */
+function formatLedgerDate(value?: string | null) {
+  if (!value) return 'Date not recorded'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Date not recorded'
+  return parsed.toLocaleString()
+}
+
 export default function ReportsPage() {
   const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members, isLoading: membersLoading } = useMembers(activeGroup?.id || null)
@@ -246,7 +261,7 @@ export default function ReportsPage() {
                   direction="in"
                   label="Contribution"
                   party={c.member_name}
-                  meta={new Date(c.confirmed_at || c.initiated_at || c.scheduled_date || Date.now()).toLocaleString()}
+                  meta={formatLedgerDate(c.confirmed_at || c.initiated_at || c.scheduled_date)}
                   amount={formatCurrency(c.amount, c.currency || currency)}
                 />
               ))}

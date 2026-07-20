@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -15,7 +15,6 @@ const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws'
  */
 export function useWebSocket(groupId?: string) {
   const { isAuthenticated } = useAuthStore()
-  const wsRef = useRef<WebSocket | null>(null)
   const queryClient = useQueryClient()
 
   useEffect(() => {
@@ -72,12 +71,13 @@ export function useWebSocket(groupId?: string) {
       console.log(`[WebSocket] Disconnected from group ${groupId}`)
     }
 
-    wsRef.current = ws
-
+    // The socket is deliberately not exposed. It used to be stashed in a ref
+    // and returned, which meant reading a ref during render: the value is
+    // whatever the last effect happened to leave behind, so it never triggers
+    // a re-render and callers cannot rely on it. The effect owns the socket
+    // and closes it on cleanup.
     return () => {
       ws.close()
     }
   }, [groupId, isAuthenticated, queryClient])
-
-  return wsRef.current
 }
