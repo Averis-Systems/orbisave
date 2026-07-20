@@ -21,6 +21,7 @@ import structlog
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
 from django.conf import settings
+from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework import status, views
 from rest_framework.permissions import AllowAny
@@ -52,16 +53,50 @@ def issue_email_otp(user) -> str:
 
 
 def send_email_otp(user, raw_code: str):
-    """Send the verification code in the user's preferred language."""
-    message = translate_for_user(
+    """
+    Send the verification code in the user's preferred language.
+
+    Sends multipart: a branded HTML body (templates/emails/verify_email.html)
+    with a plain-text fallback for clients that refuse HTML. Every user-facing
+    string is translated first, then interpolated into the template, so the
+    markup stays identical across languages.
+    """
+    heading = translate_for_user('Verify your email address', user)
+    intro = translate_for_user(
+        'Use the code below to verify your email address and activate your OrbiSave account.',
+        user,
+    )
+    expiry = translate_for_user(
+        f'This code expires in {OTP_TTL_MINUTES} minutes.',
+        user,
+    )
+    disclaimer = translate_for_user(
+        "If you didn't create an OrbiSave account, you can safely ignore this email.",
+        user,
+    )
+    plain_message = translate_for_user(
         f'Your OrbiSave verification code is {raw_code}. It expires in {OTP_TTL_MINUTES} minutes.',
         user,
     )
+
+    html_message = render_to_string(
+        'emails/verify_email.html',
+        {
+            'code': raw_code,
+            'heading': heading,
+            'intro': intro,
+            'expiry': expiry,
+            'disclaimer': disclaimer,
+            'year': timezone.now().year,
+        },
+    )
+
     send_mail(
         subject='Verify your OrbiSave account',
-        message=message,
+        message=plain_message,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
+        html_message=html_message,
         fail_silently=False,
     )
 

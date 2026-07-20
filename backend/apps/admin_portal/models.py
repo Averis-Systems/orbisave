@@ -260,6 +260,7 @@ class CountryPolicy(BaseModel):
 class AdminEmailVerification(BaseModel):
     PURPOSE_CHOICES = [
         ('admin_registration', 'Admin Registration'),
+        ('admin_password_reset', 'Admin Password Reset'),
     ]
 
     user = models.ForeignKey(

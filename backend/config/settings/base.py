@@ -310,7 +310,12 @@ CACHES = {
 # backend (prints instead of sending) to real delivery. Nothing else to
 # configure — Resend's SMTP host/port/user are fixed values, not per-account.
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@orbisave.com')
+# Public URL of the member web app — used for links inside emails (activation
+# nudges, invites). Point at the deployed domain in production.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+# Display name included so the code arrives from "OrbiSave", not a bare
+# address. The address must sit on the Resend-verified domain (orbisave.com).
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'OrbiSave <noreply@orbisave.com>')
 
 if RESEND_API_KEY:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

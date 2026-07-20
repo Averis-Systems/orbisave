@@ -6,7 +6,13 @@ from .views import (
     AdminKYCReviewView,
     AdminUserListView,
 )
-from .auth_views import AdminRegisterView, AdminLoginView, AdminVerifyEmailView
+from .auth_views import (
+    AdminRegisterView,
+    AdminLoginView,
+    AdminVerifyEmailView,
+    AdminPasswordResetRequestView,
+    AdminPasswordResetConfirmView,
+)
 from .group_views import (
     AdminGroupListView,
     AdminGroupVerifyView,
@@ -79,6 +85,8 @@ urlpatterns = [
     path('auth/register/', AdminRegisterView.as_view(), name='admin-register'),
     path('auth/verify-email/', AdminVerifyEmailView.as_view(), name='admin-verify-email'),
     path('auth/login/',    AdminLoginView.as_view(),    name='admin-login'),
+    path('auth/password-reset/request/', AdminPasswordResetRequestView.as_view(), name='admin-password-reset-request'),
+    path('auth/password-reset/confirm/', AdminPasswordResetConfirmView.as_view(), name='admin-password-reset-confirm'),
 
     # ── Dashboard Stats ───────────────────────────────────────────────────────
     path('stats/',        AdminDashboardStatsView.as_view(), name='admin-stats'),
