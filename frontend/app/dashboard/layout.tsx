@@ -11,11 +11,8 @@ import {
   Info,
   LogOut,
   Menu,
-  Moon,
   Plus,
-  Search,
   Settings as SettingsIcon,
-  Sun,
   X,
   UserCircle,
 } from "lucide-react"
@@ -42,27 +39,19 @@ function useDashboardSidebar() {
   }
 }
 
-function useDashboardTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">("light")
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem("orbisave_dashboard_theme")
-    const initialTheme = storedTheme === "dark" ? "dark" : "light"
-    setTheme(initialTheme)
-    document.documentElement.classList.toggle("dark", initialTheme === "dark")
-  }, [])
-
-  const toggleTheme = () => {
-    setTheme((current) => {
-      const nextTheme = current === "dark" ? "light" : "dark"
-      document.documentElement.classList.toggle("dark", nextTheme === "dark")
-      localStorage.setItem("orbisave_dashboard_theme", nextTheme)
-      return nextTheme
-    })
-  }
-
-  return { theme, toggleTheme }
-}
+/*
+ * Dark mode is deliberately not offered yet.
+ *
+ * The toggle worked, but the dashboard is not dark-ready: the overview page
+ * carries no dark: classes at all, so switching rendered it as a white slab
+ * while the shell went dark. Shipping a control that visibly breaks the page
+ * is worse than not shipping it.
+ *
+ * The dark: variants already present on the shared primitives and most pages
+ * are kept, so re-enabling is a matter of finishing the remaining pages and
+ * restoring this hook plus the header button. Do not restore the toggle until
+ * every dashboard page renders correctly with the `dark` class applied.
+ */
 
 function isRouteActive(pathname: string, href: string) {
   if (href === "/dashboard") {
@@ -190,13 +179,27 @@ function AppSidebar({
 
       {showText && (
         <div className="mb-20 mt-auto py-3">
-          <Link
-            href="/dashboard/settings"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-3 py-2.5 text-sm font-medium text-white hover:bg-[#009200]"
-          >
-            <Plus size={18} />
-            Create Group
-          </Link>
+          {activeGroupName ? (
+            // One active group per member is enforced server-side (a partial
+            // unique constraint on GroupMember). Presenting a live "Create
+            // Group" button here would only lead to a 409, so it becomes a
+            // read-only explanation of why the action is unavailable.
+            <div
+              aria-disabled="true"
+              title="You can belong to one savings group at a time"
+              className="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-center text-xs font-medium leading-5 text-gray-400 dark:border-gray-800 dark:bg-gray-800/60"
+            >
+              One group at a time
+            </div>
+          ) : (
+            <Link
+              href="/dashboard/my-group"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-3 py-2.5 text-sm font-medium text-white hover:bg-[#009200]"
+            >
+              <Plus size={18} />
+              Create Group
+            </Link>
+          )}
         </div>
       )}
     </aside>
@@ -211,8 +214,6 @@ function AppHeader({
   userName,
   userEmail,
   role,
-  theme,
-  toggleTheme,
   logout,
 }: {
   isMobileOpen: boolean
@@ -222,25 +223,14 @@ function AppHeader({
   userName: string
   userEmail?: string
   role: string
-  theme: "light" | "dark"
-  toggleTheme: () => void
   logout: () => void
 }) {
   const router = useRouter()
-  const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault()
-        inputRef.current?.focus()
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  // The Ctrl-K listener was removed with the search box it focused. Restore it
+  // alongside a real command palette, not before.
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -279,46 +269,26 @@ function AppHeader({
             <span className="font-semibold text-gray-900 dark:text-white">OrbiSave</span>
           </Link>
 
-          <div className="hidden lg:block">
-            <form>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
-                  <Search size={20} className="text-gray-500" />
-                </span>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Search or type command..."
-                  className="h-14 w-[520px] rounded-xl border border-gray-200 bg-transparent py-2.5 pl-12 pr-16 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#77cc77] focus:outline-none focus:ring-4 focus:ring-[#00ab00]/10 dark:border-gray-800 dark:text-white dark:placeholder:text-gray-500"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                >
-                  <span>Ctrl</span>
-                  <span>K</span>
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* The global search box was removed rather than restyled. It had no
+              onChange, no submit handler and no results view: typing did
+              nothing and pressing Enter reloaded the page, while the Ctrl-K
+              badge looked like a shortcut affordance but had no handler.
+              TODO(feature): reinstate as a real command palette (members,
+              groups, contributions) once there is a search endpoint to back
+              it. Do not restore the input before then. */}
         </div>
 
         <div className="flex w-full items-center justify-end gap-3 px-5 py-4 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.1),0_2px_4px_-2px_rgba(16,24,40,0.06)] lg:w-auto lg:px-0 lg:shadow-none">
-          <button
-            onClick={toggleTheme}
-            className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-            aria-label="Toggle dark mode"
-          >
-            {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
-          </button>
           <button
             onClick={() => router.push("/dashboard/notifications")}
             className="relative flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
             aria-label="Notifications"
           >
             <Bell size={22} />
+            {/* Unread dot uses brand green, not the one-off orange it had.
+                Unread notifications are informational, not an error state. */}
             {unreadCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white bg-[#ff7a30] dark:border-gray-900" />
+              <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white bg-[#00ab00] dark:border-gray-900" />
             )}
           </button>
 
@@ -364,8 +334,14 @@ function AppHeader({
                     <SettingsIcon size={22} className="text-gray-500" />
                     Account settings
                   </Link>
+                  {/* Pointed at /dashboard/support, which does not exist, so
+                      this rendered the dashboard 404. /support is the real page
+                      and carries the support phone numbers and FAQs.
+                      TODO(feature): replace with the in-dashboard support and
+                      feedback screen when that ships, so members do not leave
+                      the dashboard shell to ask for help. */}
                   <Link
-                    href="/dashboard/support"
+                    href="/support"
                     className="flex items-center gap-4 rounded-lg px-3 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                     role="menuitem"
                     onClick={() => setProfileOpen(false)}
@@ -399,9 +375,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isMounted, setIsMounted] = useState(false)
   const [isKycModalOpen, setIsKycModalOpen] = useState(false)
   const sidebar = useDashboardSidebar()
-  const dashboardTheme = useDashboardTheme()
 
   const { activeGroup } = useActiveGroup()
+  // Notifications are addressed to the RECIPIENT, not to a group, so they must
+  // load even before the user belongs to one (activation nudges arrive exactly
+  // then). Passing the group id only keys the cache.
   const { data: notifications } = useNotifications(activeGroup?.id || null)
   const unreadCount = notifications?.filter((notification) => !notification.read_at).length || 0
 
@@ -413,8 +391,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navSections = useMemo(() => {
     if (!user) return []
-    return getUserDashboardNavItems(user.role, (activeGroup?.wallet?.loan_pool ?? 0) > 0)
-  }, [activeGroup?.wallet?.loan_pool, user])
+    return getUserDashboardNavItems(user.role, (activeGroup?.wallet?.loan_pool ?? 0) > 0, unreadCount)
+  }, [activeGroup?.wallet?.loan_pool, user, unreadCount])
 
   if (!isMounted || !isAuthenticated || !user) return null
 
@@ -424,7 +402,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ? "lg:ml-[260px]"
       : "lg:ml-[84px]"
 
-  const showKycBanner = user.kyc_status !== "verified"
+  // KYC is a chairperson obligation, not a member one. It gates ACTIVATING a
+  // group (compliance holds the group creator accountable for the pool), so a
+  // plain member who only contributes and receives payouts must never be
+  // nagged for identity documents. Treasurers co-sign money movement, so they
+  // are held to the same bar as the chairperson.
+  const kycRequiredForRole = user.role === "chairperson" || user.role === "treasurer"
+  const showKycBanner = kycRequiredForRole && user.kyc_status !== "verified"
 
   return (
     <div className="dashboard-shell min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white xl:flex">
@@ -455,8 +439,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           userName={user.full_name}
           userEmail={user.email}
           role={user.role}
-          theme={dashboardTheme.theme}
-          toggleTheme={dashboardTheme.toggleTheme}
           logout={() => {
             logout()
             router.push("/login")

@@ -71,7 +71,9 @@ export function CtaSection() {
               <ArrowRight className="w-4 h-4 cta-arrow icon-arrow" />
             </button>
           </Link>
-          <Link href="/onboarding">
+          {/* Goes to the code entry screen, not the role chooser: this button
+              promises a code field, so it must land on one. */}
+          <Link href="/invite">
             <button
               className="h-12 px-8 text-sm font-semibold flex items-center gap-2 min-w-[200px] justify-center transition-colors hover:bg-[#e9f3ed]"
               style={{

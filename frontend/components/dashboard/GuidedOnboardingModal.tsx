@@ -3,14 +3,10 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuthStore } from "@/store/auth"
 import { api } from "@/lib/api"
-import { 
-  X, 
-  ArrowRight, 
-  ArrowLeft, 
-  Heart, 
-  ShieldCheck, 
-  CreditCard, 
-  Smartphone, 
+import {
+  ArrowLeft,
+  ShieldCheck,
+  Smartphone,
   Building2,
   CheckCircle2,
   User
@@ -24,8 +20,8 @@ const GENDERS = [
   { id: 'prefer_not_to_say', label: 'Prefer not to say' }
 ]
 
-// IDs must match backend/common/translation.py SUPPORTED_LANGUAGES exactly —
-// that dict (not this file) is authoritative. A prior mismatch here (full
+// IDs must match backend/common/translation.py SUPPORTED_LANGUAGES exactly.
+// That dict (not this file) is authoritative. A prior mismatch here (full
 // words like 'english' vs the backend's ISO codes) meant every selection
 // silently no-op'd against a user's already-populated default languages.
 const LANGUAGES = [
@@ -37,8 +33,8 @@ const LANGUAGES = [
 ]
 
 const DISBURSEMENT_METHODS = [
-  { id: 'mobile_money', label: 'Mobile Money', icon: Smartphone, description: 'Directly to your M-Pesa or MoMo wallet.' },
-  { id: 'bank_transfer', label: 'Bank Transfer', icon: Building2, description: 'Secure transfer to your linked bank account.' }
+  { id: 'mobile_money', label: 'Mobile money', icon: Smartphone, description: 'Sent to the M-Pesa or MoMo number on your account.' },
+  { id: 'bank_transfer', label: 'Bank transfer', icon: Building2, description: 'Sent to the bank account you enter below.' }
 ]
 
 const COUNTRY_CODES: Record<string, string> = {
@@ -151,7 +147,7 @@ export function GuidedOnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0a2540]/60 backdrop-blur-[2px] animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-[440px] rounded overflow-hidden relative animate-in zoom-in-95 duration-300 border border-slate-200">
+      <div className="bg-white w-full max-w-[440px] rounded-2xl overflow-hidden relative animate-in zoom-in-95 duration-300 border border-gray-200">
         
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 w-full h-1.5 flex gap-1 px-8 pt-6">
@@ -159,17 +155,18 @@ export function GuidedOnboardingModal() {
             <div 
               key={i} 
               className={`h-full flex-1 rounded-full transition-all duration-500 ${
-                i <= step ? 'bg-primary' : 'bg-slate-100'
-              }`} 
+                i <= step ? 'bg-[#00ab00]' : 'bg-gray-100'
+              }`}
             />
           ))}
         </div>
 
         <div className="p-8 pt-12">
           {step > 1 && (
-            <button 
+            <button
               onClick={handleBack}
-              className="absolute top-8 left-8 p-2 text-slate-400 hover:text-navy transition-colors"
+              aria-label="Go back a step"
+              className="absolute top-8 left-8 p-2 text-gray-400 hover:text-gray-800 transition-colors"
             >
               <ArrowLeft size={20} />
             </button>
@@ -179,29 +176,30 @@ export function GuidedOnboardingModal() {
           {step === 1 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-navy tracking-tight">How do you identify?</h2>
-                <p className="text-slate-400 font-medium">This information will always be private.</p>
+                <h2 className="text-2xl font-semibold text-[#0a2540] tracking-tight">How do you identify?</h2>
+                {/* TODO(copy): confirm with product who can see a member's gender (group members? admins only?) before promising privacy here. */}
+                <p className="text-sm text-gray-500">Saved to your profile. You can change it later under Profile.</p>
               </div>
               <div className="grid grid-cols-1 gap-3">
                 {GENDERS.map(g => (
                   <button
                     key={g.id}
                     onClick={() => setFormData({ ...formData, gender: g.id })}
-                    className={`w-full py-3.5 px-6 rounded-lg font-bold text-sm transition-all border text-left flex items-center justify-between ${
+                    className={`w-full py-3.5 px-6 rounded-lg font-medium text-sm transition-all border text-left flex items-center justify-between ${
                       formData.gender === g.id
-                        ? 'bg-primary/10 text-navy border-primary'
-                        : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                        ? 'bg-[#ecfdf3] text-[#0a2540] border-[#00ab00]'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     {g.label}
-                    {formData.gender === g.id && <CheckCircle2 size={18} className="text-primary" />}
+                    {formData.gender === g.id && <CheckCircle2 size={18} className="text-[#00ab00]" />}
                   </button>
                 ))}
               </div>
               <button
                 disabled={!formData.gender}
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50"
               >
                 Continue
               </button>
@@ -212,29 +210,29 @@ export function GuidedOnboardingModal() {
           {step === 2 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-navy tracking-tight">Your primary languages</h2>
-                <p className="text-slate-400 font-medium leading-relaxed">Select up to 2. We use this to translate your dashboard into your local dialect.</p>
+                <h2 className="text-2xl font-semibold text-[#0a2540] tracking-tight">Your primary languages</h2>
+                <p className="text-sm leading-6 text-gray-500">Pick up to 2. OrbiSave uses these for your dashboard language and the notifications we send you.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {LANGUAGES.map(l => (
                   <button
                     key={l.id}
                     onClick={() => toggleLanguage(l.id)}
-                    className={`py-3.5 px-6 rounded-lg font-bold text-sm transition-all border text-center flex items-center justify-center gap-2 ${
+                    className={`py-3.5 px-6 rounded-lg font-medium text-sm transition-all border text-center flex items-center justify-center gap-2 ${
                       formData.languages.includes(l.id)
-                        ? 'bg-primary/10 text-navy border-primary'
-                        : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                        ? 'bg-[#ecfdf3] text-[#0a2540] border-[#00ab00]'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     {l.label}
-                    {formData.languages.includes(l.id) && <CheckCircle2 size={14} className="text-primary" />}
+                    {formData.languages.includes(l.id) && <CheckCircle2 size={14} className="text-[#00ab00]" />}
                   </button>
                 ))}
               </div>
               <button
                 disabled={formData.languages.length === 0}
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50"
               >
                 Continue
               </button>
@@ -245,27 +243,27 @@ export function GuidedOnboardingModal() {
           {step === 3 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-navy tracking-tight">Safeguarding your legacy</h2>
-                <p className="text-slate-400 font-medium">Set your Next of Kin. This is mandatory for security.</p>
+                <h2 className="text-2xl font-semibold text-[#0a2540] tracking-tight">Who should we contact for you?</h2>
+                <p className="text-sm leading-6 text-gray-500">Your next of kin is who OrbiSave reaches if we cannot reach you about your savings.</p>
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Full Name</label>
+                  <label className="text-xs font-medium text-gray-500 ml-1">Full name</label>
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="text"
                       value={formData.next_of_kin_name}
                       onChange={e => setFormData({ ...formData, next_of_kin_name: e.target.value })}
                       placeholder="e.g. Jane Doe"
-                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-lg text-sm font-medium focus:border-[#00ab00] outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900 focus:border-[#00ab00] outline-none transition-all"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
+                  <label className="text-xs font-medium text-gray-500 ml-1">Phone number</label>
                   <div className="relative">
-                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="tel"
                       value={formData.next_of_kin_phone}
@@ -278,20 +276,21 @@ export function GuidedOnboardingModal() {
                            setFormData({ ...formData, next_of_kin_phone: val })
                         }
                       }}
-                      placeholder={user?.country ? `e.g. ${COUNTRY_CODES[user.country.toLowerCase()]} ...` : "e.g. +254 700 ..."}
-                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-lg text-sm font-medium focus:border-[#00ab00] outline-none transition-all"
+                      placeholder={user?.country ? `e.g. ${COUNTRY_CODES[user.country.toLowerCase()]} 712345678` : "e.g. +254712345678"}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-lg text-sm font-medium tabular-nums text-gray-900 focus:border-[#00ab00] outline-none transition-all"
                     />
                   </div>
                 </div>
               </div>
               <button
                 disabled={
-                  !formData.next_of_kin_name || 
-                  !formData.next_of_kin_phone || 
+                  !formData.next_of_kin_name ||
+                  !formData.next_of_kin_phone ||
                   formData.next_of_kin_phone.length < 10
                 }
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50"
+                title="Enter a name and a phone number of at least 10 digits to continue"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50"
               >
                 Continue
               </button>
@@ -302,8 +301,8 @@ export function GuidedOnboardingModal() {
           {step === 4 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-navy tracking-tight">Financial Connectivity</h2>
-                <p className="text-slate-400 font-medium">How would you like to receive your payouts?</p>
+                <h2 className="text-2xl font-semibold text-[#0a2540] tracking-tight">How should we pay you out?</h2>
+                <p className="text-sm leading-6 text-gray-500">This is where your rotation payouts and approved loans are sent.</p>
               </div>
               <div className="grid grid-cols-1 gap-4">
                 {DISBURSEMENT_METHODS.map(m => {
@@ -312,20 +311,20 @@ export function GuidedOnboardingModal() {
                     <button
                       key={m.id}
                       onClick={() => setFormData({ ...formData, disbursement_method: m.id })}
-                      className={`w-full p-6 rounded-lg border text-left flex gap-4 transition-all ${
+                      className={`w-full p-5 rounded-lg border text-left flex gap-4 transition-all ${
                         formData.disbursement_method === m.id
-                          ? 'bg-primary/10 text-navy border-primary'
-                          : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                          ? 'bg-[#ecfdf3] text-[#0a2540] border-[#00ab00]'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
-                        formData.disbursement_method === m.id ? 'bg-primary text-white' : 'bg-slate-50 text-navy'
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                        formData.disbursement_method === m.id ? 'bg-[#00ab00] text-white' : 'bg-gray-100 text-[#0a2540]'
                       }`}>
                         <Icon size={24} />
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold uppercase tracking-tight text-xs mb-1">{m.label}</p>
-                        <p className="text-xs font-medium leading-relaxed text-slate-400">{m.description}</p>
+                        <p className="text-sm font-semibold text-gray-900 mb-1">{m.label}</p>
+                        <p className="text-sm leading-6 text-gray-500">{m.description}</p>
                       </div>
                     </button>
                   )
@@ -338,22 +337,22 @@ export function GuidedOnboardingModal() {
                     type="text"
                     value={formData.bank_name}
                     onChange={e => setFormData({ ...formData, bank_name: e.target.value })}
-                    placeholder="Bank Name (e.g. Equity)"
-                    className="px-4 py-3.5 bg-white border border-slate-100 rounded-lg text-xs font-medium focus:border-[#00ab00] outline-none transition-all"
+                    placeholder="Bank name, e.g. Equity"
+                    className="px-4 py-3.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900 focus:border-[#00ab00] outline-none transition-all"
                   />
                   <input
                     type="text"
                     value={formData.bank_account_number}
                     onChange={e => setFormData({ ...formData, bank_account_number: e.target.value })}
-                    placeholder="Account Number"
-                    className="px-4 py-3.5 bg-white border border-slate-100 rounded-lg text-xs font-medium focus:border-[#00ab00] outline-none transition-all"
+                    placeholder="Account number"
+                    className="px-4 py-3.5 bg-white border border-gray-200 rounded-lg text-sm font-medium tabular-nums text-gray-900 focus:border-[#00ab00] outline-none transition-all"
                   />
                 </div>
               )}
 
               <button
                 onClick={handleNext}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-semibold text-sm transition-all"
               >
                 Continue
               </button>
@@ -363,29 +362,33 @@ export function GuidedOnboardingModal() {
           {/* Step 5: Final Nudge */}
           {step === 5 && (
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 text-center">
-              <div className="w-16 h-16 bg-[#00ab00]/10 rounded-lg flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-[#ecfdf3] rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 size={32} className="text-[#00ab00]" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-navy tracking-tight">You're all set!</h2>
-                <p className="text-slate-400 font-medium leading-relaxed">
-                  Head over to your <strong>Billing Settings</strong> to set your preferred contribution method (e.g. M-Pesa) and finalize your financial connection.
+                <h2 className="text-2xl font-semibold text-[#0a2540] tracking-tight">Your profile is set up</h2>
+                {/* TODO(copy): there is no billing settings screen yet. Point members at the real
+                    place to set a contribution payment method once that screen exists. */}
+                <p className="text-sm leading-6 text-gray-500">
+                  Next, open <strong className="font-semibold text-gray-700">My group</strong> to create a group or accept an
+                  invite. Contributions, rotations, and loans all start from there.
                 </p>
               </div>
-              
-              <div className="p-6 bg-slate-50/50 rounded-lg border border-slate-100 text-left flex gap-4">
+
+              <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 text-left flex gap-4">
                 <ShieldCheck size={24} className="text-[#00ab00] shrink-0" />
-                <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                  We take security seriously. Your banking details are encrypted and only used for authorized disbursements via our partner banks.
+                <p className="text-sm leading-6 text-gray-500">
+                  Your payout details are stored on your profile and are used only to send you money you are owed.
+                  You can change them any time under Profile.
                 </p>
               </div>
 
               <button
                 disabled={loading}
                 onClick={handleSubmit}
-                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-bold uppercase tracking-wider text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#00ab00] text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading ? 'FINISHING...' : 'FINISH'}
+                {loading ? 'Finishing...' : 'Finish'}
                 {!loading && <CheckCircle2 size={16} />}
               </button>
             </div>

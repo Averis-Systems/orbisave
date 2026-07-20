@@ -8,7 +8,7 @@ import Link from "next/link"
  * /public/illustrations (open license, no attribution, no real people) over
  * a soft brand-tinted gradient. The logo lives up here (the form column
  * shows it only on small screens where this panel is hidden), followed by
- * the brand tagline — no other copy, per design feedback.
+ * the brand tagline: no other copy, per design feedback.
  */
 export function AuthIllustrationPanel({ illustration }: { illustration: string }) {
   return (

@@ -104,7 +104,11 @@ export function normalizeFrequency(frequency?: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-export function getUserDashboardNavItems(role: string, hasLoanPool: boolean): DashboardNavSection[] {
+export function getUserDashboardNavItems(
+  role: string,
+  hasLoanPool: boolean,
+  unreadNotifications = 0,
+): DashboardNavSection[] {
   const isGroupAdmin = role === "chairperson" || role === "treasurer"
 
   return [
@@ -138,7 +142,14 @@ export function getUserDashboardNavItems(role: string, hasLoanPool: boolean): Da
     {
       title: "System",
       items: [
-        { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: 3 },
+        // Real unread count. Previously hardcoded to 3, so the sidebar showed a
+        // permanent phantom badge that never cleared when notifications were read.
+        {
+          name: "Notifications",
+          href: "/dashboard/notifications",
+          icon: Bell,
+          ...(unreadNotifications > 0 ? { badge: unreadNotifications } : {}),
+        },
         { name: "Personal Profile", href: "/dashboard/profile", icon: User },
         ...(isGroupAdmin ? [{ name: "Group Settings", href: "/dashboard/settings", icon: Settings }] : []),
       ],

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, unwrapList } from '@/lib/api'
 
 export interface Member {
   id: string
@@ -23,7 +23,7 @@ export function useMembers(groupId: string | null) {
     queryKey: ['members', groupId],
     queryFn: async () => {
       const { data } = await api.get(`/groups/${groupId}/members/`)
-      return data.data
+      return unwrapList<Member>(data)
     },
     enabled: !!groupId,
   })

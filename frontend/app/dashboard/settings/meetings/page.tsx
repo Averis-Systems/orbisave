@@ -2,14 +2,30 @@
 
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
-import { CalendarDays, CheckCircle2, ChevronLeft, Save, ShieldCheck, Video, Vote } from "lucide-react"
+import { CalendarDays, ChevronLeft, ShieldCheck, Video, Vote } from "lucide-react"
 import { toast } from "sonner"
 
+import { RequireGroupLeader } from "@/components/dashboard/RequireGroupLeader"
+import { EmptyState, PageHeader, SectionCard, StatCard } from "@/components/dashboard/ui"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useActiveGroup } from "@/hooks/useGroups"
 import { useMembers } from "@/hooks/useMembers"
-import { useMeetingSettings, useUpdateMeetingSettings, type MeetingFrequency, type MeetingProviderMode } from "@/hooks/useMeetings"
+import {
+  useMeetingSettings,
+  useUpdateMeetingSettings,
+  type MeetingFrequency,
+  type MeetingProviderMode,
+} from "@/hooks/useMeetings"
 import { useAuthStore } from "@/store/auth"
+
+/**
+ * Meeting governance. This is the one settings screen with a real backing
+ * mutation (PATCH /meetings/settings/), so the form here genuinely saves.
+ *
+ * The video provider is shown as a read-only value: it is a platform level
+ * choice held by the super admin, so there is no control for it. Its current
+ * value is still round-tripped on save so a group never loses it.
+ */
 
 function errorMessage(err: unknown, fallback: string) {
   if (typeof err !== "object" || !err || !("response" in err)) return fallback
@@ -27,19 +43,90 @@ function frequencyLabel(value: MeetingFrequency) {
   return labels[value]
 }
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
+      {children}
+      {hint && <span className="mt-1.5 block text-xs text-gray-400">{hint}</span>}
+    </label>
+  )
+}
+
+function InfoRow({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-gray-100 py-3.5 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4 dark:border-gray-800">
+      <div>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+        {note && <p className="mt-0.5 text-xs text-gray-400">{note}</p>}
+      </div>
+      <span className="text-sm font-medium text-gray-900 dark:text-white">{value}</span>
+    </div>
+  )
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+  disabled,
+  hint,
+}: {
+  label: string
+  checked: boolean
+  onChange: (value: boolean) => void
+  disabled?: boolean
+  hint?: string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/40">
+      <div>
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+        {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        disabled={disabled}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+          checked ? "bg-[#00ab00]" : "bg-gray-200 dark:bg-gray-700"
+        } disabled:cursor-not-allowed disabled:opacity-50`}
+        aria-pressed={checked}
+        aria-label={label}
+      >
+        <span
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${checked ? "left-6" : "left-1"}`}
+        />
+      </button>
+    </div>
+  )
+}
+
 export default function MeetingsSettingsPage() {
+  return (
+    <RequireGroupLeader>
+      <MeetingsSettings />
+    </RequireGroupLeader>
+  )
+}
+
+function MeetingsSettings() {
   const user = useAuthStore((state) => state.user)
   const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
   const { data: members } = useMembers(activeGroup?.id || null)
   const { data: settings, isLoading: settingsLoading } = useMeetingSettings(activeGroup?.id || null)
   const updateMeetingSettings = useUpdateMeetingSettings(activeGroup?.id || null)
-  const currentMembership = members?.find((member) => member.member === user?.id || member.member_email === user?.email)
+  const currentMembership = members?.find(
+    (member) => member.member === user?.id || member.member_email === user?.email,
+  )
   const isChairperson = currentMembership?.role === "chairperson" || user?.role === "chairperson"
 
   const [frequency, setFrequency] = useState<MeetingFrequency>("monthly")
   const [noticeDays, setNoticeDays] = useState("7")
   const [quorum, setQuorum] = useState("60")
   const [majority, setMajority] = useState("51")
+  // No control renders for provider mode: it is a platform choice. It is held
+  // here only so a save preserves whatever the backend already has.
   const [providerMode, setProviderMode] = useState<MeetingProviderMode>("daily")
   const [attendanceTracking, setAttendanceTracking] = useState(true)
   const [minutesRequired, setMinutesRequired] = useState(true)
@@ -54,6 +141,16 @@ export default function MeetingsSettingsPage() {
     setAttendanceTracking(settings.attendance_tracking)
     setMinutesRequired(settings.minutes_required)
   }, [settings])
+
+  const backLink = (
+    <Link
+      href="/dashboard/settings"
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+    >
+      <ChevronLeft size={16} />
+      Group settings
+    </Link>
+  )
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -71,9 +168,9 @@ export default function MeetingsSettingsPage() {
         attendance_tracking: attendanceTracking,
         minutes_required: minutesRequired,
       })
-      toast.success("Meeting governance settings saved.")
+      toast.success("Meeting settings saved.")
     } catch (err: unknown) {
-      toast.error(errorMessage(err, "Meeting governance settings could not be saved."))
+      toast.error(errorMessage(err, "Meeting settings could not be saved."))
     }
   }
 
@@ -81,121 +178,132 @@ export default function MeetingsSettingsPage() {
 
   if (!activeGroup) {
     return (
-      <EmptyState
-        icon={<CalendarDays size={26} />}
-        title="No active group found"
-        description="Join or create a group before meeting governance settings can be reviewed."
-      />
+      <div className="space-y-6">
+        {backLink}
+        <EmptyState
+          icon={CalendarDays}
+          title="No active group yet"
+          description="Meeting cadence and quorum belong to a group. Create a group or accept an invite to set them."
+        />
+      </div>
     )
   }
 
+  const inputClass =
+    "h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-[#00ab00] focus:ring-2 focus:ring-[#00ab00]/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800"
+
   return (
-    <div className="space-y-7">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <Link href="/dashboard/settings" className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-primary dark:hover:bg-white/10">
-              <ChevronLeft size={16} />
-            </Link>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Meeting Governance</p>
-          </div>
-          <h1 className="text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">Meeting Settings</h1>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-            Configure meeting cadence, quorum rules, voting thresholds, and video preferences for {activeGroup.name}.
-          </p>
-        </div>
-        <StatusPill label={isChairperson ? "Chairperson controls" : "Member view"} />
-      </section>
+    <div className="space-y-6">
+      {backLink}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <MetricCard label="Cadence" value={frequencyLabel(frequency)} helper="Default group meeting cycle" icon={<CalendarDays size={18} />} />
-        <MetricCard label="Quorum" value={`${quorum}%`} helper="Minimum participation for valid resolutions" icon={<Vote size={18} />} />
-        <MetricCard label="Provider" value="Daily.co" helper="Credentials managed by super admin" icon={<Video size={18} />} />
-      </section>
+      <PageHeader
+        eyebrow="Meetings"
+        title="Meetings and quorum"
+        description={`Set how often ${activeGroup.name} meets, how much notice members get, and what counts as a valid vote.`}
+      />
 
-      <form onSubmit={submit} className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px]">
-        <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">
-              <CalendarDays size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Cadence & Voting</h2>
-              <p className="mt-1 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-                Chairperson settings guide when members meet and when votes are valid.
-              </p>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Cadence" value={frequencyLabel(frequency)} sub="Default meeting cycle" icon={CalendarDays} />
+        <StatCard label="Quorum" value={`${quorum}%`} sub="Attendance needed for a valid vote" icon={Vote} />
+        <StatCard label="Majority" value={`${majority}%`} sub="Share of votes needed to pass" icon={ShieldCheck} />
+      </div>
 
+      <form onSubmit={submit} className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
+        <SectionCard
+          title="Cadence and voting"
+          description="Saved to your group. Only the chairperson can change these values."
+        >
           {!isChairperson && (
-            <div className="mt-5 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
-              Members can review meeting settings. Updates are reserved for the chairperson.
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+              You can review these settings. Saving is reserved for the chairperson.
             </div>
           )}
 
-          <div className="mt-6 space-y-5">
+          <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Meeting frequency">
-                <select value={frequency} onChange={(event) => setFrequency(event.target.value as MeetingFrequency)} disabled={!isChairperson} className="group-input">
+                <select
+                  value={frequency}
+                  onChange={(event) => setFrequency(event.target.value as MeetingFrequency)}
+                  disabled={!isChairperson}
+                  className={inputClass}
+                >
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                   <option value="as_needed">As needed</option>
                 </select>
               </Field>
-              <Field label="Notice window (days)">
-                <input value={noticeDays} onChange={(event) => setNoticeDays(event.target.value)} disabled={!isChairperson} inputMode="numeric" className="group-input" />
+              <Field label="Notice window (days)" hint="How far ahead members are told about a meeting.">
+                <input
+                  value={noticeDays}
+                  onChange={(event) => setNoticeDays(event.target.value)}
+                  disabled={!isChairperson}
+                  inputMode="numeric"
+                  className={inputClass}
+                />
               </Field>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Quorum (%)">
-                <input value={quorum} onChange={(event) => setQuorum(event.target.value)} disabled={!isChairperson} inputMode="numeric" className="group-input" />
+              <Field label="Quorum (%)" hint="Minimum attendance before a vote can be held.">
+                <input
+                  value={quorum}
+                  onChange={(event) => setQuorum(event.target.value)}
+                  disabled={!isChairperson}
+                  inputMode="numeric"
+                  className={inputClass}
+                />
               </Field>
-              <Field label="Majority (%)">
-                <input value={majority} onChange={(event) => setMajority(event.target.value)} disabled={!isChairperson} inputMode="numeric" className="group-input" />
+              <Field label="Majority (%)" hint="Share of votes cast needed to pass a resolution.">
+                <input
+                  value={majority}
+                  onChange={(event) => setMajority(event.target.value)}
+                  disabled={!isChairperson}
+                  inputMode="numeric"
+                  className={inputClass}
+                />
               </Field>
             </div>
-            <Toggle label="Attendance tracking" checked={attendanceTracking} onChange={setAttendanceTracking} disabled={!isChairperson} hint="Record attendance when members join a live meeting." />
-            <Toggle label="Minutes required" checked={minutesRequired} onChange={setMinutesRequired} disabled={!isChairperson} hint="Require meeting minutes before governance votes are archived." />
+            <Toggle
+              label="Attendance tracking"
+              checked={attendanceTracking}
+              onChange={setAttendanceTracking}
+              disabled={!isChairperson}
+              hint="Record who joined when a member enters a live meeting room."
+            />
+            <Toggle
+              label="Minutes required"
+              checked={minutesRequired}
+              onChange={setMinutesRequired}
+              disabled={!isChairperson}
+              hint="Require written minutes before a governance vote is archived."
+            />
           </div>
-        </section>
+        </SectionCard>
 
-        <aside className="space-y-5">
-          <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">
-              <Video size={20} />
-            </div>
-            <h2 className="mt-5 text-lg font-black text-[#0a2540] dark:text-white">Video Provider</h2>
-            <p className="mt-2 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-              Daily.co is the platform meeting provider for embedded group rooms, member-only access, attendance tracking, and future meeting webhooks.
-            </p>
-            <div className="mt-5 space-y-3">
+        <aside className="space-y-6">
+          <SectionCard title="Video provider" description="Managed by OrbiSave, not by your group.">
+            <div className="-mt-2">
               <InfoRow label="Provider" value="Daily.co" />
-              <InfoRow label="Credentials" value="Super admin only" />
+              <InfoRow label="Credentials" value="OrbiSave super admin" note="API keys are never held by a group." />
               <InfoRow label="Room access" value="Group members only" />
-              <InfoRow label="Group boundary" value={activeGroup.name} />
+              <InfoRow label="Group" value={activeGroup.name} />
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 shrink-0 text-primary" size={18} />
-              <div>
-                <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Control Boundary</h2>
-                <p className="mt-1 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-                  Chairpersons manage meeting rules for their own group only. Super admins manage provider credentials, webhooks, and API secrets.
-                </p>
-              </div>
-            </div>
-          </section>
+          <SectionCard title="Who controls what">
+            <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
+              Chairpersons set meeting rules for their own group. OrbiSave manages the video provider, its credentials
+              and its webhooks across every group.
+            </p>
+          </SectionCard>
 
           <button
             type="submit"
             disabled={!isChairperson || updateMeetingSettings.isPending}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
           >
-            {isChairperson ? <Save size={15} /> : <CheckCircle2 size={15} />}
-            {isChairperson ? (updateMeetingSettings.isPending ? "Saving..." : "Save Settings") : "Settings Locked"}
+            {updateMeetingSettings.isPending ? "Saving..." : isChairperson ? "Save meeting settings" : "Chairperson only"}
           </button>
         </aside>
       </form>
@@ -203,99 +311,28 @@ export default function MeetingsSettingsPage() {
   )
 }
 
-function EmptyState({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
-  return (
-    <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</div>
-      <h2 className="mt-4 text-lg font-black text-[#0a2540] dark:text-white">{title}</h2>
-      <p className="mx-auto mt-2 max-w-lg text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">{description}</p>
-    </section>
-  )
-}
-
 function MeetingsSettingsSkeleton() {
   return (
-    <div className="space-y-7">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-44" />
-          <Skeleton className="h-9 w-56" />
-          <Skeleton className="h-5 w-full max-w-2xl" />
-        </div>
-        <Skeleton className="h-10 w-44 rounded-lg" />
+    <div className="space-y-6">
+      <Skeleton className="h-5 w-36" />
+      <div className="space-y-3">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-5 w-full max-w-2xl" />
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
       </div>
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px]">
-        <Skeleton className="h-96 rounded-lg" />
-        <div className="space-y-5">
-          <Skeleton className="h-64 rounded-lg" />
-          <Skeleton className="h-32 rounded-lg" />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
+        <Skeleton className="h-96 rounded-2xl" />
+        <div className="space-y-6">
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
           <Skeleton className="h-11 rounded-lg" />
         </div>
       </div>
     </div>
-  )
-}
-
-function Toggle({ label, checked, onChange, disabled, hint }: { label: string; checked: boolean; onChange: (value: boolean) => void; disabled?: boolean; hint?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
-      <div>
-        <p className="text-sm font-black text-[#0a2540] dark:text-white">{label}</p>
-        {hint && <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{hint}</p>}
-      </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        disabled={disabled}
-        className={`relative h-6 w-11 rounded-lg transition ${checked ? "bg-primary" : "bg-gray-200 dark:bg-white/10"} disabled:cursor-not-allowed disabled:opacity-50`}
-        aria-pressed={checked}
-      >
-        <span className={`absolute top-1 h-4 w-4 rounded bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} />
-      </button>
-    </div>
-  )
-}
-
-function MetricCard({ label, value, helper, icon }: { label: string; value: string; helper: string; icon: ReactNode }) {
-  return (
-    <article className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</span>
-      </div>
-      <p className="mt-4 text-2xl font-black text-[#0a2540] dark:text-white">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{helper}</p>
-    </article>
-  )
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</span>
-      {children}
-    </label>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</span>
-      <span className="text-right text-xs font-black text-[#0a2540] dark:text-white">{value}</span>
-    </div>
-  )
-}
-
-function StatusPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex rounded-lg border border-gray-100 bg-gray-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-      {label}
-    </span>
   )
 }

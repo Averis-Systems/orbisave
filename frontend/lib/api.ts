@@ -14,6 +14,36 @@ export const api = axios.create({
   },
 })
 
+/**
+ * Normalise a list response to a plain array.
+ *
+ * The backend returns list data in three different shapes and hooks were
+ * unwrapping by hand, inconsistently:
+ *   1. { success, data: [...], meta }  the common success envelope
+ *   2. { count, next, previous, results: [...] }  DRF pagination, returned by
+ *      any plain ModelViewSet such as PenaltyViewSet
+ *   3. a bare array
+ *
+ * Guessing wrong does not fail loudly at the boundary: the hook hands an
+ * object to a component that calls .filter on it and the whole page crashes.
+ * That is exactly how the fines page broke. Always route list responses
+ * through this.
+ */
+export function unwrapList<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>
+    if (Array.isArray(record.results)) return record.results as T[]
+    if (Array.isArray(record.data)) return record.data as T[]
+    // Paginated envelope nested inside a success envelope.
+    if (record.data && typeof record.data === 'object') {
+      const inner = record.data as Record<string, unknown>
+      if (Array.isArray(inner.results)) return inner.results as T[]
+    }
+  }
+  return []
+}
+
 api.interceptors.request.use((config) => {
   // Normalize URL: remove the leading slash so paths stay relative to baseURL.
   if (config.url?.startsWith('/')) {

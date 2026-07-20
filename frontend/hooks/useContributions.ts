@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, unwrapList } from '@/lib/api'
 
 export interface Contribution {
   id: string
@@ -21,7 +21,7 @@ export function useContributions(groupId: string | null) {
     queryKey: ['contributions', groupId],
     queryFn: async () => {
       const { data } = await api.get('/contributions/history/', { params: { group: groupId } })
-      return data.data // Envelope: { success, data: [...], meta }
+      return unwrapList<Contribution>(data)
     },
     enabled: !!groupId,
   })

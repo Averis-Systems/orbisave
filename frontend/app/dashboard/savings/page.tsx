@@ -3,6 +3,7 @@
 import { PiggyBank, RefreshCw, Wallet } from "lucide-react"
 import { useActiveGroup } from "@/hooks/useGroups"
 import { formatCurrency } from "@/lib/formatters"
+import { PageHeader, SectionCard, StatCard } from "@/components/dashboard/ui"
 
 function getMandatorySavingsAmount(group: any) {
   return (
@@ -20,54 +21,55 @@ export default function SavingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Savings</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Mandatory savings are deducted automatically and held separately from group contributions.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Savings"
+        title="Mandatory Savings"
+        description="Mandatory savings are deducted with each contribution cycle and held separately from the rotation and loan pools."
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Mandatory Savings</p>
-              <p className="mt-3 text-4xl font-semibold text-gray-900 dark:text-white">
-                {isLoading ? "..." : formatCurrency(mandatorySavings, currency)}
-              </p>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Auto-deducted with each contribution cycle for {activeGroup?.name || "your active group"}.
-              </p>
-            </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e9f3ed] text-[#00ab00]">
-              <PiggyBank size={26} />
-            </div>
-          </div>
-        </section>
+        {/*
+          This tile shows the group's configured per-cycle mandatory savings
+          amount, not an accrued balance. The group wallet does expose a
+          `mandatory_savings` running total.
+          TODO(copy): confirm with product whether members should see the
+          group-wide accrued savings balance here, their own accrued balance,
+          or both alongside the configured per-cycle amount.
+        */}
+        <StatCard
+          label="Mandatory savings per cycle"
+          value={isLoading ? "..." : formatCurrency(mandatorySavings, currency)}
+          sub={`Configured for ${activeGroup?.name || "your active group"}`}
+          icon={PiggyBank}
+          tone="green"
+        />
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Savings Flow</p>
-          <div className="mt-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 dark:bg-gray-800">
+        <SectionCard title="How mandatory savings work" description="The two rules this group's savings follow.">
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <RefreshCw size={18} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-gray-800 dark:text-white">Automatic deduction</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Runs with the configured group contribution cadence.</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-white">Deducted every contribution cycle</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  The amount above is taken automatically on the group&apos;s contribution cadence.
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 dark:bg-gray-800">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <Wallet size={18} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-gray-800 dark:text-white">Separate savings balance</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Held away from rotation and loan funds for cleaner reporting.</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-white">Held in a separate savings balance</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Savings sit outside the rotation pool and the loan pool, so payouts and lending never draw them down.
+                </p>
               </div>
             </div>
           </div>
-        </section>
+        </SectionCard>
       </div>
     </div>
   )

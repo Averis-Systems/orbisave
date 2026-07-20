@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, unwrapList } from '@/lib/api'
 
 export interface Fine {
   id: string
@@ -15,8 +15,11 @@ export function useFines(groupId: string | null) {
   return useQuery<Fine[]>({
     queryKey: ['fines', groupId],
     queryFn: async () => {
+      // PenaltyViewSet is a plain ModelViewSet, so this returns DRF's
+      // { count, results } envelope, not an array. Returning it raw crashed
+      // the page on fines.filter(...).
       const { data } = await api.get('/contributions/fines/', { params: { group: groupId } })
-      return data
+      return unwrapList<Fine>(data)
     },
     enabled: !!groupId,
   })

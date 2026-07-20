@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, unwrapList } from '@/lib/api'
 
 export interface Notification {
   id: string
@@ -19,7 +19,7 @@ export function useNotifications(groupId: string | null) {
       // but current backend NotificationViewSet filters by recipient only.
       const { data } = await api.get('/notifications/')
       // Handle the envelope: { success, data: [...], meta }
-      return data.data
+      return unwrapList<Notification>(data)
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   })

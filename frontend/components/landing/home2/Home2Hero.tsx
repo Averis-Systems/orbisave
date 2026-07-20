@@ -165,7 +165,9 @@ export function Home2Hero() {
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </button>
               </Link>
-              <Link href="/onboarding">
+              {/* Goes to the code entry screen, not the role chooser: this
+                  button promises a code field, so it must land on one. */}
+              <Link href="/invite">
                 <button
                   className="h-[52px] px-8 text-sm font-bold text-white bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-2 transition-all hover:bg-white/20 active:scale-[0.98]"
                   style={{ borderRadius: "8px" }}

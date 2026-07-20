@@ -20,6 +20,9 @@ const REFRESH_COOKIE = 'orbi_refresh'
 // Endpoints whose responses carry tokens to capture.
 const TOKEN_PATHS = new Set(['auth/token/', 'admin-portal/auth/login/'])
 const REFRESH_PATH = 'auth/token/refresh/'
+// Email verification confirms AND logs the user in (tokens nested under
+// `data`), so its response must be captured into cookies the same way.
+const EMAIL_CONFIRM_PATH = 'auth/email/confirm/'
 
 const baseCookie = {
   httpOnly: true as const,
@@ -141,6 +144,7 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
 
   const isTokenPath = TOKEN_PATHS.has(path)
   const isRefreshPath = path === REFRESH_PATH
+  const isEmailConfirm = path === EMAIL_CONFIRM_PATH
   const accessToken = req.cookies.get(ACCESS_COOKIE)?.value
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value
 
@@ -205,6 +209,23 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
     if (refresh || refresh_token) pending.refresh = refresh || refresh_token
     return applyCookies(
       NextResponse.json({ ...rest, authenticated: true }, { status: upstream.status }),
+      pending,
+    )
+  }
+
+  // Email verification returns { success, data: { access, refresh }, ... } and
+  // logs the user in. Capture the nested pair into httpOnly cookies and null
+  // out `data` so the JWTs never reach browser JavaScript.
+  if (isEmailConfirm && upstream.ok) {
+    const payload = await upstream.json()
+    const tokens = (payload && payload.data) || {}
+    if (tokens.access) pending.access = tokens.access
+    if (tokens.refresh) pending.refresh = tokens.refresh
+    return applyCookies(
+      NextResponse.json(
+        { ...payload, data: null, authenticated: Boolean(tokens.access) },
+        { status: upstream.status },
+      ),
       pending,
     )
   }

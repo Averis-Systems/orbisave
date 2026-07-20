@@ -1,6 +1,5 @@
 "use client"
 
-import { type ReactNode } from "react"
 import {
   CalendarDays,
   CheckCircle2,
@@ -16,6 +15,13 @@ import { useActiveGroup, type Group } from "@/hooks/useGroups"
 import { useRotationSchedules, useRotations, type RotationSchedule } from "@/hooks/useRotations"
 import { formatCurrency } from "@/lib/formatters"
 import { getFinancialOutcome } from "@/lib/app-states"
+import {
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+} from "@/components/dashboard/ui"
 
 const AVATAR_TONES = ["bg-[#0a2540]", "bg-[#016828]", "bg-[#1c3a5f]", "bg-[#018a35]", "bg-[#00ab00]"]
 
@@ -61,23 +67,47 @@ export default function RotationsPage() {
   }
 
   return (
-    <div className="space-y-7">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Rotation Savings</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">Rotation Schedule</h1>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-            Track payout order, scheduled recipients, and completed rotation savings payouts for {activeGroup.name}.
-          </p>
-        </div>
-        <StatusPill label={currentCycle ? `Cycle ${currentCycle.cycle_number}` : "No active cycle"} />
-      </section>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Rotation savings"
+        title="Rotation Schedule"
+        description={`Payout order, scheduled recipients, and settled rotation payouts for ${activeGroup.name}.`}
+        actions={
+          <StatusBadge
+            status={currentCycle ? `Cycle ${currentCycle.cycle_number}` : "No active cycle"}
+            tone={currentCycle ? "green" : "gray"}
+          />
+        }
+      />
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Rotation Savings Pool" value={formatCurrency(Number(activeGroup.wallet?.rotation_pool || 0), activeGroup.currency)} helper="Funds reserved for rotation payouts" icon={<WalletCards size={18} />} />
-        <MetricCard label="Cycle Progress" value={`${progress}%`} helper={`${completedSchedules.length} of ${schedules?.length || 0} payouts completed`} icon={<TrendingUp size={18} />} />
-        <MetricCard label="Pending Payouts" value={`${upcomingSchedules.length}`} helper="Recipients still waiting in this cycle" icon={<Clock3 size={18} />} />
-        <MetricCard label="Completed Payouts" value={`${completedSchedules.length}`} helper="Settled rotation records" icon={<CheckCircle2 size={18} />} />
+        <StatCard
+          label="Rotation savings pool"
+          value={formatCurrency(Number(activeGroup.wallet?.rotation_pool || 0), activeGroup.currency)}
+          sub="Group funds reserved for rotation payouts"
+          icon={WalletCards}
+          tone="green"
+        />
+        <StatCard
+          label="Cycle progress"
+          value={`${progress}%`}
+          sub={`${completedSchedules.length} of ${schedules?.length || 0} payouts settled`}
+          icon={TrendingUp}
+        />
+        <StatCard
+          label="Pending payouts"
+          value={upcomingSchedules.length}
+          sub="Recipients still waiting in this cycle"
+          icon={Clock3}
+          tone="amber"
+        />
+        <StatCard
+          label="Settled payouts"
+          value={completedSchedules.length}
+          sub="Payouts already paid out this cycle"
+          icon={CheckCircle2}
+          tone="green"
+        />
       </section>
 
       {latestCompletedSchedule && (
@@ -90,54 +120,69 @@ export default function RotationsPage() {
         />
       )}
 
-      <section className="rounded-lg border border-[#0a2540]/10 bg-[#0a2540] p-6 text-white shadow-sm">
+      <SectionCard
+        title="Next scheduled payout"
+        description="The member first in line for the current rotation cycle."
+      >
         {nextRecipient ? (
-          <div className="grid gap-6 lg:grid-cols-[1fr_340px] lg:items-center">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Next Scheduled Payout</p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight">{nextRecipient.member_name}</h2>
-              <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold text-white/60">
-                <span className="inline-flex items-center gap-2">
-                  <CalendarDays size={16} />
-                  {formatDate(nextRecipient.scheduled_payout_date)}
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <RefreshCw size={16} />
-                  Cycle {nextRecipient.cycle_number}
-                </span>
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-center">
+            <div className="flex items-center gap-4">
+              <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-sm font-semibold text-white ${avatarTone(nextRecipient.member_name)}`}>
+                {initials(nextRecipient.member_name || "?")}
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                  {nextRecipient.member_name}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
+                  <span className="inline-flex items-center gap-2 tabular-nums">
+                    <CalendarDays size={16} />
+                    {formatDate(nextRecipient.scheduled_payout_date)}
+                  </span>
+                  <span className="inline-flex items-center gap-2 tabular-nums">
+                    <RefreshCw size={16} />
+                    Cycle {nextRecipient.cycle_number}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 p-5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Estimated Rotation Payout</p>
-              <p className="mt-2 text-3xl font-black text-white">{formatCurrency(payoutAmount, activeGroup.currency)}</p>
-              <p className="mt-2 text-xs font-semibold leading-5 text-white/50">
-                Final payout is calculated by the payout engine from confirmed cycle contributions.
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Estimated payout</p>
+              <p className="mt-2 text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">
+                {formatCurrency(payoutAmount, activeGroup.currency)}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                The final amount is set by the payout engine from confirmed contributions in this cycle.
               </p>
             </div>
           </div>
         ) : (
-          <div className="py-8 text-center">
-            <p className="text-sm font-semibold text-white/55">No upcoming payout is scheduled for this rotation cycle.</p>
-          </div>
+          <EmptyState
+            icon={CalendarDays}
+            title="No upcoming payout scheduled"
+            description="Every payout in this rotation cycle has been settled, or the cycle has not been initialized yet."
+          />
         )}
-      </section>
+      </SectionCard>
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <SchedulePanel
-          title="Payout Queue"
+          title="Payout queue"
+          description="Members still waiting for a payout in this cycle, in payout order."
           badge={`${upcomingSchedules.length} pending`}
           emptyTitle="No pending payouts"
-          emptyDescription="All scheduled payouts for this cycle are complete."
+          emptyDescription="Every scheduled payout for this cycle has been settled."
           schedules={upcomingSchedules}
           group={activeGroup}
           payoutAmount={payoutAmount}
           activeFirst
         />
         <SchedulePanel
-          title="Payout History"
-          badge="Settled records"
+          title="Payout history"
+          description="Rotation payouts this group has already settled."
+          badge={`${completedSchedules.length} settled`}
           emptyTitle="No payout history yet"
-          emptyDescription="Completed rotation savings payouts will appear here."
+          emptyDescription="Settled rotation payouts will be listed here once the first payout is authorized."
           schedules={completedSchedules}
           group={activeGroup}
           payoutAmount={payoutAmount}
@@ -149,6 +194,7 @@ export default function RotationsPage() {
 
 function SchedulePanel({
   title,
+  description,
   badge,
   emptyTitle,
   emptyDescription,
@@ -158,6 +204,7 @@ function SchedulePanel({
   activeFirst = false,
 }: {
   title: string
+  description: string
   badge: string
   emptyTitle: string
   emptyDescription: string
@@ -167,92 +214,73 @@ function SchedulePanel({
   activeFirst?: boolean
 }) {
   return (
-    <section className="rounded-lg border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-5 dark:border-white/10">
-        <h2 className="text-lg font-black text-[#0a2540] dark:text-white">{title}</h2>
-        <StatusPill label={badge} />
-      </div>
-      <div className="divide-y divide-gray-100 dark:divide-white/10">
+    <SectionCard
+      title={title}
+      description={description}
+      actions={<StatusBadge status={badge} tone="gray" />}
+      bodyClassName="p-0"
+    >
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {schedules.length ? (
           schedules.map((schedule, index) => (
             <div key={schedule.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs font-black ${activeFirst && index === 0 ? "bg-primary text-white" : "bg-gray-50 text-gray-500 dark:bg-white/10 dark:text-gray-300"}`}>
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-medium tabular-nums ${
+                    activeFirst && index === 0
+                      ? "bg-[#00ab00] text-white"
+                      : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  }`}
+                >
                   {index + 1}
                 </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg text-xs font-black text-white ${avatarTone(schedule.member_name)}`}>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-medium text-white ${avatarTone(schedule.member_name)}`}>
                   {initials(schedule.member_name || "?")}
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[#0a2540] dark:text-white">{schedule.member_name}</p>
-                  <p className="mt-1 text-xs font-semibold text-gray-400">{formatDate(schedule.scheduled_payout_date)}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{schedule.member_name}</p>
+                  <p className="mt-1 text-xs text-gray-500 tabular-nums">{formatDate(schedule.scheduled_payout_date)}</p>
                 </div>
               </div>
-              <div className="text-left md:text-right">
-                <p className="text-sm font-black text-[#0a2540] dark:text-white">{formatCurrency(payoutAmount, group.currency)}</p>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  {schedule.is_paid_out ? "Settled" : activeFirst && index === 0 ? "Next payout" : "Scheduled"}
+              <div className="flex items-center gap-3 md:flex-col md:items-end md:gap-1">
+                <p className="text-sm font-medium text-gray-900 tabular-nums dark:text-white">
+                  {formatCurrency(payoutAmount, group.currency)}
                 </p>
+                <StatusBadge
+                  status={schedule.is_paid_out ? "Settled" : activeFirst && index === 0 ? "Next payout" : "Scheduled"}
+                  tone={schedule.is_paid_out ? "gray" : activeFirst && index === 0 ? "green" : "amber"}
+                />
               </div>
             </div>
           ))
         ) : (
-          <EmptyState compact icon={<RefreshCw size={22} />} title={emptyTitle} description={emptyDescription} />
+          <div className="p-5">
+            <EmptyState icon={RefreshCw} title={emptyTitle} description={emptyDescription} />
+          </div>
         )}
       </div>
-    </section>
-  )
-}
-
-function MetricCard({ label, value, helper, icon }: { label: string; value: string; helper: string; icon: ReactNode }) {
-  return (
-    <article className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</span>
-      </div>
-      <p className="mt-4 text-2xl font-black text-[#0a2540] dark:text-white">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{helper}</p>
-    </article>
-  )
-}
-
-function StatusPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex rounded-lg border border-gray-100 bg-gray-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-      {label}
-    </span>
-  )
-}
-
-function EmptyState({ icon, title, description, compact = false }: { icon: ReactNode; title: string; description: string; compact?: boolean }) {
-  return (
-    <section className={`rounded-lg border border-dashed border-gray-200 bg-white text-center shadow-sm dark:border-white/10 dark:bg-white/[0.03] ${compact ? "m-5 p-8" : "p-12"}`}>
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</div>
-      <h2 className="mt-4 text-lg font-black text-[#0a2540] dark:text-white">{title}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">{description}</p>
-    </section>
+    </SectionCard>
   )
 }
 
 function RotationsSkeleton() {
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <div className="space-y-3">
         <Skeleton className="h-3 w-36" />
         <Skeleton className="h-9 w-56" />
         <Skeleton className="h-5 w-full max-w-xl" />
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
       </div>
-      <Skeleton className="h-48 rounded-lg" />
+      <Skeleton className="h-48 rounded-2xl" />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <Skeleton className="h-80 rounded-lg" />
-        <Skeleton className="h-80 rounded-lg" />
+        <Skeleton className="h-80 rounded-2xl" />
+        <Skeleton className="h-80 rounded-2xl" />
       </div>
     </div>
   )

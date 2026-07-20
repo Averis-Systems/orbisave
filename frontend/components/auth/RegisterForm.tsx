@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -8,27 +8,48 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { AlertTriangle, User, Users, Info, Loader2 } from "lucide-react"
+import { LOCATION_DATA, type CountryCode } from "@/lib/location-data"
+import { AlertTriangle, User, Users, Info, Loader2, Check, Lock } from "lucide-react"
+
+const COUNTRY_CODES: CountryCode[] = ["kenya", "rwanda", "ghana"]
 
 const memberSchema = z.object({
   full_name: z.string().min(3, "Full name is required"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().regex(/^\+?[1-9]\d{7,14}$/, "Use international format e.g. +254700000000"),
+  country: z.enum(["kenya", "rwanda", "ghana"], { error: "Select your country first" }),
+  phone: z.string().min(1, "Phone number is required"),
   password: z.string().min(8, "Minimum 8 characters"),
   confirmPassword: z.string(),
   group_invite_code: z.string().optional(),
   terms: z.boolean().refine(val => val === true, "You must accept the terms"),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
 })
+  .refine(data => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .superRefine((data, ctx) => {
+    // Validate the phone against the SELECTED country's national format :
+    // a Kenyan number can't pass as a Rwandan one.
+    if (data.country && data.phone) {
+      const info = LOCATION_DATA[data.country]
+      const full = info.phoneCode + data.phone.replace(/\D/g, "").replace(/^0+/, "")
+      if (!info.phonePattern.test(full)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Enter a valid ${info.label} number (${info.phoneHint})`,
+          path: ["phone"],
+        })
+      }
+    }
+  })
 
 type MemberFormValues = z.infer<typeof memberSchema>
 type Role = "member" | "chairperson"
 
-// Manager/Console-style bordered input, shared across every field.
-const inputClass = (hasError?: boolean) =>
+const inputClass = (hasError?: boolean, disabled?: boolean) =>
   `w-full rounded-lg border bg-slate-50/50 px-4 py-3.5 text-sm text-navy outline-none transition-all placeholder:text-slate-300 focus:ring-4 ${
+    disabled ? "cursor-not-allowed opacity-60" : ""
+  } ${
     hasError
       ? "border-red-300 focus:border-red-400 focus:ring-red-500/10"
       : "border-slate-200 focus:border-primary focus:ring-primary/10"
@@ -42,44 +63,78 @@ interface InvitePreview {
   chairperson_name: string
   contribution_amount: number
   contribution_frequency: string
+  country?: CountryCode
 }
+
+// ── Password strength (advisory; submission still gated by the schema) ──────
+type Strength = { score: number; label: string; checks: { label: string; met: boolean }[] }
+
+function scorePassword(pw: string): Strength {
+  const checks = [
+    { label: "8+ characters", met: pw.length >= 8 },
+    { label: "Upper & lowercase", met: /[a-z]/.test(pw) && /[A-Z]/.test(pw) },
+    { label: "A number", met: /\d/.test(pw) },
+    { label: "A symbol", met: /[^A-Za-z0-9]/.test(pw) },
+  ]
+  const score = checks.filter((c) => c.met).length
+  const label = pw.length === 0 ? "" : score <= 1 ? "Weak" : score === 2 ? "Fair" : score === 3 ? "Good" : "Strong"
+  return { score, label, checks }
+}
+
+const STRENGTH_BAR = ["bg-red-400", "bg-red-400", "bg-amber-400", "bg-blue-400", "bg-primary"]
+const STRENGTH_TEXT = ["text-slate-400", "text-red-500", "text-amber-600", "text-blue-600", "text-primary"]
 
 export function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const inviteToken = searchParams.get("invite")
-  
+
   const setAuth = useAuthStore((state) => state.setAuth)
   const [error, setError] = useState<string | null>(null)
   const [selectedRole, setSelectedRole] = useState<Role>("member")
   const [showPassword, setShowPassword] = useState(false)
-  
+  // When the country is dictated by an invite, the selector is locked so an
+  // invited member can't accidentally sign up on the wrong national rail.
+  const [countryLocked, setCountryLocked] = useState(false)
+
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
   const [loadingInvite, setLoadingInvite] = useState(false)
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } =
     useForm<MemberFormValues>({
       resolver: zodResolver(memberSchema),
+      mode: "onChange",
     })
 
+  const passwordValue = watch("password") || ""
+  const selectedCountry = watch("country") as CountryCode | undefined
+  const strength = useMemo(() => scorePassword(passwordValue), [passwordValue])
+  const countryInfo = selectedCountry ? LOCATION_DATA[selectedCountry] : null
+
   useEffect(() => {
-    if (inviteToken) {
-      setSelectedRole("member")
-      const fetchInvite = async () => {
-        setLoadingInvite(true)
-        try {
-          const res = await api.get(`/invites/${inviteToken}/`)
-          setInvitePreview(res.data)
-        } catch (err) {
-          console.error("Failed to load invite details", err)
-          // We can fail silently or show an error.
-        } finally {
-          setLoadingInvite(false)
+    if (!inviteToken) return
+    setSelectedRole("member")
+    // The referral field is the invite itself when arriving from a link.
+    setValue("group_invite_code", inviteToken)
+    const fetchInvite = async () => {
+      setLoadingInvite(true)
+      try {
+        const res = await api.get(`/invites/${inviteToken}/`)
+        setInvitePreview(res.data)
+        // Lock the phone selector to the group's country so the account is
+        // created on the correct national rail (Kenya / Rwanda / Ghana).
+        if (res.data?.country && COUNTRY_CODES.includes(res.data.country)) {
+          setValue("country", res.data.country, { shouldValidate: true })
+          setCountryLocked(true)
         }
+      } catch (err) {
+        console.error("Failed to load invite details", err)
+      } finally {
+        setLoadingInvite(false)
       }
-      fetchInvite()
     }
-  }, [inviteToken])
+    fetchInvite()
+  }, [inviteToken, setValue])
 
   const handleRoleSelect = (role: Role) => {
     if (inviteToken) return // locked to member
@@ -89,67 +144,62 @@ export function RegisterForm() {
     }
   }
 
+  const stashPending = (email: string, invite?: string) => {
+    sessionStorage.setItem("orbisave_pending_email", email)
+    if (invite) sessionStorage.setItem("orbisave_pending_invite", invite)
+    else sessionStorage.removeItem("orbisave_pending_invite")
+  }
+
   const onSubmit = async (data: MemberFormValues) => {
     setError(null)
+    const effectiveInvite = inviteToken || data.group_invite_code || undefined
+    // Compose the full international number from the selected country + local digits.
+    const info = LOCATION_DATA[data.country]
+    const fullPhone = info.phoneCode + data.phone.replace(/\D/g, "").replace(/^0+/, "")
     try {
-      // 1. Register Member
-      // No languages here on purpose: the backend applies per-country
-      // defaults on register, and the guided onboarding dialog collects the
-      // member's real preferences right after first login.
-      const regPayload: any = {
+      await api.post("/auth/register/", {
         full_name: data.full_name,
         email: data.email,
-        phone: data.phone,
+        phone: fullPhone,
+        country: data.country,
         password: data.password,
         role: "member",
-        invite_token: inviteToken || data.group_invite_code
-      }
-      await api.post("/auth/register/", regPayload)
-      
-      // 2. Log in — the proxy stores the JWTs in httpOnly cookies; all
-      // subsequent calls are authenticated automatically.
-      await api.post("/auth/token/", {
-        email: data.email,
-        password: data.password,
+        invite_token: effectiveInvite,
       })
-      const profileRes = await api.get("/auth/me/")
-      setAuth(profileRes.data)
-
-      // 3. Phone verification is mandatory before joining a group — the
-      // verify page sends the SMS code and accepts the invite on success.
-      const effectiveInvite = inviteToken || data.group_invite_code
-      router.push(effectiveInvite ? `/verify?invite=${encodeURIComponent(effectiveInvite)}` : "/verify")
+      stashPending(data.email, effectiveInvite)
+      router.push("/verify-email")
     } catch (err: any) {
-      if (err.response?.data) {
-        const d = err.response.data
-        
-        // If the first registration step succeeded but something after it failed,
-        // re-clicking "Join" will return "user already exists". We handle this by
-        // skipping registration and trying to log in directly.
-        const isAlreadyExists = d.email?.[0]?.includes("already exists") || d.phone?.[0]?.includes("already exists")
-        
-        if (isAlreadyExists) {
-           try {
-             await api.post("/auth/token/", { email: data.email, password: data.password })
-             const profileRes = await api.get("/auth/me/")
-             setAuth(profileRes.data)
-             const retryInvite = inviteToken || data.group_invite_code
-             if (profileRes.data?.phone_verified) {
-               router.push("/dashboard")
-             } else {
-               router.push(retryInvite ? `/verify?invite=${encodeURIComponent(retryInvite)}` : "/verify")
-             }
-             return
-           } catch (loginErr) {
-             // Fall through to original error if auto-login also fails
-           }
-        }
-
-        const msg = d.email?.[0] || d.phone?.[0] || d.non_field_errors?.[0] || "Registration failed."
-        setError(msg)
-      } else {
+      if (!err.response?.data) {
         setError("Network error. Please check your connection and retry.")
+        return
       }
+      const d = err.response.data
+
+      const alreadyExists = d.email?.[0]?.includes("already exists") || d.phone?.[0]?.includes("already exists")
+      if (alreadyExists) {
+        stashPending(data.email, effectiveInvite)
+        try {
+          await api.post("/auth/token/", { email: data.email, password: data.password })
+          const profileRes = await api.get("/auth/me/")
+          setAuth(profileRes.data)
+          // Email is the only verification gate: accept any invite inline and
+          // go straight to the dashboard rather than via a phone-OTP step.
+          if (effectiveInvite) {
+            try { await api.post(`/invites/${effectiveInvite}/`) } catch { /* group link is best-effort here */ }
+          }
+          router.push("/dashboard")
+          return
+        } catch (loginErr: any) {
+          if (loginErr.response?.status === 403 && loginErr.response?.data?.code === "email_unverified") {
+            router.push("/verify-email")
+            return
+          }
+          setError("This email is already registered. Try logging in instead.")
+          return
+        }
+      }
+
+      setError(d.email?.[0] || d.phone?.[0] || d.password?.[0] || d.non_field_errors?.[0] || "Registration failed.")
     }
   }
 
@@ -173,7 +223,8 @@ export function RegisterForm() {
                 <p className="text-xs text-primary/80">Loading group details...</p>
               ) : invitePreview ? (
                 <p className="text-xs text-primary/80 leading-relaxed">
-                  Completing this form will link your account directly to <strong>{invitePreview.group_name}</strong>, chaired by {invitePreview.chairperson_name}. (Contribution: {invitePreview.contribution_amount} / {invitePreview.contribution_frequency})
+                  Completing this form will link your account directly to <strong>{invitePreview.group_name}</strong>
+                  {invitePreview.country && <> in <strong>{LOCATION_DATA[invitePreview.country]?.label}</strong></>}, chaired by {invitePreview.chairperson_name}.
                 </p>
               ) : (
                 <p className="text-xs text-primary/80">Completing this form will link your account directly to the group.</p>
@@ -186,33 +237,29 @@ export function RegisterForm() {
       {/* Role Selector - Only show if NO invite token */}
       {!inviteToken && (
         <>
-          <p className="mb-3 ml-1 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Select Account Purpose</p>
+          <p className="mb-3 ml-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Select account purpose</p>
           <div className="mb-8 grid grid-cols-2 gap-4">
             <button
               type="button"
-              className={`relative rounded-xl border p-4 text-left transition-all ${
-                selectedRole === "member"
-                  ? "border-primary bg-primary/5"
-                  : "border-slate-200 bg-white hover:border-slate-300"
+              className={`relative rounded-lg border p-4 text-left transition-all ${
+                selectedRole === "member" ? "border-primary bg-primary/5" : "border-slate-200 bg-white hover:border-slate-300"
               }`}
               onClick={() => handleRoleSelect("member")}
             >
               <User className="mb-3 h-5 w-5 text-primary" />
               <div className="mb-1 text-sm font-bold text-navy">Member</div>
-              <div className="text-[0.65rem] leading-snug text-slate-500">Individual savings and yield tracking.</div>
+              <div className="text-xs leading-snug text-slate-500">Individual savings and yield tracking.</div>
             </button>
             <button
               type="button"
-              className={`relative rounded-xl border p-4 text-left transition-all ${
-                selectedRole === "chairperson"
-                  ? "border-primary bg-primary/5"
-                  : "border-slate-200 bg-white hover:border-slate-300"
+              className={`relative rounded-lg border p-4 text-left transition-all ${
+                selectedRole === "chairperson" ? "border-primary bg-primary/5" : "border-slate-200 bg-white hover:border-slate-300"
               }`}
               onClick={() => handleRoleSelect("chairperson")}
             >
               <Users className="mb-3 h-5 w-5 text-primary" />
               <div className="mb-1 text-sm font-bold text-navy">Chama Leader</div>
-              <div className="text-[0.65rem] leading-snug text-slate-500">Group management and cycle coordination.</div>
+              <div className="text-xs leading-snug text-slate-500">Group management and cycle coordination.</div>
             </button>
           </div>
         </>
@@ -249,24 +296,55 @@ export function RegisterForm() {
           {errors.email && <p className={errorClass}>{errors.email.message}</p>}
         </div>
 
+        {/* Country: must be picked before a phone number can be entered */}
+        <div className="mb-5">
+          <label className={labelClass}>
+            Country
+            {countryLocked && (
+              <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                <Lock size={11} /> Set by your invitation
+              </span>
+            )}
+          </label>
+          <select
+            className={`${inputClass(!!errors.country, countryLocked)} appearance-none bg-[right_1rem_center] bg-no-repeat`}
+            disabled={countryLocked}
+            defaultValue=""
+            {...register("country")}
+          >
+            <option value="" disabled>Select your country</option>
+            {COUNTRY_CODES.map((code) => (
+              <option key={code} value={code}>
+                {LOCATION_DATA[code].label} ({LOCATION_DATA[code].phoneCode})
+              </option>
+            ))}
+          </select>
+          {errors.country && <p className={errorClass}>{errors.country.message}</p>}
+        </div>
+
         <div className="mb-5">
           <label className={labelClass}>Phone Number</label>
           <div className="flex gap-2">
-            <div className="flex w-28 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3.5 text-sm text-navy">
-              +254 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="ml-auto opacity-50"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <div className={`flex w-24 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3.5 text-sm font-semibold ${countryInfo ? "text-navy" : "text-slate-300"}`}>
+              {countryInfo ? countryInfo.phoneCode : "+"}
             </div>
             <input
               type="tel"
-              placeholder="700 000 000"
-              autoComplete="tel"
-              className={`flex-1 ${inputClass(!!errors.phone)}`}
+              inputMode="numeric"
+              disabled={!selectedCountry}
+              placeholder={countryInfo ? countryInfo.phoneHint.replace(countryInfo.phoneCode, "").trim() : "Select a country first"}
+              autoComplete="tel-national"
+              className={`flex-1 ${inputClass(!!errors.phone, !selectedCountry)}`}
               {...register("phone")}
             />
           </div>
+          {!selectedCountry && !errors.phone && (
+            <p className="mt-1.5 ml-1 text-xs text-slate-400">Choose your country above to enter a phone number.</p>
+          )}
           {errors.phone && <p className={errorClass}>{errors.phone.message}</p>}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-5">
           <div>
             <label className={labelClass}>Password</label>
             <div className="relative">
@@ -299,37 +377,75 @@ export function RegisterForm() {
           </div>
         </div>
 
-        <div className="mb-5">
-          <label className={labelClass}>Group Referral Code (Optional)</label>
+        {/* Real-time password strength: turns brand-green only when strong. */}
+        {passwordValue && (
+          <div className="mb-6 animate-in fade-in slide-in-from-top-1">
+            <div className="flex items-center gap-1.5">
+              {[0, 1, 2, 3].map((i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                    i < strength.score ? STRENGTH_BAR[strength.score] : "bg-slate-200"
+                  }`}
+                />
+              ))}
+              <span className={`ml-2 w-12 text-right text-xs font-semibold ${STRENGTH_TEXT[strength.score]}`}>
+                {strength.label}
+              </span>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
+              {strength.checks.map((c) => (
+                <span
+                  key={c.label}
+                  className={`inline-flex items-center gap-1 text-xs transition-colors ${c.met ? "text-primary" : "text-slate-400"}`}
+                >
+                  <Check size={13} strokeWidth={3} className={c.met ? "opacity-100" : "opacity-30"} />
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Referral code: auto-filled and locked when arriving from an invite link. */}
+        <div className="mb-6">
+          <label className={labelClass}>
+            Group Referral Code {inviteToken ? "" : "(Optional)"}
+          </label>
           <input
             type="text"
             placeholder="e.g. ABC-123-XYZ"
-            className={inputClass(!!errors.group_invite_code)}
+            readOnly={!!inviteToken}
+            className={inputClass(!!errors.group_invite_code, !!inviteToken)}
             {...register("group_invite_code")}
           />
           {errors.group_invite_code && <p className={errorClass}>{errors.group_invite_code.message}</p>}
-          <p className="mt-1.5 ml-1 flex items-center gap-1 text-[0.65rem] text-slate-500"><Info className="h-3 w-3" /> If you were invited by a Chairperson, enter the code here.</p>
+          <p className="mt-1.5 ml-1 flex items-center gap-1 text-xs text-slate-500">
+            {inviteToken ? (
+              <><Check size={12} className="text-primary" /> Auto-filled from your invitation: you&apos;ll join the exact group on signup.</>
+            ) : (
+              <><Info className="h-3 w-3" /> If you were invited by a Chairperson, enter the code here.</>
+            )}
+          </p>
         </div>
 
-        {/* Terms agreement */}
-        <div className="mb-8 flex items-start gap-4 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
-          <div className="mt-0.5">
-            <input
-              type="checkbox"
-              id="terms"
-              className="h-4 w-4 rounded border-slate-300 text-primary accent-primary focus:ring-primary/20"
-              {...register("terms")}
-            />
-          </div>
-          <label htmlFor="terms" className="text-[0.65rem] leading-relaxed text-slate-500">
-            By creating an account, you agree to our <Link href="/terms" className="underline decoration-slate-300 hover:text-navy">Terms of Use</Link> and <Link href="/privacy" className="underline decoration-slate-300 hover:text-navy">Privacy Policy</Link>. Your data is encrypted with enterprise-grade AES-256 standards.
+        {/* Terms agreement: deliberately unboxed, sits inline like a banking form. */}
+        <div className="mb-2 flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="terms"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary accent-primary focus:ring-primary/20"
+            {...register("terms")}
+          />
+          <label htmlFor="terms" className="text-xs leading-relaxed text-slate-500">
+            By creating an account, you agree to our <Link href="/terms" className="font-medium text-navy underline decoration-slate-300 underline-offset-2 hover:decoration-navy">Terms of Use</Link> and <Link href="/privacy" className="font-medium text-navy underline decoration-slate-300 underline-offset-2 hover:decoration-navy">Privacy Policy</Link>. Your data is encrypted with enterprise-grade AES-256 standards.
           </label>
         </div>
-        {errors.terms && <p className={`${errorClass} -mt-6 mb-6`}>{errors.terms.message}</p>}
+        {errors.terms && <p className={`${errorClass} mb-4`}>{errors.terms.message}</p>}
 
         <button
           type="submit"
-          className="group flex w-full items-center justify-center gap-3 rounded bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50"
+          className="group mt-6 flex w-full items-center justify-center gap-3 rounded-lg bg-primary py-4 font-bold text-white transition-all hover:bg-[#009200] active:scale-[0.98] disabled:bg-primary/50"
           disabled={isSubmitting}
         >
           {isSubmitting ? (

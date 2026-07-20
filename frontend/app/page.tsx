@@ -144,7 +144,9 @@ export default function Home() {
                   <ArrowRight className="w-4 h-4 icon-arrow" />
                 </button>
               </Link>
-              <Link href="/onboarding">
+              {/* Goes to the code entry screen, not the role chooser: this
+                  button promises a code field, so it must land on one. */}
+              <Link href="/invite">
                 <button
                   className="h-12 px-7 text-sm font-semibold flex items-center gap-2 transition-colors hover:bg-[#e9f3ed]"
                   style={{ color: "#0a2540", background: "#ffffff", border: "1px solid #d6e4df", borderRadius: "5px" }}

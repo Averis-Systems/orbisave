@@ -6,13 +6,16 @@ import {
   Activity,
   AlertCircle,
   ArrowRight,
-  CalendarDays,
   CheckCircle2,
   Clock3,
+  Copy,
+  Loader2,
+  Mail,
+  MessageCircle,
   Plus,
   RefreshCw,
-  Settings,
   Shield,
+  UserPlus,
   Users,
   Video,
   Wallet,
@@ -22,15 +25,25 @@ import {
 import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
+import { JoinGroupDialog } from "@/components/dashboard/JoinGroupDialog"
 import { useKYCStatus, useSetTransactionPin } from "@/hooks/useAuth"
 import { useActiveGroup, useActivateGroup, useCreateGroup, type CreateGroupPayload, type Group } from "@/hooks/useGroups"
 import { useMeetings, type Meeting } from "@/hooks/useMeetings"
-import { useExitGroup, useMembers, type Member } from "@/hooks/useMembers"
+import { useCreateGroupInvite, useExitGroup, useMembers, type Member } from "@/hooks/useMembers"
 import { useRotations, type RotationCycle } from "@/hooks/useRotations"
 import { formatCurrency } from "@/lib/formatters"
 import { CONTRIBUTION_FREQUENCIES, GROUP_TYPES, buildExistingAccountChairpersonPayload, type ContributionFrequency } from "@/lib/chairperson-onboarding"
 import { getLevel1, getLevel2, LOCATION_DATA, type CountryCode } from "@/lib/location-data"
 import { useAuthStore } from "@/store/auth"
+import {
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+  Tabs,
+  type TabItem,
+} from "@/components/dashboard/ui"
 
 type GroupTab = "overview" | "members" | "rotations" | "meetings" | "settings"
 
@@ -50,12 +63,12 @@ type ExistingAccountGroupForm = {
   current_password: string
 }
 
-const TABS = [
-  { id: "overview" as const, label: "Overview", icon: Activity },
-  { id: "members" as const, label: "Members", icon: Users },
-  { id: "rotations" as const, label: "Rotations", icon: RefreshCw },
-  { id: "meetings" as const, label: "Meetings", icon: Video },
-  { id: "settings" as const, label: "Settings", icon: Settings },
+const TABS: TabItem[] = [
+  { id: "overview", label: "Overview" },
+  { id: "members", label: "Members" },
+  { id: "rotations", label: "Rotations" },
+  { id: "meetings", label: "Meetings" },
+  { id: "settings", label: "Settings" },
 ]
 
 const AVATAR_TONES = ["bg-[#0a2540]", "bg-[#016828]", "bg-[#1c3a5f]", "bg-[#018a35]", "bg-[#00ab00]"]
@@ -107,9 +120,10 @@ function avatarTone(name: string) {
 export default function MyGroupsPage() {
   const [tab, setTab] = useState<GroupTab>("overview")
   const [createOpen, setCreateOpen] = useState(false)
+  const [joinOpen, setJoinOpen] = useState(false)
 
   // One occupied group slot per user (enforced server-side): the active
-  // group IS the workspace — no picker, no card grid.
+  // group is the workspace, so there is no picker and no card grid.
   const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
 
   if (groupsLoading) return <MyGroupSkeleton />
@@ -117,73 +131,71 @@ export default function MyGroupsPage() {
   if (!activeGroup) {
     return (
       <div className="space-y-7">
-        <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Group Registry</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">My Group</h1>
-            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-              You can belong to one savings group at a time. Create your group or accept an invitation to get started.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-black text-white shadow-sm transition hover:bg-green-hover"
-          >
-            <Plus size={16} />
-            Create Group
-          </button>
-        </section>
+        <PageHeader
+          eyebrow="Group registry"
+          title="My group"
+          description="You can belong to one savings group at a time. Create your group, or join one with the invite your chairperson sent you."
+          actions={
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setJoinOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"
+              >
+                <UserPlus size={16} />
+                Join a group
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200]"
+              >
+                <Plus size={16} />
+                Create group
+              </button>
+            </div>
+          }
+        />
 
-        <EmptyPanel
-          icon={<Users size={28} />}
+        <EmptyState
+          icon={Users}
           title="No group membership yet"
-          description="Create a group or accept an invitation to start managing contributions, rotations, loans, and meetings. Membership in additional groups is coming in a future update."
+          description="Join an existing group with an invite code, or create your own and invite members to it. Contributions, rotation payouts, savings and loans all unlock once you are in a group."
+          action={
+            <button
+              type="button"
+              onClick={() => setJoinOpen(true)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200]"
+            >
+              <UserPlus size={16} />
+              Join with an invite code
+            </button>
+          }
         />
 
         {createOpen && <CreateGroupDialog onClose={() => setCreateOpen(false)} />}
+        {joinOpen && <JoinGroupDialog onClose={() => setJoinOpen(false)} />}
       </div>
     )
   }
 
   return (
     <div className="space-y-7">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Group Workspace</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">{activeGroup.name}</h1>
-          <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-            {activeGroup.currency} group wallet / {statusLabel(activeGroup.status)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Group Wallet</p>
-          <p className="mt-1 text-2xl font-black text-[#0a2540] dark:text-white">
-            {formatCurrency(Number(activeGroup.wallet?.total || 0), activeGroup.currency)}
-          </p>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Group workspace"
+        title={activeGroup.name}
+        description={`Wallet held in ${activeGroup.currency}. Group status: ${statusLabel(activeGroup.status)}.`}
+        actions={
+          <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Total group wallet</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+              {formatCurrency(Number(activeGroup.wallet?.total || 0), activeGroup.currency)}
+            </p>
+          </div>
+        }
+      />
 
-      <section className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-white/10">
-        {TABS.map((item) => {
-          const Icon = item.icon
-          const active = tab === item.id
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`relative flex h-12 items-center gap-2 px-2 text-xs font-black uppercase tracking-widest transition ${
-                active ? "text-[#0a2540] dark:text-white" : "text-gray-400 hover:text-[#0a2540] dark:hover:text-white"
-              }`}
-            >
-              <Icon size={15} className={active ? "text-primary" : ""} />
-              {item.label}
-              {active && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-primary" />}
-            </button>
-          )
-        })}
-      </section>
+      <Tabs items={TABS} active={tab} onChange={(id) => setTab(id as GroupTab)} />
 
       {tab === "overview" && <OverviewTab group={activeGroup} />}
       {tab === "members" && <MembersTab group={activeGroup} />}
@@ -195,10 +207,12 @@ export default function MyGroupsPage() {
 }
 
 function OverviewTab({ group }: { group: Group }) {
+  const user = useAuthStore((state) => state.user)
   const { data: members, isLoading: membersLoading } = useMembers(group.id)
   const { data: meetings } = useMeetings(group.id)
   const { data: kyc } = useKYCStatus()
   const activateGroup = useActivateGroup()
+  const isChairperson = user?.role === "chairperson"
 
   const leaders = members?.filter((member) => member.role !== "member") || []
   const nextMeeting = meetings?.find((meeting) => meeting.status === "scheduled" || meeting.status === "live")
@@ -219,59 +233,56 @@ function OverviewTab({ group }: { group: Group }) {
   return (
     <div className="space-y-5">
       {isPending && (
-        <section className="rounded-lg border border-dashed border-emerald-200 bg-white p-6 shadow-sm dark:border-emerald-500/30 dark:bg-white/[0.03]">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">
-                <Shield size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Activation</h2>
-                <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
-                  Complete identity verification and the first confirmed contribution before live operations begin.
-                </p>
-              </div>
-            </div>
+        <SectionCard
+          title="Group activation"
+          description="Both requirements below must be met before the group can go live."
+          actions={
             <button
               type="button"
               onClick={handleActivate}
               disabled={!canActivate || activateGroup.isPending}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+              title={
+                canActivate
+                  ? "Submit this group for activation"
+                  : "Available once chairperson KYC is verified and the wallet has its first confirmed contribution"
+              }
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
             >
-              {activateGroup.isPending ? <Clock3 size={15} /> : <Activity size={15} />}
-              Activate Group
+              {activateGroup.isPending ? <Clock3 size={16} /> : <Activity size={16} />}
+              Activate group
             </button>
-          </div>
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <RequirementCard label="Chairperson KYC" ready={isKycVerified} description="Identity verification must be approved by OrbiSave compliance." />
-            <RequirementCard label="First Contribution" ready={hasFirstDeposit} description="The group wallet needs at least one confirmed contribution." />
+            <RequirementCard label="First contribution" ready={hasFirstDeposit} description="The group wallet needs at least one confirmed contribution." />
           </div>
-        </section>
+        </SectionCard>
       )}
 
+      {group.status === "active" && isChairperson && <InviteMembersCard group={group} />}
+
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Total Group Wallet" value={formatCurrency(Number(group.wallet?.total || 0), group.currency)} helper="All group wallet streams" icon={<WalletCards size={18} />} tone="navy" />
-        <MetricCard label="Rotation Savings Pool" value={formatCurrency(Number(group.wallet?.rotation_pool || 0), group.currency)} helper="Reserved for rotation payouts" icon={<RefreshCw size={18} />} tone="green" />
-        <MetricCard label="Loan Pool" value={formatCurrency(Number(group.wallet?.loan_pool || 0), group.currency)} helper="Available for member loans" icon={<Wallet size={18} />} tone="green" />
-        <MetricCard label="Mandatory Savings" value={formatCurrency(Number(group.wallet?.mandatory_savings || 0), group.currency)} helper="Auto-deducted savings balance" icon={<Shield size={18} />} tone="green" />
-        <MetricCard label="Members" value={`${group.member_count || members?.length || 0}`} helper={`${group.max_members} maximum capacity`} icon={<Users size={18} />} tone="navy" />
+        {/* TODO(copy): confirm whether wallet.total is exactly rotation + loan + mandatory savings, or includes fines and other credits. */}
+        <StatCard label="Total group wallet" value={formatCurrency(Number(group.wallet?.total || 0), group.currency)} sub="Rotation, loan, and savings pools combined" icon={WalletCards} />
+        <StatCard label="Rotation savings pool" value={formatCurrency(Number(group.wallet?.rotation_pool || 0), group.currency)} sub="Reserved for rotation payouts" icon={RefreshCw} tone="green" />
+        <StatCard label="Loan pool" value={formatCurrency(Number(group.wallet?.loan_pool || 0), group.currency)} sub="Available to lend to members" icon={Wallet} tone="green" />
+        <StatCard label="Mandatory savings" value={formatCurrency(Number(group.wallet?.mandatory_savings || 0), group.currency)} sub="Locked savings held for members" icon={Shield} tone="green" />
+        <StatCard label="Members" value={`${group.member_count || members?.length || 0}`} sub={`${group.max_members} seat capacity`} icon={Users} />
       </section>
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Rules</h2>
-              <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Contribution, savings, and lending settings for this group.</p>
-            </div>
-          </div>
+        <SectionCard
+          title="Group rules"
+          description="The contribution, savings, and lending figures this group runs on."
+        >
           <div className="grid gap-3 md:grid-cols-2">
-            <InfoTile label="Contribution Target" value={`${formatCurrency(Number(group.contribution_amount || 0), group.currency)} / ${group.contribution_frequency}`} />
-            <InfoTile label="Mandatory Savings" value={formatCurrency(Number(group.mandatory_savings_amount || 0), group.currency)} />
-            <InfoTile label="Monthly Loan Interest" value={`${group.loan_interest_rate_monthly || 0}%`} />
-            <InfoTile label="Contribution Day" value={`Day ${group.contribution_day}`} />
+            <InfoTile label="Contribution target" value={`${formatCurrency(Number(group.contribution_amount || 0), group.currency)} / ${group.contribution_frequency}`} />
+            <InfoTile label="Mandatory savings" value={formatCurrency(Number(group.mandatory_savings_amount || 0), group.currency)} />
+            <InfoTile label="Monthly loan interest" value={`${group.loan_interest_rate_monthly || 0}%`} />
+            <InfoTile label="Contribution day" value={`Day ${group.contribution_day} of each cycle`} />
           </div>
-        </div>
+        </SectionCard>
 
         <div className="space-y-5">
           <LeadersCard leaders={leaders} loading={membersLoading} />
@@ -282,34 +293,141 @@ function OverviewTab({ group }: { group: Group }) {
   )
 }
 
+function InviteMembersCard({ group }: { group: Group }) {
+  const [target, setTarget] = useState("")
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const createInvite = useCreateGroupInvite()
+
+  const seatsLeft = Math.max((group.max_members || 0) - (group.member_count || 0), 0)
+  const shareText = `You are invited to join "${group.name}" savings group on OrbiSave. Create your account here: `
+
+  const handleCreate = async () => {
+    const value = target.trim()
+    if (!value) {
+      toast.error("Enter the member's email address or phone number.")
+      return
+    }
+    const payload = value.includes("@") ? { email: value } : { phone: value }
+    try {
+      const result = await createInvite.mutateAsync({ groupId: group.id, ...payload })
+      const token = result?.data?.token || result?.token
+      if (token) {
+        setInviteLink(`${window.location.origin}/register?invite=${token}`)
+        toast.success("Invite created. Share the link below with your member.")
+      } else {
+        toast.success("Invite created and queued for delivery.")
+      }
+      setTarget("")
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, "Invite could not be created."))
+    }
+  }
+
+  const handleCopy = async () => {
+    if (!inviteLink) return
+    await navigator.clipboard.writeText(inviteLink)
+    toast.success("Invite link copied.")
+  }
+
+  return (
+    <SectionCard>
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#ecfdf3] text-[#00ab00]">
+          <UserPlus size={20} />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Your group is live. Invite your members</h2>
+          <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+            Enter a member&apos;s email or phone number to generate their unique invite link, then share it on
+            WhatsApp or by email. {seatsLeft} of {group.max_members} seats are open.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <input
+          value={target}
+          onChange={(event) => setTarget(event.target.value)}
+          placeholder="member@example.com or +254712345678"
+          className="h-11 flex-1 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-[#00ab00] focus:ring-2 focus:ring-[#00ab00]/15 dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+        />
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={createInvite.isPending}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200] disabled:opacity-50"
+        >
+          {createInvite.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+          Create invite
+        </button>
+      </div>
+
+      {inviteLink && (
+        <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Unique invite link, valid for 7 days</p>
+          <p className="mt-1.5 break-all font-mono text-sm text-gray-800 dark:text-gray-200">{inviteLink}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"
+            >
+              <Copy size={15} />
+              Copy link
+            </button>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(shareText + inviteLink)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#25d366] px-4 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              <MessageCircle size={15} />
+              Share on WhatsApp
+            </a>
+            <a
+              href={`mailto:?subject=${encodeURIComponent(`Join ${group.name} on OrbiSave`)}&body=${encodeURIComponent(shareText + inviteLink)}`}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0a2540] px-4 text-sm font-semibold text-white transition hover:bg-[#1c3a5f]"
+            >
+              <Mail size={15} />
+              Share by email
+            </a>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  )
+}
+
 function MembersTab({ group }: { group: Group }) {
   const { data: members, isLoading } = useMembers(group.id)
 
   if (isLoading) return <PanelSkeleton />
 
   return (
-    <section className="rounded-lg border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex flex-col gap-3 border-b border-gray-100 p-5 dark:border-white/10 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Registry</h2>
-          <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">{members?.length || 0} members linked to this group.</p>
-        </div>
+    <SectionCard
+      title="Group registry"
+      description={`${members?.length || 0} members are linked to this group.`}
+      bodyClassName=""
+      actions={
         <Link
           href="/dashboard/members"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-100 px-4 text-xs font-black uppercase tracking-widest text-[#0a2540] transition hover:border-emerald-100 hover:text-primary dark:border-white/10 dark:text-white"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200"
         >
-          Manage Members
+          Manage members
           <ArrowRight size={14} />
         </Link>
-      </div>
-      <div className="divide-y divide-gray-100 dark:divide-white/10">
+      }
+    >
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {members?.length ? (
           members.map((member) => <MemberRow key={member.id} member={member} />)
         ) : (
-          <EmptyPanel compact icon={<Users size={24} />} title="No members yet" description="Accepted invitations and active memberships will appear here." />
+          <div className="p-5">
+            <EmptyState icon={Users} title="No members yet" description="Accepted invitations and active memberships will appear here." />
+          </div>
         )}
       </div>
-    </section>
+    </SectionCard>
   )
 }
 
@@ -322,32 +440,34 @@ function RotationsTab({ group }: { group: Group }) {
   return (
     <div className="space-y-5">
       {currentCycle && <CurrentCycleCard cycle={currentCycle} currency={group.currency} />}
-      <section className="rounded-lg border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <div className="border-b border-gray-100 p-5 dark:border-white/10">
-          <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Rotation History</h2>
-          <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Past and current group rotation cycles.</p>
-        </div>
-        <div className="divide-y divide-gray-100 dark:divide-white/10">
+      <SectionCard
+        title="Rotation history"
+        description="Every rotation cycle this group has run, newest first."
+        bodyClassName=""
+      >
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {cycles?.length ? (
             cycles.map((cycle) => (
               <div key={cycle.id} className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ecfdf3] text-[#00ab00]">
                     <RefreshCw size={18} />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-[#0a2540] dark:text-white">Cycle #{cycle.cycle_number}</p>
-                    <p className="mt-1 text-xs font-semibold text-gray-400">{formatDate(cycle.start_date)} to {formatDate(cycle.end_date)}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">Cycle {cycle.cycle_number}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatDate(cycle.start_date)} to {formatDate(cycle.end_date)}</p>
                   </div>
                 </div>
-                <StatusPill status={cycle.status} />
+                <StatusBadge status={statusLabel(cycle.status)} />
               </div>
             ))
           ) : (
-            <EmptyPanel compact icon={<RefreshCw size={24} />} title="No rotation cycles yet" description="Rotation history appears after the schedule is initialized." />
+            <div className="p-5">
+              <EmptyState icon={RefreshCw} title="No rotation cycles yet" description="Rotation history appears once the payout schedule is initialized." />
+            </div>
           )}
         </div>
-      </section>
+      </SectionCard>
     </div>
   )
 }
@@ -358,41 +478,43 @@ function MeetingsTab({ group }: { group: Group }) {
   if (isLoading) return <PanelSkeleton />
 
   return (
-    <section className="rounded-lg border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex flex-col gap-3 border-b border-gray-100 p-5 dark:border-white/10 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Meetings</h2>
-          <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Scheduled meetings and governance records.</p>
-        </div>
+    <SectionCard
+      title="Group meetings"
+      description="Scheduled sittings and the minutes recorded against them."
+      bodyClassName=""
+      actions={
         <Link
           href="/dashboard/meetings"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#0a2540] px-4 text-xs font-black uppercase tracking-widest text-white transition hover:bg-[#1c3a5f]"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#0a2540] px-4 text-sm font-medium text-white transition hover:bg-[#1c3a5f]"
         >
-          Open Meetings
+          Open meetings
           <ArrowRight size={14} />
         </Link>
-      </div>
-      <div className="divide-y divide-gray-100 dark:divide-white/10">
+      }
+    >
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {meetings?.length ? (
           meetings.map((meeting) => (
             <div key={meeting.id} className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${meeting.status === "live" ? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-200" : "bg-emerald-50 text-primary dark:bg-emerald-500/10"}`}>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${meeting.status === "live" ? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-200" : "bg-[#ecfdf3] text-[#00ab00]"}`}>
                   <Video size={18} />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[#0a2540] dark:text-white">{meeting.title}</p>
-                  <p className="mt-1 text-xs font-semibold text-gray-400">{new Date(meeting.scheduled_at).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{new Date(meeting.scheduled_at).toLocaleString()}</p>
                 </div>
               </div>
-              <StatusPill status={meeting.status} />
+              <StatusBadge status={statusLabel(meeting.status)} />
             </div>
           ))
         ) : (
-          <EmptyPanel compact icon={<Video size={24} />} title="No meetings scheduled" description="Upcoming meetings and minutes will appear here." />
+          <div className="p-5">
+            <EmptyState icon={Video} title="No meetings scheduled" description="Upcoming meetings and their minutes will appear here." />
+          </div>
         )}
       </div>
-    </section>
+    </SectionCard>
   )
 }
 
@@ -421,59 +543,45 @@ function SettingsTab({ group }: { group: Group }) {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <div className="mb-6 flex items-start gap-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-50 text-[#0a2540] dark:bg-white/10 dark:text-white">
-            <Settings size={20} />
-          </div>
-          <div>
-            <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Settings</h2>
-            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
-              Rule changes should follow the group governance process before they are applied.
-            </p>
-          </div>
-        </div>
+      <SectionCard
+        title="Group settings"
+        description="These figures are read-only here. Changing them requires the group governance process."
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <ReadOnlyField label="Group name" value={group.name} />
           <ReadOnlyField label="Contribution day" value={`Day ${group.contribution_day}`} />
           <ReadOnlyField label="Member capacity" value={`${group.max_members} members`} />
           <ReadOnlyField label="Monthly loan interest" value={`${group.loan_interest_rate_monthly || 0}%`} />
         </div>
-        <p className="mt-6 rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm font-semibold leading-6 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-          Editable settings will be wired after the governance approval workflow is finalized. This prevents unsafely changing financial rules without group approval.
+        {/* TODO(api): no endpoint yet for governance-approved rule edits, so these fields stay read-only. */}
+        <p className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          Editing will open once the governance approval workflow ships. Until then, financial rules cannot be changed without the group agreeing first.
         </p>
-      </section>
+      </SectionCard>
 
-      <section className="rounded-lg border border-red-100 bg-white p-6 shadow-sm dark:border-red-500/20 dark:bg-white/[0.03]">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-200">
-              <AlertCircle size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Leave Group</h2>
-              <p className="mt-1 max-w-xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-                {isChairperson
-                  ? "Chairpersons must hand over the role to another member before leaving. Contact support to transfer chairpersonship."
-                  : "Leaving frees your group slot so you can join or create another group. Outstanding loans must be fully repaid first, and your contribution history stays on the group ledger."}
-              </p>
-            </div>
-          </div>
-          {!isChairperson && (
+      <SectionCard
+        title="Leave group"
+        description={
+          isChairperson
+            ? "Chairpersons must hand the role to another member before leaving. Contact support to transfer chairpersonship."
+            : "Leaving frees your group slot so you can join or create another group. Outstanding loans must be fully repaid first, and your contribution history stays on the group ledger."
+        }
+        actions={
+          !isChairperson ? (
             confirmingExit ? (
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleExit}
                   disabled={exitGroup.isPending || !ownMembership}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-red-700 disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                 >
-                  {exitGroup.isPending ? "Leaving..." : "Confirm Exit"}
+                  {exitGroup.isPending ? "Leaving..." : "Confirm exit"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingExit(false)}
-                  className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-100 px-5 text-xs font-black uppercase tracking-widest text-gray-500 transition hover:text-[#0a2540] dark:border-white/10 dark:hover:text-white"
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-200 px-5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300"
                 >
                   Cancel
                 </button>
@@ -483,14 +591,24 @@ function SettingsTab({ group }: { group: Group }) {
                 type="button"
                 onClick={() => setConfirmingExit(true)}
                 disabled={!ownMembership}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 px-5 text-xs font-black uppercase tracking-widest text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
+                title={ownMembership ? "Leave this group" : "Your membership record is still loading"}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 px-5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
               >
-                Leave This Group
+                Leave this group
               </button>
             )
-          )}
+          ) : undefined
+        }
+      >
+        <div className="flex items-start gap-3">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-500" />
+          <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
+            {isChairperson
+              ? "Your group would be left without a chairperson, so this action is handled by support rather than self-service."
+              : "This cannot be undone from the dashboard. Rejoining requires a fresh invite from the chairperson."}
+          </p>
         </div>
-      </section>
+      </SectionCard>
     </div>
   )
 }
@@ -589,20 +707,20 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button aria-label="Close dialog" className="absolute inset-0 bg-[#0a2540]/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-gray-950">
+      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col rounded-2xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-950">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5 dark:border-white/10">
           <div>
-            <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Create Group</h2>
-            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Step {step + 1} of {steps.length}: {steps[step]}</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Create group</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Step {step + 1} of {steps.length}: {steps[step]}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#0a2540] dark:hover:bg-white/10 dark:hover:text-white">
+          <button type="button" onClick={onClose} aria-label="Close dialog" className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/10 dark:hover:text-white">
             <X size={18} />
           </button>
         </div>
 
         <div className="flex gap-2 px-6 pt-5">
           {steps.map((label, index) => (
-            <div key={label} className={`h-1 flex-1 rounded-lg ${index <= step ? "bg-primary" : "bg-gray-100 dark:bg-white/10"}`} />
+            <div key={label} className={`h-1 flex-1 rounded-lg ${index <= step ? "bg-[#00ab00]" : "bg-gray-100 dark:bg-white/10"}`} />
           ))}
         </div>
 
@@ -620,15 +738,15 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
                 <input value={form.group_name} onChange={(event) => update("group_name", event.target.value)} className="group-input" placeholder="Sunrise Investment Group" />
               </Field>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Group type</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Group type</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {GROUP_TYPES.map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => update("group_type", type)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
-                        form.group_type === type ? "border-emerald-100 bg-emerald-50 text-primary" : "border-gray-100 bg-white text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300"
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                        form.group_type === type ? "border-[#bfe8c4] bg-[#ecfdf3] text-[#00ab00]" : "border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300"
                       }`}
                     >
                       {type}
@@ -655,8 +773,8 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
 
           {step === 1 && (
             <div className="space-y-5">
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-[#016828] dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
-                Location is used for country approval, partner matching, and regional reporting.
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                Location is used for country approval, partner bank matching, and regional reporting.
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label={countryMeta.level1Label}>
@@ -677,8 +795,8 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
 
           {step === 2 && (
             <div className="space-y-5">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-5 dark:border-white/10 dark:bg-white/5">
-                <h3 className="mb-4 text-base font-black text-[#0a2540] dark:text-white">Review</h3>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-white/10 dark:bg-white/5">
+                <h3 className="mb-4 text-base font-semibold text-gray-900 dark:text-white">Review</h3>
                 <div className="space-y-3 text-sm">
                   <ReviewRow label="Group" value={form.group_name || "-"} />
                   <ReviewRow label="Contribution" value={`${countryMeta.currency} ${Number(form.contribution_amount || 0).toLocaleString()} / ${form.contribution_frequency}`} />
@@ -693,7 +811,7 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
 
           {step === 3 && (
             <div className="space-y-5">
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-[#016828] dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
                 Your transaction PIN protects sensitive actions such as loan approvals and payout controls.
               </div>
               <Field label="4-digit transaction PIN">
@@ -703,7 +821,7 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
                   maxLength={4}
                   value={form.transaction_pin}
                   onChange={(event) => update("transaction_pin", event.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="group-input text-center text-2xl tracking-[0.5em]"
+                  className="group-input text-center text-2xl tracking-[0.5em] tabular-nums"
                   placeholder="0000"
                 />
               </Field>
@@ -714,7 +832,7 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
           )}
 
           {error && (
-            <div className="mt-5 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">
+            <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
@@ -728,12 +846,12 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
               setStep((current) => Math.max(0, current - 1))
             }}
             disabled={step === 0 || createGroup.isPending || setPin.isPending}
-            className="h-10 rounded-lg border border-gray-100 px-5 text-xs font-black uppercase tracking-widest text-gray-400 transition hover:text-[#0a2540] disabled:opacity-0 dark:border-white/10 dark:hover:text-white"
+            className="h-10 rounded-lg border border-gray-200 px-5 text-sm font-medium text-gray-500 transition hover:bg-gray-50 disabled:opacity-0 dark:border-white/10 dark:hover:text-white"
           >
             Back
           </button>
           {step < steps.length - 1 ? (
-            <button type="button" onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover">
+            <button type="button" onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200]">
               Continue
               <ArrowRight size={14} />
             </button>
@@ -742,10 +860,10 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
               type="button"
               onClick={submit}
               disabled={createGroup.isPending || setPin.isPending}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-semibold text-white transition hover:bg-[#009200] disabled:opacity-50"
             >
               <Plus size={14} />
-              Submit for Review
+              Submit for review
             </button>
           )}
         </div>
@@ -756,73 +874,63 @@ function CreateGroupDialog({ onClose }: { onClose: () => void }) {
 
 function RequirementCard({ label, ready, description }: { label: string; ready: boolean; description: string }) {
   return (
-    <div className={`rounded-lg border p-5 ${ready ? "border-emerald-100 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-500/10" : "border-gray-100 bg-gray-50 dark:border-white/10 dark:bg-white/5"}`}>
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
-        {ready ? <CheckCircle2 className="text-primary" size={18} /> : <AlertCircle className="text-amber-500" size={18} />}
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-white/10 dark:bg-white/5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-gray-800 dark:text-white">{label}</p>
+        {ready ? <CheckCircle2 className="text-[#00ab00]" size={18} /> : <AlertCircle className="text-amber-500" size={18} />}
       </div>
-      <p className="mt-3 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">{description}</p>
+      <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{description}</p>
+      <p className={`mt-3 text-xs font-medium ${ready ? "text-[#039855]" : "text-amber-600"}`}>
+        {ready ? "Met" : "Still outstanding"}
+      </p>
     </div>
-  )
-}
-
-function MetricCard({ label, value, helper, icon, tone }: { label: string; value: string; helper: string; icon: ReactNode; tone: "green" | "navy" }) {
-  const toneClass = tone === "green" ? "bg-emerald-50 text-primary dark:bg-emerald-500/10 dark:text-emerald-200" : "bg-gray-50 text-[#0a2540] dark:bg-white/10 dark:text-white"
-  return (
-    <article className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
-        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${toneClass}`}>{icon}</span>
-      </div>
-      <p className="mt-5 text-2xl font-black text-[#0a2540] dark:text-white">{value}</p>
-      <p className="mt-1 text-xs font-bold text-gray-500 dark:text-gray-400">{helper}</p>
-    </article>
   )
 }
 
 function LeadersCard({ leaders, loading }: { leaders: Member[]; loading: boolean }) {
   return (
-    <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Group Leaders</h2>
-      <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Members with governance responsibilities.</p>
-      <div className="mt-5 space-y-3">
+    <SectionCard title="Group leaders" description="Members who hold a governance role in this group.">
+      <div className="space-y-3">
         {loading ? (
-          <Skeleton className="h-20 rounded-lg" />
+          <Skeleton className="h-20 rounded-2xl" />
         ) : leaders.length ? (
           leaders.map((leader) => (
-            <div key={leader.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5">
+            <div key={leader.id} className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5">
               <Avatar name={leader.member_name} />
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[#0a2540] dark:text-white">{leader.member_name}</p>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-primary">{leader.role}</p>
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{leader.member_name}</p>
+                <p className="mt-0.5 text-xs capitalize text-gray-500 dark:text-gray-400">{leader.role}</p>
               </div>
             </div>
           ))
         ) : (
-          <p className="rounded-lg border border-dashed border-gray-200 p-5 text-center text-sm font-semibold text-gray-400 dark:border-white/10">No leaders assigned yet.</p>
+          <p className="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">
+            No chairperson or treasurer has been assigned yet.
+          </p>
         )}
       </div>
-    </section>
+    </SectionCard>
   )
 }
 
 function NextMeetingCard({ meeting }: { meeting?: Meeting }) {
   return (
-    <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Next Meeting</h2>
+    <SectionCard title="Next meeting" description="The soonest sitting that is scheduled or already live.">
       {meeting ? (
-        <div className="mt-5 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
-          <p className="text-sm font-black text-[#0a2540] dark:text-white">{meeting.title}</p>
-          <p className="mt-2 text-xs font-semibold text-gray-400">{new Date(meeting.scheduled_at).toLocaleString()}</p>
-          <Link href="/dashboard/meetings" className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#0a2540] text-xs font-black uppercase tracking-widest text-white transition hover:bg-[#1c3a5f]">
-            Open Meeting
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</p>
+          <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{new Date(meeting.scheduled_at).toLocaleString()}</p>
+          <Link href="/dashboard/meetings" className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#0a2540] text-sm font-medium text-white transition hover:bg-[#1c3a5f]">
+            Open meeting
             <ArrowRight size={14} />
           </Link>
         </div>
       ) : (
-        <p className="mt-5 rounded-lg border border-dashed border-gray-200 p-5 text-center text-sm font-semibold text-gray-400 dark:border-white/10">No meeting scheduled.</p>
+        <p className="rounded-2xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">
+          Nothing is on the calendar right now.
+        </p>
       )}
-    </section>
+    </SectionCard>
   )
 }
 
@@ -832,15 +940,15 @@ function MemberRow({ member }: { member: Member }) {
       <div className="flex items-center gap-3">
         <Avatar name={member.member_name} />
         <div>
-          <p className="text-sm font-black text-[#0a2540] dark:text-white">{member.member_name}</p>
-          <p className="mt-1 text-xs font-semibold text-gray-400">{member.member_email}</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">{member.member_name}</p>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{member.member_email}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <StatusPill status={member.role} />
-        <StatusPill status={statusLabel(member.status)} />
-        <span className="rounded-lg bg-gray-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:bg-white/10 dark:text-gray-300">
-          Position {member.rotation_position || "Not set"}
+        <StatusBadge status={statusLabel(member.role)} tone="gray" />
+        <StatusBadge status={statusLabel(member.status)} />
+        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
+          {member.rotation_position ? `Rotation position ${member.rotation_position}` : "Rotation position not set"}
         </span>
       </div>
     </div>
@@ -849,13 +957,13 @@ function MemberRow({ member }: { member: Member }) {
 
 function CurrentCycleCard({ cycle, currency }: { cycle: RotationCycle; currency: string }) {
   return (
-    <section className="rounded-lg border border-[#0a2540]/10 bg-[#0a2540] p-6 text-white shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Current Rotation Cycle</p>
-      <h2 className="mt-2 text-2xl font-black">Cycle #{cycle.cycle_number}</h2>
+    <section className="rounded-2xl border border-gray-200 bg-[#0a2540] p-6 text-white">
+      <p className="text-xs font-medium uppercase tracking-wide text-[#00ab00]">Current rotation cycle</p>
+      <h2 className="mt-1.5 text-2xl font-semibold">Cycle {cycle.cycle_number}</h2>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <InfoTile dark label="Contributions" value={formatCurrency(Number(cycle.total_contributions || 0), currency)} />
         <InfoTile dark label="Payouts" value={formatCurrency(Number(cycle.total_payouts || 0), currency)} />
-        <InfoTile dark label="Ends" value={formatDate(cycle.end_date)} />
+        <InfoTile dark label="Cycle ends" value={formatDate(cycle.end_date)} />
       </div>
     </section>
   )
@@ -863,9 +971,9 @@ function CurrentCycleCard({ cycle, currency }: { cycle: RotationCycle; currency:
 
 function InfoTile({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) {
   return (
-    <div className={`rounded-lg border p-4 ${dark ? "border-white/10 bg-white/5" : "border-gray-100 bg-gray-50 dark:border-white/10 dark:bg-white/5"}`}>
-      <p className={`text-[10px] font-black uppercase tracking-widest ${dark ? "text-white/40" : "text-gray-400"}`}>{label}</p>
-      <p className={`mt-2 text-sm font-black ${dark ? "text-white" : "text-[#0a2540] dark:text-white"}`}>{value}</p>
+    <div className={`rounded-2xl border p-4 ${dark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5"}`}>
+      <p className={`text-xs ${dark ? "text-white/60" : "text-gray-500 dark:text-gray-400"}`}>{label}</p>
+      <p className={`mt-1.5 text-sm font-medium tabular-nums ${dark ? "text-white" : "text-gray-900 dark:text-white"}`}>{value}</p>
     </div>
   )
 }
@@ -873,7 +981,7 @@ function InfoTile({ label, value, dark = false }: { label: string; value: string
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <label className="block space-y-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</span>
+      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       <input value={value} readOnly className="group-input cursor-default" />
     </label>
   )
@@ -882,7 +990,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</span>
+      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       {children}
     </label>
   )
@@ -892,8 +1000,8 @@ function MoneyField({ label, currency, value, onChange }: { label: string; curre
   return (
     <Field label={label}>
       <div className="flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
-        <span className="flex items-center border-r border-gray-200 px-3 text-xs font-black text-gray-500 dark:border-white/10">{currency}</span>
-        <input inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 bg-transparent p-3 text-sm font-bold text-[#0a2540] outline-none dark:text-white" />
+        <span className="flex items-center border-r border-gray-200 px-3 text-xs font-medium text-gray-500 dark:border-white/10">{currency}</span>
+        <input inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 bg-transparent p-3 text-sm font-medium tabular-nums text-gray-900 outline-none dark:text-white" />
       </div>
     </Field>
   )
@@ -903,14 +1011,14 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0 dark:border-white/10">
       <span className="text-gray-500 dark:text-gray-400">{label}</span>
-      <span className="text-right font-black text-[#0a2540] dark:text-white">{value}</span>
+      <span className="text-right font-medium tabular-nums text-gray-900 dark:text-white">{value}</span>
     </div>
   )
 }
 
 function CheckboxRow({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-100 p-4 text-sm font-semibold leading-6 text-gray-600 dark:border-white/10 dark:text-gray-300">
+    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-gray-200 p-4 text-sm leading-6 text-gray-600 dark:border-white/10 dark:text-gray-300">
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-1" />
       <span>{label}</span>
     </label>
@@ -918,36 +1026,18 @@ function CheckboxRow({ checked, onChange, label }: { checked: boolean; onChange:
 }
 
 function Avatar({ name }: { name: string }) {
-  return <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-black text-white ${avatarTone(name)}`}>{initials(name || "?")}</div>
-}
-
-function StatusPill({ status }: { status: string }) {
-  return (
-    <span className="inline-flex rounded-lg border border-gray-100 bg-gray-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-      {statusLabel(status)}
-    </span>
-  )
-}
-
-function EmptyPanel({ icon, title, description, compact = false }: { icon: ReactNode; title: string; description: string; compact?: boolean }) {
-  return (
-    <section className={`rounded-lg border border-dashed border-gray-200 bg-white text-center shadow-sm dark:border-white/10 dark:bg-white/[0.03] ${compact ? "m-5 p-8" : "p-12"}`}>
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</div>
-      <h2 className="mt-4 text-lg font-black text-[#0a2540] dark:text-white">{title}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">{description}</p>
-    </section>
-  )
+  return <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-semibold text-white ${avatarTone(name)}`}>{initials(name || "?")}</div>
 }
 
 function PanelSkeleton() {
   return (
-    <div className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
       <Skeleton className="h-6 w-44" />
       <Skeleton className="mt-3 h-4 w-72" />
       <div className="mt-6 space-y-3">
-        <Skeleton className="h-16 rounded-lg" />
-        <Skeleton className="h-16 rounded-lg" />
-        <Skeleton className="h-16 rounded-lg" />
+        <Skeleton className="h-16 rounded-2xl" />
+        <Skeleton className="h-16 rounded-2xl" />
+        <Skeleton className="h-16 rounded-2xl" />
       </div>
     </div>
   )
@@ -962,12 +1052,12 @@ function MyGroupSkeleton() {
           <Skeleton className="h-9 w-48" />
           <Skeleton className="h-5 w-full max-w-xl" />
         </div>
-        <Skeleton className="h-11 w-40 rounded-lg" />
+        <Skeleton className="h-11 w-40 rounded-2xl" />
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Skeleton className="h-56 rounded-lg" />
-        <Skeleton className="h-56 rounded-lg" />
-        <Skeleton className="h-56 rounded-lg" />
+        <Skeleton className="h-56 rounded-2xl" />
+        <Skeleton className="h-56 rounded-2xl" />
+        <Skeleton className="h-56 rounded-2xl" />
       </div>
     </div>
   )

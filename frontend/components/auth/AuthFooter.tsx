@@ -5,7 +5,7 @@ import Link from "next/link"
 /**
  * Shared footer for the auth pages. Client component on purpose: the auth
  * pages are statically prerendered server components, so a server-side
- * `new Date().getFullYear()` freezes at BUILD time — the © year would go
+ * `new Date().getFullYear()` freezes at BUILD time: the © year would go
  * stale every January until someone redeployed. Rendering it client-side
  * keeps it correct forever. (suppressHydrationWarning covers the one page
  * load a year where the prerendered year and the client year disagree.)

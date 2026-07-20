@@ -508,8 +508,9 @@ export default function ChamaOnboardingPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [isSubmittingForm, setIsSubmittingForm] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  // Phone-verification stage between account creation and group creation:
-  // group creation requires a verified phone (the money number).
+  // Email-verification stage between account creation and group creation:
+  // login (and therefore group creation) is blocked until the email is
+  // verified, so the wizard pauses here for the emailed 6-digit code.
   const [verifyStage, setVerifyStage] = useState(false)
   const [otpCode, setOtpCode] = useState("")
   const pendingRef = useRef<{ allData: WizardData } | null>(null)
@@ -552,8 +553,9 @@ export default function ChamaOnboardingPage() {
     headers: { 'X-Country': country },
   })
 
-  // Stage A: create + authenticate the account, then send the SMS code.
-  // Group creation happens only after the phone is verified (Stage B).
+  // Stage A: create the account. Registration emails a 6-digit verification
+  // code, and login stays blocked until it is confirmed — so the wizard hands
+  // over to the email-code stage, and the group is created in Stage B.
   const onSubmit = async (data: WizardData) => {
     setApiError(null)
     setIsSubmittingForm(true)
@@ -581,26 +583,29 @@ export default function ChamaOnboardingPage() {
         if (!alreadyExists) throw regErr
       }
 
-      // 2. Authenticate — the proxy stores the session in httpOnly cookies
-      await api.post("/auth/token/", {
-        email: allData.email,
-        password: allData.password
-      }, {
-        headers: { 'X-Country': allData.country }
-      })
-
-      // 3. Fetch Profile & Sync Auth Store
-      const profileRes = await api.get("/auth/me/", countryHeaders(allData.country))
-      setAuth(profileRes.data)
-
       pendingRef.current = { allData }
 
-      // 4. Send the verification code and hand over to the verify stage
-      if (profileRes.data?.phone_verified) {
+      // 2. Try to authenticate. A fresh account cannot log in yet (email
+      // verification blocks the token endpoint), so a 403 here routes to the
+      // email-code stage. Success means this is a retry with an
+      // already-verified email — continue straight to group creation.
+      try {
+        await api.post("/auth/token/", {
+          email: allData.email,
+          password: allData.password
+        }, {
+          headers: { 'X-Country': allData.country }
+        })
+        const profileRes = await api.get("/auth/me/", countryHeaders(allData.country))
+        setAuth(profileRes.data)
         await createGroupAndPin(allData)
-      } else {
-        await api.post("/auth/otp/request/", {}, countryHeaders(allData.country))
-        setVerifyStage(true)
+      } catch (loginErr: any) {
+        if (loginErr?.response?.status === 403 && loginErr?.response?.data?.code === "email_unverified") {
+          // Registration already sent the code — just show the entry stage.
+          setVerifyStage(true)
+        } else {
+          throw loginErr
+        }
       }
     } catch (err: any) {
       console.error("Onboarding submission error:", err.response?.data || err.message)
@@ -619,14 +624,17 @@ export default function ChamaOnboardingPage() {
     setShowSuccess(true)
   }
 
-  // Stage B: confirm the code, then create the group and set the PIN.
+  // Stage B: confirm the emailed code (which also logs the user in via the
+  // cookie proxy), then create the group and set the PIN.
   const handleVerifyAndCreate = async () => {
     if (!pendingRef.current || otpCode.length !== 6) return
     const { allData } = pendingRef.current
     setApiError(null)
     setIsSubmittingForm(true)
     try {
-      await api.post("/auth/otp/confirm/", { code: otpCode }, countryHeaders(allData.country))
+      await api.post("/auth/email/confirm/", { email: allData.email, code: otpCode }, countryHeaders(allData.country))
+      const profileRes = await api.get("/auth/me/", countryHeaders(allData.country))
+      setAuth(profileRes.data)
       await createGroupAndPin(allData)
     } catch (err: any) {
       console.error("Verification/creation error:", err.response?.data || err.message)
@@ -641,7 +649,7 @@ export default function ChamaOnboardingPage() {
     const { allData } = pendingRef.current
     setApiError(null)
     try {
-      await api.post("/auth/otp/request/", {}, countryHeaders(allData.country))
+      await api.post("/auth/email/resend/", { email: allData.email }, countryHeaders(allData.country))
     } catch (err: any) {
       setApiError(extractApiError(err))
     }
@@ -654,7 +662,7 @@ export default function ChamaOnboardingPage() {
       {showSuccess && (
         <SuccessOverlay
           message="Chama Created!"
-          submessage="Your collective is ready. Redirecting to your dashboard..."
+          submessage="Your group is pending activation. Complete KYC and make the first contribution from your dashboard to go live..."
           onComplete={() => router.push("/dashboard")}
         />
       )}
@@ -662,12 +670,12 @@ export default function ChamaOnboardingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a2540]/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-2xl dark:bg-gray-950">
             <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-widest uppercase mb-4">
-              Final Step: Verify Phone
+              Final Step: Verify Email
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Verify your phone number</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Verify your email address</h2>
             <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground">
-              We sent a 6-digit SMS code to <strong>{pendingRef.current?.allData.phone}</strong>. Contributions
-              and payouts flow through this number, so it must be verified before your chama is created.
+              We emailed a 6-digit code to <strong>{pendingRef.current?.allData.email}</strong>. Enter it below
+              to verify your account. Your chama is created right after. The code expires in 10 minutes.
             </p>
 
             {apiError && (
@@ -697,7 +705,7 @@ export default function ChamaOnboardingPage() {
             </button>
 
             <p className="mt-4 text-center text-xs font-medium text-muted-foreground">
-              Didn&apos;t get the SMS?{" "}
+              Didn&apos;t get the email?{" "}
               <button type="button" onClick={handleResendOtp} className="font-bold text-primary hover:underline">
                 Resend code
               </button>
@@ -710,10 +718,11 @@ export default function ChamaOnboardingPage() {
         {/* Left Side: Context / Branding */}
         <div className="md:w-[40%] lg:w-[35%] bg-muted/30 border-b md:border-b-0 md:border-r border-border p-8 lg:p-12 flex flex-col justify-between">
           <div>
+            {/* Same logo mark markup as the auth pages (AuthIllustrationPanel /
+                auth-topbar): flat green square, no shadow — one pattern to swap
+                everywhere when the real logo asset lands. */}
             <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-foreground tracking-tight mb-16 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-                <span className="text-white text-sm font-bold tracking-normal">O</span>
-              </div>
+              <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm font-bold text-white">O</span>
               OrbiSave
             </Link>
 

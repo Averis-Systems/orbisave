@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Bar,
@@ -14,17 +15,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import {
-  Activity,
-  ArrowDown,
-  ArrowUp,
-  Banknote,
-  Box,
-  Calendar,
-  Filter,
-  MoreHorizontal,
-  Users,
-} from "lucide-react"
+import { Activity, Banknote, Box, Users } from "lucide-react"
+import { CardMenuLink, StatCard, StatusBadge } from "@/components/dashboard/ui"
 import { useAuthStore } from "@/store/auth"
 import { useActiveGroup } from "@/hooks/useGroups"
 import { useMeetings } from "@/hooks/useMeetings"
@@ -38,53 +30,35 @@ import {
 } from "@/lib/dashboard-reference"
 import { formatCurrency, formatDate } from "@/lib/formatters"
 
-function MetricBadge({ trend, label }: { trend: DashboardMetric["trend"]; label: string }) {
-  const isUp = trend === "up"
-  const isDown = trend === "down"
+// MetricBadge was removed: the shared StatCard renders trends via TrendBadge,
+// so keeping a second local implementation would reintroduce the drift this
+// page was just reconciled away from.
 
-  if (!label) return null
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        isUp
-          ? "bg-[#ecfdf3] text-[#039855]"
-          : isDown
-            ? "bg-[#fef3f2] text-[#d92d20]"
-            : "bg-[#f2f4f7] text-gray-600"
-      }`}
-    >
-      {isUp && <ArrowUp size={14} />}
-      {isDown && <ArrowDown size={14} />}
-      {label}
-    </span>
-  )
-}
-
+/*
+ * Uses the shared StatCard rather than a local tile.
+ *
+ * This page previously hand-rolled its own stat card that disagreed with the
+ * primitive on every dimension: 30px/bold versus 28px/semibold, a 12x12 icon
+ * chip versus 11x11, icon above the value versus beside it, and no
+ * tabular-nums so the digits jittered as values changed. Two cards with the
+ * same job and different geometry is exactly the inconsistency being removed,
+ * so the primitive is now the single definition everywhere.
+ */
 function GroupWalletMetrics({ metrics }: { metrics: DashboardMetric[] }) {
   const icons = [Users, Box, Banknote, Activity]
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6">
-      {metrics.slice(0, 2).map((metric, index) => {
-        const Icon = icons[index]
-        return (
-          <div key={metric.label} className="rounded-2xl border border-gray-200 bg-white p-5 md:p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
-              <Icon className="h-6 w-6 text-gray-800" />
-            </div>
-
-            <div className="mt-5 flex items-end justify-between gap-4">
-              <div>
-                <span className="text-sm text-gray-500">{metric.label}</span>
-                <h4 className="mt-2 text-[30px] font-bold leading-[38px] text-gray-800">{metric.value}</h4>
-                <p className="mt-1 text-xs text-gray-400">{metric.sub}</p>
-              </div>
-              <MetricBadge trend={metric.trend} label={metric.trendLabel} />
-            </div>
-          </div>
-        )
-      })}
+      {metrics.slice(0, 2).map((metric, index) => (
+        <StatCard
+          key={metric.label}
+          label={metric.label}
+          value={metric.value}
+          sub={metric.sub}
+          icon={icons[index]}
+          trend={metric.trendLabel ? { label: metric.trendLabel, direction: metric.trend } : undefined}
+        />
+      ))}
     </div>
   )
 }
@@ -118,14 +92,15 @@ function PoolBarChart({
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 sm:px-6 sm:pt-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">Monthly Contributions</h3>
-        <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="More options">
-          <MoreHorizontal size={22} />
-        </button>
+        <h3 className="text-lg font-semibold text-gray-800">Monthly contributions</h3>
+        <CardMenuLink href="/dashboard/contributions" label="View all" />
       </div>
 
+      {/* No min-width on the chart: Recharts fills its parent, and a fixed
+          520px floor was being clipped by the card's overflow-hidden on a
+          375px phone, hiding the right-hand months entirely. */}
       {data.length > 0 ? (
-        <div className="mt-3 h-[210px] min-w-[520px]">
+        <div className="mt-3 h-[210px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} barSize={24}>
               <CartesianGrid vertical={false} stroke="#f2f4f7" />
@@ -140,7 +115,7 @@ function PoolBarChart({
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="mt-3 flex h-[210px] min-w-[520px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center">
+        <div className="mt-3 flex h-[210px] w-full items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center">
           <div className="max-w-xs">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/illustrations/empty-wallet.svg" alt="" className="mx-auto mb-3 h-20 w-auto" loading="lazy" />
@@ -178,9 +153,7 @@ function TargetCard({
             <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
             <p className="mt-1 text-sm font-normal text-gray-500">Target based on group contribution settings</p>
           </div>
-          <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="More options">
-            <MoreHorizontal size={22} />
-          </button>
+          <CardMenuLink href="/dashboard/my-group" label="Group rules" />
         </div>
 
         <div className="relative mx-auto mt-5 h-[260px] max-w-[360px]">
@@ -229,53 +202,25 @@ function TargetCard({
   )
 }
 
-function StatisticsChart({ currency }: { currency: string }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 sm:px-6 sm:pt-6">
-      <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:justify-between">
-        <div className="w-full">
-          <h3 className="text-lg font-semibold text-gray-800">Group Wallet Statistics</h3>
-          <p className="mt-1 text-sm text-gray-500">Contribution and payout movement will appear once wallet history is connected.</p>
-        </div>
-        <div className="flex items-center gap-3 sm:justify-end">
-          <div className="rounded-lg bg-gray-100 p-0.5">
-            {["Monthly", "Quarterly", "Annually"].map((label, index) => (
-              <button
-                key={label}
-                className={`rounded-md px-3 py-2 text-xs font-medium ${
-                  index === 0 ? "bg-white text-gray-900" : "text-gray-500"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700">
-            <Calendar size={16} />
-            Jun 07 - Jun 13
-          </button>
-        </div>
-      </div>
-
-      <div className="flex h-[310px] min-w-[760px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center">
-        <div className="max-w-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/illustrations/finance.svg" alt="" className="mx-auto mb-4 h-28 w-auto" loading="lazy" />
-          <p className="text-sm font-semibold text-gray-800">No wallet history yet</p>
-          <p className="mt-2 text-sm text-gray-500">
-            We will chart contribution collections, rotation payouts, and loan pool movements here after live group wallet events are available in {currency}.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+/*
+ * The "Group Wallet Statistics" card was removed rather than restyled.
+ *
+ * It had no data source and no state: the Monthly/Quarterly/Annually toggle
+ * had no handler, the date range was the hardcoded string "Jun 07 - Jun 13",
+ * and the body always rendered "No wallet history yet" even for a group with a
+ * full year of confirmed contributions. Monthly contribution movement is
+ * already charted honestly by PoolBarChart above, so the card was a duplicate
+ * wrapped in dead controls.
+ *
+ * TODO(api): rotation payout and loan pool movement have no wallet-history
+ * endpoint. When one exists, add a combined movement chart here rather than
+ * reviving the period toggle without a query behind it.
+ */
 function CommunityCard({ memberCount, maxMembers }: { memberCount: number; maxMembers: number }) {
   const capacity = maxMembers > 0 ? Math.round((memberCount / maxMembers) * 100) : 0
   const rows = [
     { name: "Active Members", detail: `${memberCount} members`, percent: capacity || 0 },
-    // Without a group there are no seats at all — don't show a full bar for 0 of 0.
+    // Without a group there are no seats at all: don't show a full bar for 0 of 0.
     { name: "Available Seats", detail: `${Math.max(maxMembers - memberCount, 0)} seats`, percent: maxMembers > 0 ? Math.max(100 - capacity, 0) : 0 },
   ]
 
@@ -283,12 +228,10 @@ function CommunityCard({ memberCount, maxMembers }: { memberCount: number; maxMe
     <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
       <div className="flex justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">Members Demographic</h3>
-          <p className="mt-1 text-sm text-gray-500">Number of members based on group capacity</p>
+          <h3 className="text-lg font-semibold text-gray-800">Group capacity</h3>
+          <p className="mt-1 text-sm text-gray-500">Seats taken against the group maximum</p>
         </div>
-        <button className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="More options">
-          <MoreHorizontal size={22} />
-        </button>
+        <CardMenuLink href="/dashboard/my-group" label="View members" />
       </div>
 
       <div className="my-6 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 px-4 py-6 sm:px-6">
@@ -344,6 +287,8 @@ function CommunityCard({ memberCount, maxMembers }: { memberCount: number; maxMe
   )
 }
 
+type ActivityCategory = "all" | "contributions" | "loans"
+
 function RecentActivityTable({
   contributions,
   loans,
@@ -353,40 +298,76 @@ function RecentActivityTable({
   loans: ReturnType<typeof useLoans>["data"]
   currency: string
 }) {
-  const rows = [
-    ...(contributions || []).slice(0, 3).map((item) => ({
+  // "Recent" has to mean recent. Rows used to be an arbitrary 3-contributions
+  // plus 2-loans slice in whatever order the API returned, so the newest entry
+  // was frequently missing entirely. Merge, sort by the real event date, then
+  // take the top 5.
+  // TODO(api): both lists are fetched in full and trimmed here. Once the
+  // contributions and loans endpoints accept ordering and page_size, request
+  // only the newest few instead of downloading the whole history.
+  const [category, setCategory] = useState<ActivityCategory>("all")
+
+  const rows = useMemo(() => {
+    const contributionRows = (contributions || []).map((item) => ({
       id: item.id,
       name: item.member_name,
       meta: item.platform_reference || "Contribution",
       amount: formatCurrency(item.actual_amount ?? item.amount, item.currency || currency),
-      category: "Contribution",
+      category: "Contribution" as const,
       status: item.status,
-    })),
-    ...(loans || []).slice(0, 2).map((item) => ({
+      at: item.confirmed_at || item.initiated_at || item.scheduled_date || "",
+    }))
+
+    const loanRows = (loans || []).map((item) => ({
       id: item.id,
       name: item.borrower_name,
-      meta: item.purpose || "Loan request",
+      meta: item.purpose?.replace(/_/g, " ") || "Loan request",
       amount: formatCurrency(item.amount, item.currency || currency),
-      category: "Loan",
-      status: item.status.replace(/_/g, " "),
-    })),
-  ].slice(0, 5)
+      category: "Loan" as const,
+      status: item.status,
+      // TODO(api): LoanListSerializer exposes no request timestamp, only
+      // disbursed_at, so a loan awaiting approval has no date to sort on and
+      // falls to the bottom. Add created_at to the serializer to fix ordering.
+      at: item.disbursed_at || "",
+    }))
+
+    const merged =
+      category === "contributions" ? contributionRows : category === "loans" ? loanRows : [...contributionRows, ...loanRows]
+
+    return merged
+      .sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime())
+      .slice(0, 5)
+  }, [contributions, loans, currency, category])
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 sm:px-6">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">Recent Wallet Activity</h3>
+          <h3 className="text-lg font-semibold text-gray-800">Recent wallet activity</h3>
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800">
-            <Filter size={18} />
-            Filter
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-800">
-            See all
-          </button>
+          {/* A filter has to say what it filters. This one narrows the feed by
+              activity type and actually re-renders the rows. */}
+          <label className="sr-only" htmlFor="activity-category">
+            Filter activity by type
+          </label>
+          <select
+            id="activity-category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value as ActivityCategory)}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 outline-none transition focus:border-[#00ab00] focus:ring-2 focus:ring-[#00ab00]/15"
+          >
+            <option value="all">All activity</option>
+            <option value="contributions">Contributions only</option>
+            <option value="loans">Loans only</option>
+          </select>
+          <Link
+            href="/dashboard/contributions"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-800"
+          >
+            View all in Contributions
+          </Link>
         </div>
       </div>
       <div className="max-w-full overflow-x-auto">
@@ -415,12 +396,12 @@ function RecentActivityTable({
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 text-sm text-gray-500">{row.amount}</td>
+                  <td className="py-3 text-sm tabular-nums text-gray-500">{row.amount}</td>
                   <td className="py-3 text-sm text-gray-500">{row.category}</td>
                   <td className="py-3 text-sm text-gray-500">
-                    <span className="rounded-full bg-[#ecfdf3] px-2.5 py-0.5 text-xs font-medium capitalize text-[#039855]">
-                      {row.status}
-                    </span>
+                    {/* Was hardcoded success green for every row, so a failed
+                        contribution or rejected loan read as successful. */}
+                    <StatusBadge status={row.status} />
                   </td>
                 </tr>
               ))
@@ -480,7 +461,7 @@ export default function OverviewPage() {
                   Start or join your savings group
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-gray-500">
-                  Hello <strong className="font-semibold text-gray-700">{user?.full_name}</strong> — contributions,
+                  Hello <strong className="font-semibold text-gray-700">{user?.full_name}</strong>. Contributions,
                   rotation payouts, savings, and loans all begin with a group. Create yours or accept an invite,
                   and this dashboard fills in from there.
                 </p>
@@ -541,12 +522,6 @@ export default function OverviewPage() {
           collected={wallet?.rotation_pool || 0}
           currency={currency}
         />
-      </div>
-
-      <div className="col-span-12">
-        <div className="overflow-x-auto">
-          <StatisticsChart currency={currency} />
-        </div>
       </div>
 
       <div className="col-span-12 xl:col-span-5">

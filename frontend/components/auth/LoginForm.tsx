@@ -34,7 +34,7 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormValues) => {
     setError(null)
     try {
-      // The proxy captures the JWTs into httpOnly cookies — the browser
+      // The proxy captures the JWTs into httpOnly cookies: the browser
       // never sees a token; subsequent calls are authenticated automatically.
       await api.post("/auth/token/", {
         email: data.email,
@@ -42,7 +42,11 @@ export function LoginForm() {
       })
       const profileRes = await api.get("/auth/me/")
       setAuth(profileRes.data)
-      router.push(profileRes.data?.phone_verified ? "/dashboard" : "/verify")
+      // Email verification is the only gate on an account, and the token
+      // endpoint above already enforces it. Phone verification is deferred
+      // (no SMS provider funded yet), so logging in must never divert to the
+      // phone OTP page: that stranded verified members outside the dashboard.
+      router.push("/dashboard")
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError("Invalid email or password. Please try again.")

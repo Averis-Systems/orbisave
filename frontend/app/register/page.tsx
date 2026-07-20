@@ -42,12 +42,15 @@ export default function RegisterPage() {
             </Suspense>
 
             <div className="mt-8 border-t border-slate-100 pt-8 text-center">
-              <Link
-                href="/login"
-                className="border-b border-primary/20 pb-0.5 text-sm font-bold text-primary transition-all hover:text-primary/80"
-              >
-                Already have an account? Log in
-              </Link>
+              <p className="text-sm font-medium text-slate-500">
+                Already have an account?{" "}
+                <Link
+                  href="/login"
+                  className="font-bold text-primary transition-all hover:text-primary/80"
+                >
+                  Log in
+                </Link>
+              </p>
             </div>
 
             <AuthFooter />

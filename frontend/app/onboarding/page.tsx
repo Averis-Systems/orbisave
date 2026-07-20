@@ -56,11 +56,12 @@ export default function OnboardingSelection() {
     <div className="min-h-screen bg-[#f9faf6] flex flex-col font-sans selection:bg-[#00ab00]/20" ref={containerRef}>
       {/* Topbar */}
       <nav className="flex items-center justify-between px-8 py-6 w-full absolute top-0 z-50 animate-header">
-        <Link href="/" className="flex items-center gap-2 text-2xl font-black text-[#012d1d] tracking-tighter">
-          <div className="w-10 h-10 rounded-xl bg-[#012d1d] flex items-center justify-center shadow-lg shadow-[#012d1d]/30">
-            <span className="text-white text-lg font-black tracking-normal">O</span>
-          </div>
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#012d1d] to-[#00ab00]">OrbiSave</span>
+        {/* Same logo mark markup as the auth pages: flat green square, no
+            shadow, solid navy wordmark: one pattern to swap platform-wide
+            when the real logo asset lands. */}
+        <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy">
+          <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm font-bold text-white">O</span>
+          OrbiSave
         </Link>
         <div className="text-sm font-medium text-[#717973] flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#00ab00]/20 flex items-center justify-center text-[#012d1d] font-bold text-xs">
@@ -74,10 +75,11 @@ export default function OnboardingSelection() {
       <div className="flex-1 flex flex-col items-center justify-center px-4 pt-20 pb-12 w-full max-w-5xl mx-auto">
         <div className="text-center mb-12 animate-header">
           <h1 className="text-3xl md:text-[2.5rem] font-bold text-[#1a1c1a] mb-4 tracking-tight">
-            How would you like to use OrbiSave?
+            How would you like to get started with OrbiSave?
           </h1>
-          <p className="text-[#717973] text-[1.05rem] font-medium">
-            We are here to help you choose the path that fits your financial goals.
+          <p className="text-[#717973] text-[1.05rem] font-medium max-w-2xl mx-auto leading-relaxed">
+            We help you and your group take your chama savings digital, keep every record clear,
+            and build the history that opens doors to formal finance.
           </p>
         </div>
 
@@ -107,7 +109,8 @@ export default function OnboardingSelection() {
               <div className="text-center mt-auto">
                 <h3 className="text-xl font-bold text-[#1a1c1a] mb-3">Join as a Member</h3>
                 <p className="text-[0.9rem] text-[#717973] leading-relaxed max-w-[280px] mx-auto font-medium">
-                  It's a best option for you if you have an invite code. Later, you can create a group, that's easy.
+                  Got an invite from your chairperson? Join your group and follow every contribution
+                  and payout in one place. You can start your own group later.
                 </p>
               </div>
             </button>
@@ -138,25 +141,35 @@ export default function OnboardingSelection() {
               <div className="text-center mt-auto">
                 <h3 className="text-xl font-bold text-[#1a1c1a] mb-3">Start a new group</h3>
                 <p className="text-[0.9rem] text-[#717973] leading-relaxed max-w-[280px] mx-auto font-medium">
-                  Let's start collaborating with your members and unlock the full access to OrbiSave. Hope you'll enjoy.
+                  Already run a chama with members? Take it digital. Set up your group, invite
+                  everyone to join, and manage each cycle from here.
                 </p>
               </div>
             </button>
           </div>
         </div>
 
-        <div className="animate-btn w-full max-w-[240px]">
+        {/* Direction for anyone unsure which path is theirs. */}
+        <p className="animate-btn mb-6 max-w-md text-center text-[0.85rem] font-medium leading-relaxed text-[#717973]">
+          Not sure which one? Most people join as a member using the invite their chairperson sent them.
+          Choose &ldquo;Start a new group&rdquo; only if you will be leading the chama yourself.
+        </p>
+
+        <div className="animate-btn w-full max-w-[280px]">
           <button
             onClick={handleStart}
             disabled={!selectedRole}
-            className={`w-full h-14 rounded-full font-bold text-[15px] shadow-sm transition-all duration-300 ${
-              selectedRole 
-                ? "bg-[#00ab00] hover:bg-[#0ea5e9] hover:shadow-md text-white border-transparent" // Changing hover to slight gradient feel, or just deeper green
+            className={`w-full h-14 rounded-full font-bold text-[15px] transition-all duration-300 ${
+              selectedRole
+                ? "bg-[#00ab00] text-white hover:bg-[#009200]"
                 : "bg-[#e5e7eb] text-[#9ca3af] cursor-not-allowed"
             }`}
-            style={selectedRole ? { backgroundColor: "#00ab00" } : {}}
           >
-            Let's start
+            {selectedRole === "member"
+              ? "Continue as a member"
+              : selectedRole === "chairperson"
+                ? "Continue as chairperson"
+                : "Choose an option to continue"}
           </button>
         </div>
       </div>

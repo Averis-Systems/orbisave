@@ -7,6 +7,8 @@ interface User {
   full_name: string
   phone?: string
   phone_verified?: boolean
+  // The real account gate: login is blocked until this is true.
+  email_verified?: boolean
   role: 'member' | 'chairperson' | 'treasurer' | 'platform_admin' | 'super_admin'
   country: string
   kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected'

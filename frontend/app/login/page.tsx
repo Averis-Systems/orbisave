@@ -35,12 +35,15 @@ export default function LoginPage() {
             <LoginForm />
 
             <div className="mt-8 border-t border-slate-100 pt-8 text-center">
-              <Link
-                href="/register"
-                className="border-b border-primary/20 pb-0.5 text-sm font-bold text-primary transition-all hover:text-primary/80"
-              >
-                New to OrbiSave? Create an account
-              </Link>
+              <p className="text-sm font-medium text-slate-500">
+                New to OrbiSave?{" "}
+                <Link
+                  href="/register"
+                  className="font-bold text-primary transition-all hover:text-primary/80"
+                >
+                  Create an account
+                </Link>
+              </p>
             </div>
 
             <AuthFooter />

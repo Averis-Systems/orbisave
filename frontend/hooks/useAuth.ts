@@ -14,7 +14,11 @@ export function useKYCStatus() {
     queryKey: ['kyc-status'],
     queryFn: async () => {
       const { data } = await api.get('/auth/kyc/status/')
-      return data.data // Envelope: { success, data, message }
+      // KYCStatusView returns a bare object, not the { success, data, message }
+      // envelope most endpoints use. Unwrapping unconditionally yielded
+      // undefined, which React Query rejects ("Query data cannot be
+      // undefined"). Accept both shapes.
+      return data?.data ?? data
     },
   })
 }

@@ -28,6 +28,15 @@ import {
 } from "@/hooks/useRotations"
 import { formatCurrency } from "@/lib/formatters"
 import { getFinancialOutcome } from "@/lib/app-states"
+import {
+  DataTable,
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+  type Column,
+} from "@/components/dashboard/ui"
 
 const AVATAR_TONES = ["bg-[#0a2540]", "bg-[#016828]", "bg-[#1c3a5f]", "bg-[#018a35]", "bg-[#00ab00]"]
 
@@ -87,7 +96,7 @@ export default function RotationControlPage() {
     }
 
     try {
-      // The payout engine pays the next scheduled unpaid recipient — the
+      // The payout engine pays the next scheduled unpaid recipient. The
       // confirmation panel shows who that is; the server enforces it.
       await triggerPayout.mutateAsync({ groupId: activeGroup.id, pin })
       toast.success(`${getFinancialOutcome("payoutQueued").title} for ${confirmation.member_name}.`)
@@ -124,44 +133,143 @@ export default function RotationControlPage() {
     return <AppStatePanel stateKey="groups.empty" />
   }
 
-  return (
-    <div className="space-y-7">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Rotation Control</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0a2540] dark:text-white">Payout Control</h1>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-            Manage rotation savings schedules, payout authorization, and cycle transitions for {activeGroup.name}.
-          </p>
+  const columns: Column<RotationSchedule>[] = [
+    {
+      key: "order",
+      header: "Order",
+      className: "pl-5",
+      render: (schedule) => {
+        const index = schedules?.indexOf(schedule) ?? 0
+        return (
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium tabular-nums ${
+              schedule.is_paid_out
+                ? "bg-gray-100 text-gray-400 dark:bg-gray-800"
+                : index === 0
+                  ? "bg-[#00ab00] text-white"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            }`}
+          >
+            {index + 1}
+          </span>
+        )
+      },
+    },
+    {
+      key: "member",
+      header: "Member",
+      render: (schedule) => (
+        <div className="flex items-center gap-3">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-medium text-white ${avatarTone(schedule.member_name)}`}>
+            {initials(schedule.member_name || "?")}
+          </span>
+          <span className="text-sm font-medium text-gray-900 dark:text-white">{schedule.member_name}</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {!currentCycle && (
+      ),
+    },
+    {
+      key: "date",
+      header: "Payout date",
+      render: (schedule) => (
+        <span className="text-sm text-gray-500 tabular-nums dark:text-gray-400">
+          {formatDate(schedule.scheduled_payout_date)}
+        </span>
+      ),
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      align: "right",
+      render: () => (
+        <span className="text-sm font-medium text-gray-900 tabular-nums dark:text-white">
+          {formatCurrency(payoutAmount, activeGroup.currency)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "right",
+      render: (schedule) => {
+        if (schedule.is_paid_out) {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#039855]">
+              <CheckCircle2 size={14} />
+              Settled
+            </span>
+          )
+        }
+        if (schedule.id === nextRecipient?.id) {
+          return (
             <button
               type="button"
-              onClick={handleInitialize}
-              disabled={initialize.isPending}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#0a2540] px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-[#1c3a5f] disabled:opacity-50"
+              onClick={() => {
+                setConfirmation(schedule)
+                setPin("")
+              }}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-[#00ab00] px-3 text-sm font-medium text-white transition-colors hover:bg-[#009200]"
             >
-              <Play size={14} />
-              {initialize.isPending ? "Initializing..." : "Initialize Rotation"}
+              Authorize
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleNextCycle}
-            disabled={!currentCycle || nextCycle.isPending}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-100 bg-white px-5 text-xs font-black uppercase tracking-widest text-[#0a2540] transition hover:border-emerald-100 hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-white"
-          >
-            <RefreshCw size={14} />
-            {nextCycle.isPending ? "Advancing..." : "Advance Cycle"}
-          </button>
-        </div>
-      </section>
+          )
+        }
+        return <StatusBadge status="Queued" tone="gray" />
+      },
+    },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Rotation control"
+        title="Payout Control"
+        description={`Authorize rotation payouts and advance the rotation cycle for ${activeGroup.name}.`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {!currentCycle && (
+              <button
+                type="button"
+                onClick={handleInitialize}
+                disabled={initialize.isPending}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#0a2540] px-5 text-sm font-medium text-white transition-colors hover:bg-[#1c3a5f] disabled:opacity-50"
+              >
+                <Play size={16} />
+                {initialize.isPending ? "Initializing..." : "Initialize rotation"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleNextCycle}
+              disabled={!currentCycle || nextCycle.isPending}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              <RefreshCw size={16} />
+              {nextCycle.isPending ? "Advancing..." : "Advance cycle"}
+            </button>
+          </div>
+        }
+      />
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <MetricCard label="Current Cycle" value={currentCycle ? `#${currentCycle.cycle_number}` : "Not initialized"} helper={currentCycle?.status || "Schedule setup required"} icon={<RefreshCw size={18} />} />
-        <MetricCard label="Next Recipient" value={nextRecipient?.member_name || "Not scheduled"} helper={nextRecipient ? formatDate(nextRecipient.scheduled_payout_date) : "No pending payout"} icon={<UserCheck size={18} />} />
-        <MetricCard label="Estimated Payout" value={formatCurrency(payoutAmount, activeGroup.currency)} helper="Calculated from confirmed cycle contributions" icon={<WalletCards size={18} />} />
+        <StatCard
+          label="Current cycle"
+          value={currentCycle ? `#${currentCycle.cycle_number}` : "Not initialized"}
+          sub={currentCycle ? `Cycle status: ${currentCycle.status}` : "Initialize the rotation to create a schedule"}
+          icon={RefreshCw}
+        />
+        <StatCard
+          label="Next recipient"
+          value={nextRecipient?.member_name || "Not scheduled"}
+          sub={nextRecipient ? `Scheduled for ${formatDate(nextRecipient.scheduled_payout_date)}` : "No unpaid schedule rows remain"}
+          icon={UserCheck}
+        />
+        <StatCard
+          label="Estimated payout"
+          value={formatCurrency(payoutAmount, activeGroup.currency)}
+          sub="Total confirmed contributions in this cycle"
+          icon={WalletCards}
+          tone="green"
+        />
       </section>
 
       {latestPaidSchedule && (
@@ -175,197 +283,135 @@ export default function RotationControlPage() {
       )}
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-lg border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-          <div className="flex flex-col gap-3 border-b border-gray-100 p-5 dark:border-white/10 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Payout Schedule</h2>
-              <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Member order and authorization state for the current rotation cycle.</p>
+        <SectionCard
+          title="Payout schedule"
+          description="Payout order for the current rotation cycle. Only the next unpaid member can be authorized."
+          actions={<StatusBadge status={`${upcomingSchedules.length} pending`} tone="gray" />}
+          bodyClassName="px-5 pb-5 sm:px-6"
+        >
+          {schedules?.length ? (
+            <DataTable
+              columns={columns}
+              rows={schedules}
+              rowKey={(schedule) => schedule.id}
+              minWidth={720}
+            />
+          ) : (
+            <div className="pt-5">
+              <EmptyState
+                icon={CalendarDays}
+                title="No rotation schedule yet"
+                description="Initialize the rotation once the group has active members and a contribution amount set."
+              />
             </div>
-            <StatusPill label={`${upcomingSchedules.length} pending`} />
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px]">
-              <thead>
-                <tr className="border-b border-gray-100 text-left dark:border-white/10">
-                  <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Order</th>
-                  <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Member</th>
-                  <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Payout Date</th>
-                  <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Amount</th>
-                  <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-white/10">
-                {schedules?.length ? (
-                  schedules.map((schedule, index) => (
-                    <tr key={schedule.id} className={!schedule.is_paid_out && index === 0 ? "bg-emerald-50/60 dark:bg-emerald-500/10" : ""}>
-                      <td className="px-5 py-5">
-                        <span className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-black ${schedule.is_paid_out ? "bg-gray-50 text-gray-400 dark:bg-white/10" : index === 0 ? "bg-primary text-white" : "bg-gray-50 text-[#0a2540] dark:bg-white/10 dark:text-white"}`}>
-                          {index + 1}
-                        </span>
-                      </td>
-                      <td className="px-5 py-5">
-                        <div className="flex items-center gap-3">
-                          <span className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs font-black text-white ${avatarTone(schedule.member_name)}`}>
-                            {initials(schedule.member_name || "?")}
-                          </span>
-                          <span className="text-sm font-black text-[#0a2540] dark:text-white">{schedule.member_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-5 text-xs font-semibold text-gray-500 dark:text-gray-400">{formatDate(schedule.scheduled_payout_date)}</td>
-                      <td className="px-5 py-5 text-sm font-black text-[#0a2540] dark:text-white">{formatCurrency(payoutAmount, activeGroup.currency)}</td>
-                      <td className="px-5 py-5">
-                        {schedule.is_paid_out ? (
-                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary">
-                            <CheckCircle2 size={14} />
-                            Settled
-                          </span>
-                        ) : schedule.id === nextRecipient?.id ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setConfirmation(schedule)
-                              setPin("")
-                            }}
-                            className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-green-hover"
-                          >
-                            Authorize
-                          </button>
-                        ) : (
-                          <span className="inline-flex h-8 items-center justify-center rounded-lg bg-gray-50 px-3 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:bg-white/10">
-                            Queued
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="p-5">
-                      <EmptyState compact icon={<CalendarDays size={22} />} title="No rotation schedule" description="Initialize rotation after the group has active members and contribution rules." />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          )}
+        </SectionCard>
 
         <aside className="space-y-5">
-          <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">
-                  <ShieldCheck size={19} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-[#0a2540] dark:text-white">Payout Confirmation</h2>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
-                    Confirm the selected member and enter your transaction PIN before authorizing a payout.
-                  </p>
-                </div>
-              </div>
-              {confirmation && (
-                <button type="button" onClick={() => setConfirmation(null)} className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#0a2540] dark:hover:bg-white/10 dark:hover:text-white">
+          <SectionCard
+            title="Payout confirmation"
+            description="Confirm the recipient and enter your transaction PIN to release a payout."
+            actions={
+              confirmation ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmation(null)}
+                  aria-label="Clear payout selection"
+                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
+                >
                   <X size={16} />
                 </button>
-              )}
-            </div>
-
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e9f3ed] text-[#00ab00] dark:bg-emerald-500/10">
+                  <ShieldCheck size={18} />
+                </span>
+              )
+            }
+          >
             {confirmation ? (
-              <form onSubmit={handleTriggerPayout} className="mt-6 space-y-4">
-                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Selected Member</p>
-                  <p className="mt-2 text-sm font-black text-[#0a2540] dark:text-white">{confirmation.member_name}</p>
-                  <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{formatCurrency(payoutAmount, activeGroup.currency)} scheduled payout</p>
+              <form onSubmit={handleTriggerPayout} className="space-y-4">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Selected member</p>
+                  <p className="mt-2 text-sm font-medium text-gray-900 dark:text-white">{confirmation.member_name}</p>
+                  <p className="mt-1 text-sm text-gray-500 tabular-nums dark:text-gray-400">
+                    {formatCurrency(payoutAmount, activeGroup.currency)} scheduled payout
+                  </p>
                 </div>
                 <label className="block space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Transaction PIN</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Transaction PIN</span>
                   <input
                     value={pin}
                     onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
                     inputMode="numeric"
                     type="password"
-                    className="group-input text-center text-xl tracking-[0.4em]"
+                    autoComplete="off"
+                    className="group-input text-center text-xl tracking-[0.4em] tabular-nums"
                     placeholder="0000"
                   />
                 </label>
                 <button
                   type="submit"
                   disabled={triggerPayout.isPending}
-                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-green-hover disabled:opacity-50"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#00ab00] px-5 text-sm font-medium text-white transition-colors hover:bg-[#009200] disabled:opacity-50"
                 >
-                  <ShieldCheck size={15} />
-                  {triggerPayout.isPending ? "Authorizing..." : "Confirm Payout"}
+                  <ShieldCheck size={16} />
+                  {triggerPayout.isPending ? "Authorizing..." : "Confirm payout"}
                 </button>
               </form>
             ) : (
-              <div className="mt-6 rounded-lg border border-dashed border-gray-200 p-5 text-center dark:border-white/10">
-                <p className="text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">Select an unpaid schedule row to review and authorize the next payout.</p>
+              <div className="rounded-2xl border border-dashed border-gray-200 p-5 text-center dark:border-gray-800">
+                <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
+                  Choose Authorize on the next unpaid row in the payout schedule to review and release that payout.
+                </p>
               </div>
             )}
-          </section>
+          </SectionCard>
 
-          <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#0a2540] dark:text-white">Control Checks</h2>
-            <div className="mt-5 space-y-4">
-              <CheckRow icon={<Clock3 size={16} />} title="Contribution Review" description="Confirm contribution compliance before authorizing payout release." />
-              <CheckRow icon={<AlertTriangle size={16} />} title="KYC Enforcement" description="Payouts should only proceed for verified group members." tone="amber" />
+          <SectionCard title="Before you authorize">
+            <div className="space-y-4">
+              <CheckRow
+                icon={<Clock3 size={16} />}
+                title="Contribution review"
+                description="Check that this cycle's contributions are confirmed before releasing the payout."
+              />
+              {/*
+                TODO(copy): confirm with product whether KYC verification is a
+                hard block on payout release or an advisory check. The copy
+                below states the intent without claiming enforcement.
+              */}
+              <CheckRow
+                icon={<AlertTriangle size={16} />}
+                title="Member verification"
+                description="Payouts are intended for verified members only."
+                tone="amber"
+              />
             </div>
-          </section>
+          </SectionCard>
         </aside>
       </section>
     </div>
   )
 }
 
-function MetricCard({ label, value, helper, icon }: { label: string; value: string; helper: string; icon: ReactNode }) {
-  return (
-    <article className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</span>
-      </div>
-      <p className="mt-4 truncate text-xl font-black text-[#0a2540] dark:text-white">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{helper}</p>
-    </article>
-  )
-}
-
 function CheckRow({ icon, title, description, tone = "green" }: { icon: ReactNode; title: string; description: string; tone?: "green" | "amber" }) {
-  const toneClass = tone === "amber" ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-200" : "bg-emerald-50 text-primary dark:bg-emerald-500/10"
+  const toneClass =
+    tone === "amber"
+      ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300"
+      : "bg-[#e9f3ed] text-[#00ab00] dark:bg-emerald-500/10"
   return (
     <div className="flex gap-3">
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>{icon}</span>
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>{icon}</span>
       <div>
-        <p className="text-[11px] font-black uppercase tracking-widest text-[#0a2540] dark:text-white">{title}</p>
-        <p className="mt-1 text-xs font-semibold leading-5 text-gray-500 dark:text-gray-400">{description}</p>
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{title}</p>
+        <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">{description}</p>
       </div>
     </div>
   )
 }
 
-function StatusPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex rounded-lg border border-gray-100 bg-gray-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-      {label}
-    </span>
-  )
-}
-
-function EmptyState({ icon, title, description, compact = false }: { icon: ReactNode; title: string; description: string; compact?: boolean }) {
-  return (
-    <section className={`rounded-lg border border-dashed border-gray-200 bg-white text-center shadow-sm dark:border-white/10 dark:bg-white/[0.03] ${compact ? "p-8" : "p-12"}`}>
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-primary dark:bg-emerald-500/10">{icon}</div>
-      <h2 className="mt-4 text-lg font-black text-[#0a2540] dark:text-white">{title}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">{description}</p>
-    </section>
-  )
-}
-
 function RotationControlSkeleton() {
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">
           <Skeleton className="h-3 w-36" />
@@ -375,13 +421,13 @@ function RotationControlSkeleton() {
         <Skeleton className="h-11 w-40 rounded-lg" />
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
       </div>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
-        <Skeleton className="h-96 rounded-lg" />
-        <Skeleton className="h-96 rounded-lg" />
+        <Skeleton className="h-96 rounded-2xl" />
+        <Skeleton className="h-96 rounded-2xl" />
       </div>
     </div>
   )

@@ -1,130 +1,180 @@
 "use client"
 
-import { AlertCircle, Vote, Info, Users, CheckCircle, Bell, CheckSquare, Loader2 } from "lucide-react"
-import { useActiveGroup } from "@/hooks/useGroups"
-import { useNotifications } from "@/hooks/useNotifications"
-import { AppStatePanel } from "@/components/states/AppState"
+import Link from "next/link"
+import {
+  AlertTriangle,
+  Bell,
+  CalendarClock,
+  CheckCircle2,
+  CheckSquare,
+  CreditCard,
+  Loader2,
+  ShieldAlert,
+  UserPlus,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react"
+import { toast } from "sonner"
 
-const iconMap: Record<string, any> = {
-  alert:    { Icon: AlertCircle, color: "text-red-500",    bg: "bg-red-50" },
-  loan:     { Icon: Vote,        color: "text-orange-500", bg: "bg-orange-50" },
-  info:     { Icon: Info,        color: "text-[#0a2540]",  bg: "bg-gray-50" },
-  warning:  { Icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-50" },
-  meeting:  { Icon: Users,       color: "text-[#00ab00]",  bg: "bg-green-50" },
-  success:  { Icon: CheckCircle, color: "text-[#00ab00]",  bg: "bg-green-50" },
+import { useNotifications, useMarkAllAsRead, useMarkAsRead } from "@/hooks/useNotifications"
+import { EmptyState, PageHeader, SectionCard } from "@/components/dashboard/ui"
+
+/**
+ * Icons keyed by the notification types the backend actually emits
+ * (apps/notifications/models.py TYPE_CHOICES). The previous map keyed on
+ * invented names ('alert', 'info', 'meeting'), so every real notification fell
+ * through to the default icon and the colour never carried meaning.
+ */
+const TYPE_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
+  contribution_confirmed: { Icon: CheckCircle2, className: "bg-[#ecfdf3] text-[#00ab00]" },
+  contribution_failed: { Icon: AlertTriangle, className: "bg-red-50 text-red-600" },
+  payout_processed: { Icon: Wallet, className: "bg-[#ecfdf3] text-[#00ab00]" },
+  loan_status_changed: { Icon: CreditCard, className: "bg-blue-50 text-blue-600" },
+  loan_approval_required: { Icon: ShieldAlert, className: "bg-amber-50 text-amber-600" },
+  new_member_joined: { Icon: UserPlus, className: "bg-[#ecfdf3] text-[#00ab00]" },
+  meeting_starting: { Icon: CalendarClock, className: "bg-blue-50 text-blue-600" },
+  admin_alert: { Icon: ShieldAlert, className: "bg-amber-50 text-amber-600" },
+  reminder: { Icon: Bell, className: "bg-gray-100 text-gray-500" },
+}
+
+function iconFor(type: string) {
+  return TYPE_ICONS[type] || { Icon: Bell, className: "bg-gray-100 text-gray-500" }
+}
+
+function formatWhen(value: string) {
+  const date = new Date(value)
+  const today = new Date()
+  const sameDay = date.toDateString() === today.toDateString()
+  return sameDay
+    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
 }
 
 export default function NotificationsPage() {
-  const { activeGroup, isLoading: groupsLoading } = useActiveGroup()
-  
-  const { data: notifications, isLoading } = useNotifications(activeGroup?.id || null)
-  
-  const unread = notifications?.filter(n => !n.read_at) || []
-  const read = notifications?.filter(n => n.read_at) || []
+  // Notifications belong to the RECIPIENT, not to a group. This page used to
+  // bail out with a "no group" panel, which hid a brand new member's own
+  // welcome and activation alerts precisely when they needed them.
+  const { data: notifications, isLoading } = useNotifications(null)
+  const markAsRead = useMarkAsRead()
+  const markAllAsRead = useMarkAllAsRead()
 
-  // Loading handled at content level
-  if (!groupsLoading && !activeGroup) {
-    return <AppStatePanel stateKey="groups.empty" />
+  const unread = notifications?.filter((item) => !item.read_at) || []
+  const read = notifications?.filter((item) => item.read_at) || []
+  const isEmpty = !isLoading && unread.length === 0 && read.length === 0
+
+  const handleMarkAll = async () => {
+    try {
+      await markAllAsRead.mutateAsync()
+      toast.success("All notifications marked as read.")
+    } catch {
+      toast.error("Could not mark notifications as read.")
+    }
   }
 
-  if (!isLoading && !unread.length && !read.length) {
-    return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="mb-2 text-3xl font-black text-[#0a2540]">Notifications</h1>
-          <p className="font-bold text-gray-500">Stay updated with your group activity and alerts.</p>
-        </div>
-        <AppStatePanel stateKey="notifications.empty" />
-      </div>
-    )
+  const handleMarkOne = async (id: string) => {
+    try {
+      await markAsRead.mutateAsync(id)
+    } catch {
+      toast.error("Could not mark that notification as read.")
+    }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-[#0a2540] mb-2">Notifications</h1>
-          <p className="text-gray-500 font-bold">Stay updated with your group activity and alerts.</p>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="System"
+        title="Notifications"
+        description="Activity from your group and account, newest first."
+        actions={
+          unread.length > 0 ? (
+            <button
+              onClick={handleMarkAll}
+              disabled={markAllAsRead.isPending}
+              className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"
+            >
+              {markAllAsRead.isPending ? <Loader2 size={16} className="animate-spin" /> : <CheckSquare size={16} />}
+              Mark all read
+            </button>
+          ) : undefined
+        }
+      />
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-[#00ab00]" />
         </div>
-        {unread.length > 0 && (
-          <button className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#00ab00] hover:bg-green-50 px-4 py-2 rounded-lg transition-all">
-            <CheckSquare size={16} /> Mark all read
-          </button>
-        )}
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-6">
-        {/* Unread Section */}
-        {unread.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 px-2">
-               <Bell size={16} className="text-[#00ab00]" />
-               <h3 className="text-[10px] font-black text-[#0a2540] uppercase tracking-[0.2em]">New Alerts</h3>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
-              {unread.map(n => {
-                const { Icon, color, bg } = iconMap[n.type] ?? iconMap.info
-                return (
-                  <div key={n.id} className="flex items-start gap-4 p-6 hover:bg-gray-50 transition-colors relative">
-                    <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-                      <Icon size={18} className={color} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start gap-4 mb-1">
-                         <h4 className="text-sm font-black text-[#0a2540] truncate">{n.title}</h4>
-                         <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <p className="text-xs text-gray-500 font-bold leading-relaxed mb-3">{n.body}</p>
-                      <div className="flex items-center gap-4">
-                         <span className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">{new Date(n.created_at).toLocaleDateString()}</span>
-                         {n.metadata?.action_url && (
-                           <button className="text-[10px] font-black text-[#00ab00] uppercase tracking-widest hover:underline underline-offset-4 transition-all">
-                             Take Action
-                           </button>
-                         )}
-                      </div>
-                    </div>
-                    <div className="w-2 h-2 rounded-full bg-[#00ab00] shadow-[0_0_8px_#00ab00] mt-1 shrink-0" />
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+      {isEmpty && (
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          description="Contribution confirmations, payout alerts, and group updates will appear here as they happen."
+        />
+      )}
 
-        {/* Read Section */}
-        <div className="space-y-4 relative min-h-[200px]">
-          {isLoading && (
-             <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-[1px] z-10">
-                <Loader2 className="w-10 h-10 animate-spin text-[#00ab00] opacity-20" />
-             </div>
-          )}
-          <div className="flex items-center gap-2 px-2">
-             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Earlier</h3>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50 opacity-60">
-            {read.length > 0 ? read.map(n => {
-              const { Icon } = iconMap[n.type] ?? iconMap.info
+      {unread.length > 0 && (
+        <SectionCard title="Unread" description={`${unread.length} awaiting your attention`} bodyClassName="">
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+            {unread.map((item) => {
+              const { Icon, className } = iconFor(item.type)
+              const actionUrl = item.metadata?.action_url
               return (
-                <div key={n.id} className="flex items-start gap-4 p-6">
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
-                    <Icon size={18} className="text-gray-300" />
+                <li key={item.id} className="flex items-start gap-4 px-5 py-4 sm:px-6">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${className}`}>
+                    <Icon size={18} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-4 mb-1">
-                       <h4 className="text-sm font-black text-gray-400 truncate">{n.title}</h4>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.title}</p>
+                      <span className="shrink-0 text-xs text-gray-400">{formatWhen(item.created_at)}</span>
                     </div>
-                    <p className="text-xs text-gray-400 font-bold leading-relaxed">{n.body}</p>
-                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter mt-3">{new Date(n.created_at).toLocaleDateString()}</p>
+                    <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">{item.body}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-4">
+                      <button
+                        onClick={() => handleMarkOne(item.id)}
+                        className="text-xs font-medium text-gray-500 transition hover:text-gray-800 dark:hover:text-white"
+                      >
+                        Mark as read
+                      </button>
+                      {actionUrl && (
+                        <Link href={actionUrl} className="text-xs font-semibold text-[#00ab00] transition hover:underline">
+                          Take action
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#00ab00]" aria-label="Unread" />
+                </li>
               )
-            }) : !isLoading && (
-               <AppStatePanel compact stateKey="notifications.empty" className="m-5" />
-            )}
-          </div>
-        </div>
-      </div>
+            })}
+          </ul>
+        </SectionCard>
+      )}
+
+      {read.length > 0 && (
+        <SectionCard title="Earlier" bodyClassName="">
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+            {read.map((item) => {
+              const { Icon } = iconFor(item.type)
+              return (
+                <li key={item.id} className="flex items-start gap-4 px-5 py-4 sm:px-6">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-800">
+                    <Icon size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{item.title}</p>
+                      <span className="shrink-0 text-xs text-gray-400">{formatWhen(item.created_at)}</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-gray-400">{item.body}</p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </SectionCard>
+      )}
     </div>
   )
 }
