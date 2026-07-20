@@ -40,7 +40,7 @@ function useDashboardTheme() {
   return { theme, toggleTheme }
 }
 
-function DashboardHeader({ user, logout }: { user: any; logout: () => void }) {
+function DashboardHeader({ user, logout }: { user: any; logout: () => Promise<void> }) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -68,8 +68,11 @@ function DashboardHeader({ user, logout }: { user: any; logout: () => void }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const signOut = () => {
-    logout()
+  // Awaited: logout is a server round-trip now (only the server can clear the
+  // httpOnly session cookies). Redirecting first would leave a live session
+  // behind for anyone who navigated straight back.
+  const signOut = async () => {
+    await logout()
     router.push('/login')
   }
 

@@ -26,15 +26,18 @@ export default function LoginPage() {
     setSuccess(null)
 
     try {
-      const { data } = await api.post('/admin-portal/auth/login/', { email, password })
+      // The proxy captures the tokens into httpOnly cookies, rejects any role
+      // that cannot hold a Manager session, and returns only the profile.
+      // x-remember is consumed there and never reaches Django.
+      const { data } = await api.post(
+        '/admin-portal/auth/login/',
+        { email, password },
+        { headers: { 'x-remember': remember ? '1' : '0' } },
+      )
 
       if (data.success) {
-        if (data.data.user.role !== 'platform_admin') {
-          setError('This account does not have Manager access.')
-          return
-        }
         setSuccess(data.message || 'Signed in. Redirecting…')
-        setAuth(data.data.user, data.data.access, remember)
+        setAuth(data.data.user)
         setTimeout(() => {
           router.push('/dashboard')
         }, 1200)

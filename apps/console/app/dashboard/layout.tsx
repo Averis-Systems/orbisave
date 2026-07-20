@@ -45,8 +45,11 @@ function DashboardHeader({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const signOut = () => {
-    logout()
+  // Awaited: logout is a server round-trip now (only the server can clear the
+  // httpOnly session cookies). Redirecting first would leave a live session
+  // behind for anyone who navigated straight back.
+  const signOut = async () => {
+    await logout()
     router.push('/login')
   }
 

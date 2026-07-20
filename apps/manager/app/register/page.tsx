@@ -59,12 +59,19 @@ export default function RegisterPage() {
       })
       
       if (data.success) {
-        setSuccess(data.message || 'Enrollment successful! Accessing platform...')
-        setAuth(data.data.user, data.data.access)
-        // Delay slightly so the user sees the success message before redirection
+        // The account is created is_active=False pending email verification,
+        // and this endpoint returns no tokens. The old code called setAuth
+        // with data.data.access, which does not exist, then redirected to
+        // /dashboard, so every successful registration bounced straight back
+        // to login with no explanation. Hand over to the code step instead.
+        // TODO(ui): Manager has no in-page verify stage yet, unlike Console.
+        setSuccess(
+          'Request received. We emailed a 6 digit code to your work address. ' +
+          'Verify it to activate your account, then sign in.'
+        )
         setTimeout(() => {
-          router.push('/dashboard')
-        }, 1500)
+          router.push('/login')
+        }, 2500)
       } else {
         setError(data.message || 'Enrollment failed.')
       }

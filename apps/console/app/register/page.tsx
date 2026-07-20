@@ -105,7 +105,7 @@ export default function RegisterPage() {
 
       if (data.success) {
         setSuccess('Verified. Opening the Console.')
-        setAuth(data.data.user, data.data.access)
+        setAuth(data.data.user)
         setTimeout(() => router.push('/dashboard'), 1000)
       } else {
         setError(data.message || 'Verification failed.')
