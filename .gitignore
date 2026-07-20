@@ -76,3 +76,6 @@ redis_data/
 
 # Vendored Claude Code design skills — reinstallable tooling, not product code
 .claude/skills/
+
+# Env templates are documentation, not secrets
+!.env.example
