@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from rest_framework import serializers
 
 from apps.payments.models import BankProvider, PaymentProviderAccount, ProviderApiLog
+from common.pagination import RECENT_LIMIT
 from .views import IsSuperAdmin
 import structlog
 
@@ -185,7 +186,7 @@ class ProviderHubDetailView(APIView):
         if not obj:
             return Response({'error': 'Provider not found.'}, status=404)
         # Include recent logs
-        logs = ProviderApiLog.objects.filter(provider=obj).order_by('-created_at')[:50]
+        logs = ProviderApiLog.objects.filter(provider=obj).order_by('-created_at')[:RECENT_LIMIT]
         return Response({
             'provider': BankProviderSerializer(obj).data,
             'recent_logs': ProviderApiLogSerializer(logs, many=True).data,

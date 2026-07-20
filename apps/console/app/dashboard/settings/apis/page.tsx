@@ -244,7 +244,9 @@ export default function ApiOperationsPage() {
       setKycProviders(kycRes.data.results || [])
       setMeetingProviders(meetingRes.data.results || [])
       setSmsProviders(smsRes.data.results || [])
-      setLogs(logRes.data || [])
+      // Paginated envelope: { count, page, results }. The old endpoint
+      // returned a bare array, so accept both while anything is in flight.
+      setLogs(logRes.data?.results || (Array.isArray(logRes.data) ? logRes.data : []))
       setMetrics(metricRes.data || null)
     } catch (error) {
       toast.error('API operations data could not be loaded.')

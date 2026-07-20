@@ -10,6 +10,7 @@ from apps.contributions.models import Contribution
 from apps.audit.models import AuditLog
 from apps.accounts.models import User
 from .views import IsPlatformAdmin, IsSuperAdmin
+from common.pagination import RECENT_LIMIT, paginate_admin_queryset
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -154,13 +155,9 @@ class AdminGroupContributionsView(APIView):
         if s:
             qs = qs.filter(status=s)
 
-        page = int(request.query_params.get('page', 1))
-        page_size = 50
-        offset = (page - 1) * page_size
-        total = qs.count()
-
+        page_items, meta = paginate_admin_queryset(request, qs)
         results = []
-        for c in qs[offset:offset + page_size]:
+        for c in page_items:
             results.append({
                 'id': str(c.id),
                 'member_name': c.member.full_name,
@@ -178,7 +175,7 @@ class AdminGroupContributionsView(APIView):
                 'retry_count': c.retry_count,
                 'created_at': c.created_at.isoformat(),
             })
-        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+        return Response({**meta, 'results': results})
 
 
 class AdminGroupLoansView(APIView):
@@ -196,8 +193,9 @@ class AdminGroupLoansView(APIView):
         if s:
             qs = qs.filter(status=s)
 
+        page_items, meta = paginate_admin_queryset(request, qs)
         results = []
-        for loan in qs[:100]:
+        for loan in page_items:
             results.append({
                 'id': str(loan.id),
                 'borrower_name': loan.borrower.full_name,
@@ -212,7 +210,7 @@ class AdminGroupLoansView(APIView):
                 'fully_repaid_at': loan.fully_repaid_at.isoformat() if loan.fully_repaid_at else None,
                 'created_at': loan.created_at.isoformat(),
             })
-        return Response({'count': qs.count(), 'results': results})
+        return Response({**meta, 'results': results})
 
 
 class AdminGroupLedgerView(APIView):
@@ -228,13 +226,9 @@ class AdminGroupLedgerView(APIView):
         from apps.ledger.models import LedgerEntry
         qs = LedgerEntry.objects.filter(group=g).order_by('-created_at')
 
-        page = int(request.query_params.get('page', 1))
-        page_size = 50
-        offset = (page - 1) * page_size
-        total = qs.count()
-
+        page_items, meta = paginate_admin_queryset(request, qs)
         results = []
-        for e in qs[offset:offset + page_size]:
+        for e in page_items:
             results.append({
                 'id': str(e.id),
                 'entry_type': e.entry_type,
@@ -248,7 +242,7 @@ class AdminGroupLedgerView(APIView):
                 'hash': e.hash[:16] + '...' if e.hash else None,
                 'created_at': e.created_at.isoformat(),
             })
-        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+        return Response({**meta, 'results': results})
 
 
 # ── Loan Administration ───────────────────────────────────────────────────────
@@ -258,7 +252,6 @@ class AdminLoanListView(APIView):
 
     def get(self, request):
         scope = _country_scope(request)
-        qs = Loan.objects.select_related('group').filter(group__country=scope.get('country', None) or Q())
         if 'country' in scope:
             qs = Loan.objects.select_related('group').filter(group__country=scope['country'])
         else:
@@ -268,8 +261,9 @@ class AdminLoanListView(APIView):
         if s:
             qs = qs.filter(status=s)
 
+        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
         results = []
-        for loan in qs.order_by('-created_at')[:200]:
+        for loan in page_items:
             results.append({
                 'id': str(loan.id),
                 'borrower_name': loan.borrower.full_name,
@@ -284,7 +278,7 @@ class AdminLoanListView(APIView):
                 'chair_approved_at': loan.chair_approved_at.isoformat() if loan.chair_approved_at else None,
                 'treasurer_approved_at': loan.treasurer_approved_at.isoformat() if loan.treasurer_approved_at else None,
             })
-        return Response({'count': qs.count(), 'results': results})
+        return Response({**meta, 'results': results})
 
 
 class AdminLoanApproveView(APIView):
@@ -377,13 +371,9 @@ class AdminContributionsView(APIView):
                 Q(provider_reference__icontains=search)
             )
 
-        page = int(request.query_params.get('page', 1))
-        page_size = 50
-        offset = (page - 1) * page_size
-        total = qs.count()
-
+        page_items, meta = paginate_admin_queryset(request, qs)
         results = []
-        for c in qs[offset:offset + page_size]:
+        for c in page_items:
             results.append({
                 'id': str(c.id),
                 'member_name': c.member.full_name,
@@ -400,7 +390,7 @@ class AdminContributionsView(APIView):
                 'retry_count': c.retry_count,
                 'created_at': c.created_at.isoformat(),
             })
-        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+        return Response({**meta, 'results': results})
 
 
 # ── Audit Trail ───────────────────────────────────────────────────────────────
@@ -431,13 +421,9 @@ class AdminAuditView(APIView):
         if date_to:
             qs = qs.filter(created_at__date__lte=date_to)
 
-        page = int(request.query_params.get('page', 1))
-        page_size = 50
-        offset = (page - 1) * page_size
-        total = qs.count()
-
+        page_items, meta = paginate_admin_queryset(request, qs)
         results = []
-        for log in qs[offset:offset + page_size]:
+        for log in page_items:
             results.append({
                 'id': str(log.id),
                 'action': log.action,
@@ -452,7 +438,7 @@ class AdminAuditView(APIView):
                 'session_id': log.session_id,
                 'created_at': log.created_at.isoformat(),
             })
-        return Response({'count': total, 'page': page, 'page_size': page_size, 'results': results})
+        return Response({**meta, 'results': results})
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
@@ -544,9 +530,11 @@ class AdminUserDetailView(APIView):
             return Response({'error': 'Forbidden.'}, status=403)
 
         memberships = GroupMember.objects.filter(member=u).select_related('group')
+        # Deliberately bounded recent-activity view, not a truncation bug: the
+        # full history belongs to the paginated audit list endpoint.
         audit_logs = AuditLog.objects.filter(
             Q(actor=u) | Q(target_user=u)
-        ).order_by('-created_at')[:50]
+        ).order_by('-created_at')[:RECENT_LIMIT]
 
         from apps.accounts.serializers import KYCDocumentSerializer
         kyc_docs = u.kyc_documents.all()

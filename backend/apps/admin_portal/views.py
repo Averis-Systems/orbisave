@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User, KYCDocument
 from apps.accounts.serializers import KYCDocumentSerializer, UserSerializer
+from common.pagination import paginate_admin_queryset
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -193,5 +194,6 @@ class AdminUserListView(APIView):
         # Exclude super admins from the list for security
         qs = qs.exclude(role='super_admin')
 
-        serializer = UserSerializer(qs.order_by('-created_at')[:200], many=True)
-        return Response({'count': qs.count(), 'results': serializer.data})
+        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        serializer = UserSerializer(page_items, many=True)
+        return Response({**meta, 'results': serializer.data})

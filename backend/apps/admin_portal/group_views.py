@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from apps.groups.models import Group, GroupMember
 from apps.groups.serializers import GroupSerializer
 from apps.audit.services import log_audit
+from common.pagination import paginate_admin_queryset
 import structlog
 
 from .views import IsPlatformAdmin, IsSuperAdmin
@@ -72,11 +73,11 @@ class AdminGroupListView(APIView):
         if search:
             qs = qs.filter(name__icontains=search)
 
-        qs = qs.order_by('-created_at')[:200]
+        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
 
         # Inline minimal serialization (avoid importing full group serializer cross-DB)
         results = []
-        for g in qs:
+        for g in page_items:
             results.append({
                 'id':                  str(g.id),
                 'name':                g.name,
@@ -95,7 +96,7 @@ class AdminGroupListView(APIView):
                 'created_at':          g.created_at.isoformat(),
             })
 
-        return Response({'count': len(results), 'results': results})
+        return Response({**meta, 'results': results})
 
 
 class AdminGroupVerifyView(APIView):

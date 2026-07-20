@@ -6,6 +6,8 @@ anything the bank and the ledger disagree on; these endpoints are how country
 admins SEE and RESOLVE them. platform_admins are scoped to their country;
 super_admins see everything.
 """
+import math
+
 import structlog
 from django.utils import timezone
 from rest_framework import status
@@ -14,6 +16,7 @@ from rest_framework.views import APIView
 
 from apps.ledger.models import ReconciliationItem, ReconciliationRun
 from common.db_utils import financial_db_aliases
+from common.pagination import paginate_admin_queryset
 from common.permissions import IsPlatformAdmin
 
 logger = structlog.get_logger(__name__)
@@ -24,6 +27,26 @@ def _country_scope(request):
     if request.user.role == 'super_admin':
         return None
     return request.user.country
+
+
+def _gather_bound(request, max_page_size=100):
+    """
+    Per-alias fetch bound for gather-then-page: the requested page could in
+    the worst case come entirely from one alias, so each must contribute its
+    first (offset + page_size) rows and no more. Inputs are clamped the same
+    way paginate_admin_queryset clamps them, so a hostile page/page_size pair
+    cannot inflate the gather.
+    """
+    try:
+        page = max(1, int(request.query_params.get('page', 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        size = int(request.query_params.get('page_size', 50))
+    except (TypeError, ValueError):
+        size = 50
+    size = max(1, min(size, max_page_size))
+    return page * size
 
 
 def _collect(model, scope_country, filters=None, order='-created_at', limit=200):
@@ -47,32 +70,53 @@ class ReconciliationRunListView(APIView):
 
     def get(self, request):
         scope = _country_scope(request)
-        results = []
+
+        # Runs are sharded per country, and Django cannot sort across aliases,
+        # so pagination is gather-then-page: each alias contributes only its
+        # first (offset + page_size) rows, already sorted, which is the most
+        # any of them could possibly place on the requested page. The merged
+        # list is then sorted once and sliced. The old version capped each
+        # alias at a flat 100 with no way to see past it, and sorted AFTER
+        # serialization by string-formatted date.
+        runs = []
+        total = 0
         for alias in financial_db_aliases():
             qs = ReconciliationRun.objects.using(alias).all()
             if scope:
                 qs = qs.filter(country=scope)
-            for run in qs.order_by('-business_date', '-created_at')[:100]:
-                open_items = (
-                    ReconciliationItem.objects.using(alias)
-                    .filter(run=run, status__in=['open', 'investigating'])
-                    .count()
-                )
-                results.append({
-                    'id': str(run.id),
-                    'country': run.country,
-                    'provider_code': run.provider_code,
-                    'account_stream': run.account_stream,
-                    'account_number': run.account_number,
-                    'business_date': str(run.business_date),
-                    'status': run.status,
-                    'expected_closing_balance': str(run.expected_closing_balance) if run.expected_closing_balance is not None else None,
-                    'observed_closing_balance': str(run.observed_closing_balance) if run.observed_closing_balance is not None else None,
-                    'open_items': open_items,
-                    'created_at': run.created_at.isoformat(),
-                })
-        results.sort(key=lambda r: r['business_date'], reverse=True)
-        return Response({'count': len(results), 'results': results})
+            total += qs.count()
+            for run in qs.order_by('-business_date', '-created_at')[:_gather_bound(request)]:
+                run._alias = alias
+                runs.append(run)
+
+        runs.sort(key=lambda r: (r.business_date, r.created_at), reverse=True)
+        page_items, meta = paginate_admin_queryset(request, runs)
+        meta['count'] = total
+        meta['total_pages'] = max(1, math.ceil(total / meta['page_size']))
+
+        results = []
+        for run in page_items:
+            # Counted only for the rows on this page, not every gathered row:
+            # this query used to run once per run per alias, page or not.
+            open_items = (
+                ReconciliationItem.objects.using(run._alias)
+                .filter(run=run, status__in=['open', 'investigating'])
+                .count()
+            )
+            results.append({
+                'id': str(run.id),
+                'country': run.country,
+                'provider_code': run.provider_code,
+                'account_stream': run.account_stream,
+                'account_number': run.account_number,
+                'business_date': str(run.business_date),
+                'status': run.status,
+                'expected_closing_balance': str(run.expected_closing_balance) if run.expected_closing_balance is not None else None,
+                'observed_closing_balance': str(run.observed_closing_balance) if run.observed_closing_balance is not None else None,
+                'open_items': open_items,
+                'created_at': run.created_at.isoformat(),
+            })
+        return Response({**meta, 'results': results})
 
 
 class ReconciliationItemListView(APIView):
@@ -82,7 +126,10 @@ class ReconciliationItemListView(APIView):
     def get(self, request):
         scope = _country_scope(request)
         wanted_status = request.query_params.get('status', 'open')
-        results = []
+
+        # Same gather-then-page shape as the runs view above.
+        items = []
+        total = 0
         for alias in financial_db_aliases():
             qs = ReconciliationItem.objects.using(alias).select_related('run', 'group')
             if wanted_status != 'all':
@@ -90,27 +137,35 @@ class ReconciliationItemListView(APIView):
                 qs = qs.filter(status__in=statuses)
             if scope:
                 qs = qs.filter(run__country=scope)
-            for item in qs.order_by('-created_at')[:200]:
-                results.append({
-                    'id': str(item.id),
-                    'issue_type': item.issue_type,
-                    'status': item.status,
-                    'severity': item.severity,
-                    'account_stream': item.account_stream,
-                    'reference': item.reference,
-                    'provider_reference': item.provider_reference,
-                    'bank_reference': item.bank_reference,
-                    'expected_amount': str(item.expected_amount) if item.expected_amount is not None else None,
-                    'observed_amount': str(item.observed_amount) if item.observed_amount is not None else None,
-                    'currency': item.currency,
-                    'group_name': item.group.name if item.group_id else None,
-                    'run_id': str(item.run_id) if item.run_id else None,
-                    'business_date': str(item.run.business_date) if item.run_id else None,
-                    'details': item.details,
-                    'created_at': item.created_at.isoformat(),
-                })
-        results.sort(key=lambda r: r['created_at'], reverse=True)
-        return Response({'count': len(results), 'results': results})
+            total += qs.count()
+            items.extend(qs.order_by('-created_at')[:_gather_bound(request)])
+
+        items.sort(key=lambda i: i.created_at, reverse=True)
+        page_items, meta = paginate_admin_queryset(request, items)
+        meta['count'] = total
+        meta['total_pages'] = max(1, math.ceil(total / meta['page_size']))
+
+        results = []
+        for item in page_items:
+            results.append({
+                'id': str(item.id),
+                'issue_type': item.issue_type,
+                'status': item.status,
+                'severity': item.severity,
+                'account_stream': item.account_stream,
+                'reference': item.reference,
+                'provider_reference': item.provider_reference,
+                'bank_reference': item.bank_reference,
+                'expected_amount': str(item.expected_amount) if item.expected_amount is not None else None,
+                'observed_amount': str(item.observed_amount) if item.observed_amount is not None else None,
+                'currency': item.currency,
+                'group_name': item.group.name if item.group_id else None,
+                'run_id': str(item.run_id) if item.run_id else None,
+                'business_date': str(item.run.business_date) if item.run_id else None,
+                'details': item.details,
+                'created_at': item.created_at.isoformat(),
+            })
+        return Response({**meta, 'results': results})
 
 
 class ReconciliationItemActionView(APIView):

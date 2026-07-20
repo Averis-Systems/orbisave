@@ -12,6 +12,7 @@ from apps.contributions.models import Contribution
 from apps.ledger.models import LedgerEntry
 from apps.audit.models import AuditLog
 from common.db_utils import get_db_for_country
+from common.pagination import RECENT_LIMIT
 from .views import IsSuperAdmin
 import structlog, time
 
@@ -301,7 +302,7 @@ class SuperAdminAdminDetailView(APIView):
         except User.DoesNotExist:
             return Response({'error': 'Admin not found.'}, status=404)
 
-        logs = AuditLog.objects.filter(actor=u).order_by('-created_at')[:50]
+        logs = AuditLog.objects.filter(actor=u).order_by('-created_at')[:RECENT_LIMIT]
         return Response({
             'id': str(u.id),
             'full_name': u.full_name,

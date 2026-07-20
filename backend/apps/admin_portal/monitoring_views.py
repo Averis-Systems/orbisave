@@ -5,6 +5,7 @@ from django.db.models.functions import TruncHour, TruncDay
 from django.utils import timezone
 from datetime import timedelta
 from apps.payments.models import ProviderApiLog
+from common.pagination import paginate_admin_queryset
 from .log_serializers import ApiLogSerializer
 from .views import IsSuperAdmin
 
@@ -58,5 +59,6 @@ class ApiOperationalLogsView(APIView):
         if provider_id:
             qs = qs.filter(provider_id=provider_id)
 
-        serializer = ApiLogSerializer(qs[:100], many=True)
-        return Response(serializer.data)
+        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        serializer = ApiLogSerializer(page_items, many=True)
+        return Response({**meta, 'results': serializer.data})
