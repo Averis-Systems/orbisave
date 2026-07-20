@@ -15,6 +15,50 @@ from common.permissions import IsGroupChairperson, IsGroupMember, IsGroupLeader
 from apps.audit.services import log_audit
 from common.exceptions import success_response
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+
+def _send_activation_nudges(chairperson, group):
+    """
+    Post-creation nudges: the group starts in 'pending_activation', so tell
+    the chairperson, in-app AND by email, exactly what unlocks it (KYC +
+    first contribution). Never allowed to break group creation.
+    """
+    from apps.notifications.services import notify_user
+    from common.emailing import send_branded_notice
+
+    notify_user(
+        chairperson,
+        title=f'Activate {group.name}',
+        body=(
+            f'Your group "{group.name}" was created and is pending activation. '
+            'Complete your KYC verification and make the first contribution to the pool, '
+            'then activate it from My Group.'
+        ),
+        notification_type='admin_alert',
+        related_object_id=group.id,
+    )
+    try:
+        send_branded_notice(
+            chairperson,
+            subject=f'Activate {group.name} on OrbiSave',
+            heading='Your group is pending activation',
+            intro=f'"{group.name}" was created successfully. A few steps remain before your chama goes live:',
+            steps=[
+                'Complete your KYC verification from the dashboard (national ID and a selfie).',
+                'Make the first contribution to your group pool.',
+                'Return to My Group and press Activate. Member invites unlock right after.',
+            ],
+            cta_label='Go to my dashboard',
+            cta_url=f'{settings.FRONTEND_URL}/dashboard/my-group',
+            disclaimer='You received this email because you created a group on OrbiSave.',
+        )
+    except Exception as exc:
+        logger.warning('activation_nudge_email_failed', group_id=str(group.id), error=str(exc))
+
+
 class RotationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Exposes rotation cycles and schedules.
@@ -135,12 +179,19 @@ class GroupViewSet(viewsets.ModelViewSet):
                 rotation_position=1
             )
             log_audit(
-                action='group_created', 
-                actor=self.request.user, 
-                target_group=group, 
+                action='group_created',
+                actor=self.request.user,
+                target_group=group,
                 ip_address=self.request.META.get('REMOTE_ADDR'),
                 metadata={'approval_state': 'pending_review'},
                 country=group.country,
+            )
+
+            # Activation nudges fire only once the creation actually commits.
+            chairperson = self.request.user
+            transaction.on_commit(
+                lambda: _send_activation_nudges(chairperson, group),
+                using=db_alias,
             )
 
     @action(detail=True, methods=['get'])

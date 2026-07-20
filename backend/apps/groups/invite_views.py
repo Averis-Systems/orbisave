@@ -8,8 +8,25 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import Group, GroupInvite, GroupMember
 from common.permissions import IsGroupChairperson
 from common.exceptions import success_response
+from common.db_utils import find_across_financial_dbs
 from apps.audit.services import log_audit
 from apps.notifications.tasks import send_invite_notification
+
+
+def _find_invite(token, **extra_filters):
+    """
+    Locate an invite when the country is not known up front.
+
+    Invites live in the country-sharded databases, but an invite link is opened
+    by someone with no country context: a signed-out visitor sends no
+    X-Country header and has no authenticated user for CountryMiddleware to
+    read, so thread-local routing sends the query to 'default' and finds
+    nothing. That silently 404'd every public invite link, including the
+    preview banner on /register?invite=.
+
+    The token is globally unique and unguessable, so a fan-out lookup is safe.
+    """
+    return find_across_financial_dbs(GroupInvite, token=token, **extra_filters)
 
 class GroupInviteCreateView(views.APIView):
     permission_classes = [IsAuthenticated, IsGroupChairperson]
@@ -83,9 +100,8 @@ class GroupInvitePublicView(views.APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-        try:
-            invite = GroupInvite.objects.select_related('group').get(token=token, status='pending')
-        except GroupInvite.DoesNotExist:
+        invite = _find_invite(token, status='pending')
+        if invite is None:
             return Response({"error": "Invite invalid or expired."}, status=status.HTTP_404_NOT_FOUND)
 
         if invite.expires_at < timezone.now():
@@ -100,6 +116,10 @@ class GroupInvitePublicView(views.APIView):
             "chairperson_name": invite.invited_by.full_name,
             "contribution_amount": invite.group.contribution_amount,
             "currency": invite.group.currency,
+            # Country lets the signup form lock the phone selector to the
+            # group's country so invited members can't create an account on
+            # the wrong national rail.
+            "country": invite.group.country,
             "member_count": member_count,
             "max_members": invite.group.max_members
         }
@@ -112,9 +132,8 @@ class GroupInvitePublicView(views.APIView):
         if not request.user.is_authenticated:
             return Response({"error": "Authentication universally required."}, status=status.HTTP_401_UNAUTHORIZED)
             
-        try:
-            invite = GroupInvite.objects.select_related('group').get(token=token, status='pending')
-        except GroupInvite.DoesNotExist:
+        invite = _find_invite(token, status='pending')
+        if invite is None:
             return Response({"error": "Invite invalid or structurally already processed."}, status=status.HTTP_404_NOT_FOUND)
 
         if invite.expires_at < timezone.now():
@@ -125,6 +144,20 @@ class GroupInvitePublicView(views.APIView):
         group = invite.group
         if group.status != 'active':
             return Response({"error": "Invite is not active until the group is activated."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Groups are sharded per country, and the membership row is written
+        # through the caller's own routing context. Letting a member of one
+        # country accept another country's invite would split the group and its
+        # membership across two databases, and the currency and payment rails
+        # would not match either. Refuse rather than corrupt.
+        if request.user.country and request.user.country != group.country:
+            return Response(
+                {
+                    "error": "This group operates in a different country to your account.",
+                    "code": "country_mismatch",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         member_count = group.memberships.filter(status='active').count()
         
