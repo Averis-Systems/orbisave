@@ -49,6 +49,18 @@ REST_FRAMEWORK = {
 # X-Forwarded-For handling be exercised directly.
 TRUSTED_PROXY_IPS = ['127.0.0.1']
 
+# django_ratelimit rejects a non-shared cache, correctly: local memory is
+# per-process, so with multiple workers each keeps its own counter and the real
+# limit is N times what it says. That matters in production and not in a
+# single-process test run, where LocMemCache is a deliberate choice to keep the
+# suite hermetic. RATELIMIT_ENABLE is False here anyway. Without this,
+# `manage.py check` fails under test settings, which is what CI runs.
+SILENCED_SYSTEM_CHECKS = [
+    *globals().get('SILENCED_SYSTEM_CHECKS', []),
+    'django_ratelimit.E003',
+    'django_ratelimit.W001',
+]
+
 # Faster password hasher for tests
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 

@@ -74,7 +74,7 @@ function BrandingCard() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt="Current logo" className="h-12 w-auto max-w-[80%] object-contain" />
             ) : (
-              <span className="text-[10px] font-bold text-slate-400">Using built-in "O" mark</span>
+              <span className="text-xs font-medium text-slate-400">Using built-in &ldquo;O&rdquo; mark</span>
             )}
           </div>
           <input
