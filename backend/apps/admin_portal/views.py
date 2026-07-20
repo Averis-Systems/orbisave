@@ -1,11 +1,11 @@
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User, KYCDocument
 from apps.accounts.serializers import KYCDocumentSerializer, UserSerializer
+from common.admin_scope import resolve_admin_country, scope_filter
 from common.pagination import paginate_admin_queryset
 import structlog
 
@@ -13,22 +13,11 @@ logger = structlog.get_logger(__name__)
 
 
 # ── Permission helpers ───────────────────────────────────────────────────────
-
-class IsPlatformAdmin(IsAuthenticated):
-    """Allows platform_admin (country staff) and super_admin."""
-    def has_permission(self, request, view):
-        return (
-            super().has_permission(request, view) and
-            request.user.role in ('platform_admin', 'super_admin')
-        )
-
-class IsSuperAdmin(IsAuthenticated):
-    """Allows only super_admin (platform owners)."""
-    def has_permission(self, request, view):
-        return (
-            super().has_permission(request, view) and
-            request.user.role == 'super_admin'
-        )
+# Re-exported from common.permissions: two shadowed definitions of these
+# classes used to coexist (this module's and common's), and the common pair
+# 500'd on anonymous requests. One implementation now serves both import
+# paths, since most admin_portal modules import from `.views`.
+from common.permissions import IsPlatformAdmin, IsSuperAdmin  # noqa: F401
 
 
 # ── Country Admin Views ──────────────────────────────────────────────────────
@@ -45,13 +34,12 @@ class AdminDashboardStatsView(APIView):
         user = request.user
         is_super = user.role == 'super_admin'
 
-        country_filter = {} if is_super else {'country': user.country}
-
-        users_qs = User.objects.filter(**country_filter)
+        country = resolve_admin_country(request)
+        users_qs = User.objects.filter(**scope_filter(country))
         kyc_qs   = KYCDocument.objects.filter(user__in=users_qs)
 
         stats = {
-            'country':          user.country if not is_super else 'all',
+            'country':          country or 'all',
             'total_users':      users_qs.count(),
             'total_members':    users_qs.filter(role='member').count(),
             'verified_users':   users_qs.filter(kyc_status='verified').count(),
@@ -84,21 +72,18 @@ class AdminKYCQueueView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        user = request.user
-        is_super = user.role == 'super_admin'
-
         kyc_status = request.query_params.get('status', 'submitted')
 
         qs = KYCDocument.objects.filter(status=kyc_status).select_related('user', 'reviewed_by')
 
-        if not is_super:
-            qs = qs.filter(user__country=user.country)
+        country = resolve_admin_country(request)
+        qs = qs.filter(**scope_filter(country, field='user__country'))
 
-        serializer = KYCDocumentSerializer(qs, many=True, context={'request': request})
-        return Response({
-            'count':   qs.count(),
-            'results': serializer.data,
-        })
+        # This queue used to serialize every matching row with no bound at
+        # all, the only admin list that was fully unbounded rather than capped.
+        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        serializer = KYCDocumentSerializer(page_items, many=True, context={'request': request})
+        return Response({**meta, 'results': serializer.data})
 
 
 class AdminKYCReviewView(APIView):
@@ -179,9 +164,10 @@ class AdminUserListView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        user      = request.user
-        is_super  = user.role == 'super_admin'
-        qs        = User.objects.all() if is_super else User.objects.filter(country=user.country)
+        # Same central-resolver semantics as the group list: authorisation
+        # checked ?country=, and a country-less platform_admin is refused.
+        country = resolve_admin_country(request)
+        qs = User.objects.filter(**scope_filter(country))
 
         kyc_status = request.query_params.get('kyc_status')
         role       = request.query_params.get('role')

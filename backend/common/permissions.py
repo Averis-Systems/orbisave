@@ -78,12 +78,31 @@ class IsGroupLeader(BasePermission):
         ).exists()
 
 class IsPlatformAdmin(BasePermission):
+    """
+    Country staff and platform owners.
+
+    The is_authenticated check is load bearing: view-level permission_classes
+    REPLACE the global IsAuthenticated default rather than adding to it, and
+    AnonymousUser has no .role attribute, so without the check an anonymous
+    request to any view using this class was a 500 (AttributeError), not a 401.
+    """
     def has_permission(self, request, view):
-        return request.user.role in ('platform_admin', 'super_admin')
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and getattr(user, 'role', None) in ('platform_admin', 'super_admin')
+        )
 
 class IsSuperAdmin(BasePermission):
+    """Platform owners only. Same is_authenticated note as IsPlatformAdmin."""
     def has_permission(self, request, view):
-        return request.user.role == 'super_admin'
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and getattr(user, 'role', None) == 'super_admin'
+        )
 
 class IsKYCVerified(BasePermission):
     message = 'KYC verification strictly required to perform this action.'

@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.ledger.models import ReconciliationItem, ReconciliationRun
+from common.admin_scope import resolve_admin_country
 from common.db_utils import financial_db_aliases
 from common.pagination import paginate_admin_queryset
 from common.permissions import IsPlatformAdmin
@@ -23,10 +24,14 @@ logger = structlog.get_logger(__name__)
 
 
 def _country_scope(request):
-    """None = unrestricted (super_admin); else the admin's country."""
-    if request.user.role == 'super_admin':
-        return None
-    return request.user.country
+    """
+    None = platform-wide (super_admin); else the authorised country.
+
+    Central resolver: refuses a country-less platform_admin instead of
+    returning None (which here would have meant UNRESTRICTED, the opposite of
+    the intended scoping), and authorisation-checks any ?country= param.
+    """
+    return resolve_admin_country(request)
 
 
 def _gather_bound(request, max_page_size=100):

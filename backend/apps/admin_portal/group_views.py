@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from apps.groups.models import Group, GroupMember
 from apps.groups.serializers import GroupSerializer
 from apps.audit.services import log_audit
+from common.admin_scope import resolve_admin_country, scope_filter
 from common.pagination import paginate_admin_queryset
 import structlog
 
@@ -53,23 +54,21 @@ class AdminGroupListView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        user     = request.user
-        is_super = user.role == 'super_admin'
-
-        qs = Group.objects.all() if is_super else Group.objects.filter(country=user.country)
+        # Central resolver: honours ?country= for super admins, refuses it for
+        # anyone else (it used to be silently ignored, so the URL looked like
+        # it worked), and refuses a platform_admin with no country outright.
+        country = resolve_admin_country(request)
+        qs = Group.objects.filter(**scope_filter(country))
 
         # Filters
         v_status = request.query_params.get('verification_status')
         g_status = request.query_params.get('status')
-        country  = request.query_params.get('country')
         search   = request.query_params.get('search', '').strip()
 
         if v_status:
             qs = qs.filter(verification_status=v_status)
         if g_status:
             qs = qs.filter(status=g_status)
-        if country and is_super:
-            qs = qs.filter(country=country)
         if search:
             qs = qs.filter(name__icontains=search)
 
@@ -218,16 +217,15 @@ class AdminGroupStatsView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        user     = request.user
-        is_super = user.role == 'super_admin'
-
-        base_qs = Group.objects.all() if is_super else Group.objects.filter(country=user.country)
+        is_super = request.user.role == 'super_admin'
+        country = resolve_admin_country(request)
+        base_qs = Group.objects.filter(**scope_filter(country))
 
         from apps.accounts.models import User
         stats = {
-            'country':        user.country if not is_super else 'all',
+            'country':        country or 'all',
             'total_groups':   base_qs.count(),
-            'total_members':  (User.objects.all() if is_super else User.objects.filter(country=user.country)).filter(role='member').count(),
+            'total_members':  User.objects.filter(**scope_filter(country)).filter(role='member').count(),
             'pending_review': base_qs.filter(verification_status='pending_review').count(),
             'verified':       base_qs.filter(verification_status='verified').count(),
             'rejected':       base_qs.filter(verification_status='rejected').count(),

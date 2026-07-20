@@ -1,5 +1,4 @@
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
@@ -8,6 +7,9 @@ import structlog
 
 from apps.accounts.models import User, KYCDocument
 from apps.audit.models import AuditLog
+from common.admin_scope import resolve_admin_country, scope_filter
+from common.pagination import paginate_admin_queryset
+from common.permissions import IsPlatformAdmin
 
 logger = structlog.get_logger(__name__)
 
@@ -19,27 +21,23 @@ class AdminKYCListView(APIView):
     Platform Admins see only users in their country.
     Super Admins see all.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        user = request.user
-        if user.role not in ('super_admin', 'platform_admin'):
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-
         queryset = KYCDocument.objects.select_related('user').all()
 
-        if user.role == 'platform_admin':
-            if not user.country:
-                return Response({'error': 'Admin country not set'}, status=status.HTTP_400_BAD_REQUEST)
-            queryset = queryset.filter(user__country=user.country)
+        country = resolve_admin_country(request)
+        queryset = queryset.filter(**scope_filter(country, field='user__country'))
 
         # Filter by status if provided
         status_filter = request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
+        # Serialized every row unbounded before this; reviewers page now.
+        page_items, meta = paginate_admin_queryset(request, queryset.order_by('-created_at'))
         data = []
-        for doc in queryset:
+        for doc in page_items:
             data.append({
                 'id': doc.id,
                 'user': {
@@ -55,7 +53,10 @@ class AdminKYCListView(APIView):
                 'selfie_image': doc.selfie_image.url if doc.selfie_image else None,
             })
 
-        return Response(data)
+        # Envelope, matching every other admin list. Previously a bare array;
+        # no frontend consumes this endpoint today (both portals use
+        # /kyc/queue/), so the shape change strands nobody.
+        return Response({**meta, 'results': data})
 
 class AdminKYCVerifyView(APIView):
     """
@@ -63,13 +64,10 @@ class AdminKYCVerifyView(APIView):
     
     Approve or Reject a KYC submission.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPlatformAdmin]
 
     def post(self, request, pk):
         admin = request.user
-        if admin.role not in ('super_admin', 'platform_admin'):
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-
         doc = get_object_or_404(KYCDocument, pk=pk)
 
         # Permission check: Platform admin must be in same country

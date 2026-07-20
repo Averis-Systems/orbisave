@@ -10,6 +10,7 @@ from apps.contributions.models import Contribution
 from apps.audit.models import AuditLog
 from apps.accounts.models import User
 from .views import IsPlatformAdmin, IsSuperAdmin
+from common.admin_scope import resolve_admin_country, scope_filter
 from common.pagination import RECENT_LIMIT, paginate_admin_queryset
 import structlog
 
@@ -17,10 +18,16 @@ logger = structlog.get_logger(__name__)
 
 
 def _country_scope(request):
-    """Return queryset filter dict scoped to admin's country."""
-    if request.user.role == 'super_admin':
-        return {}
-    return {'country': request.user.country}
+    """
+    Queryset filter kwargs for this admin's authorised country.
+
+    Thin adapter over the central resolver so the thirteen call sites in this
+    file keep their `**scope` shape. The semantics changed with the move: a
+    platform_admin with no country is now refused (it used to filter to
+    {'country': None} and silently match NULL rows), and ?country= is honoured
+    for super admins while being authorisation-checked for everyone else.
+    """
+    return scope_filter(resolve_admin_country(request))
 
 
 # ── Group Detail ─────────────────────────────────────────────────────────────
