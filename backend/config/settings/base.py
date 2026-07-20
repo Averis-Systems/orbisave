@@ -29,6 +29,9 @@ THIRD_PARTY_APPS = [
     'django_celery_beat',
     'django_celery_results',
     'channels',
+    # Used by the login brute-force decorator in apps/accounts/views.py. It was
+    # imported and relied on without ever being installed.
+    'django_ratelimit',
 ]
 
 LOCAL_APPS = [
@@ -51,6 +54,10 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ─── Middleware ───────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Ahead of everything that rate limits: both DRF's throttles and
+    # django_ratelimit read REMOTE_ADDR, and every browser-facing app now
+    # reaches Django through a Next proxy, so it needs correcting once here.
+    'common.client_ip.ClientIPMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -62,6 +69,17 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+# Addresses whose X-Forwarded-For header may be believed, as a comma separated
+# list of IPs or CIDR blocks. This must name the Next.js proxies (and any load
+# balancer in front of them) and nothing else: every entry is permission to
+# claim an arbitrary client IP, which is permission to evade every IP-keyed
+# rate limit. Empty means trust nothing and use the peer address as-is.
+TRUSTED_PROXY_IPS = [
+    entry.strip()
+    for entry in os.environ.get('TRUSTED_PROXY_IPS', '').split(',')
+    if entry.strip()
+]
 
 TEMPLATES = [
     {
@@ -129,6 +147,31 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'common.pagination.StandardPagination',
     'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'common.exceptions.orbisave_exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'common.throttling.AuthRateThrottle',
+        'common.throttling.AdminListThrottle',
+        'common.throttling.PublicRateThrottle',
+        'common.throttling.BurstRateThrottle',
+        'common.throttling.SustainedRateThrottle',
+    ],
+    # Rates are per identity: user id when authenticated, client IP otherwise.
+    # Overridable per environment because a load test or a demo needs headroom
+    # that production should not grant by default.
+    'DEFAULT_THROTTLE_RATES': {
+        # Comfortably above a dashboard page firing every widget's query at
+        # once, low enough that a scripted loop trips within seconds.
+        'burst': os.environ.get('THROTTLE_BURST', '90/min'),
+        # A full working day of real human use is nowhere near this.
+        'sustained': os.environ.get('THROTTLE_SUSTAINED', '2000/hour'),
+        # Unauthenticated: landing pages, invite previews.
+        'public': os.environ.get('THROTTLE_PUBLIC', '30/min'),
+        # Admin reads of other people's records. Human-paced by design.
+        'admin_list': os.environ.get('THROTTLE_ADMIN_LIST', '40/min'),
+        # One export returns what hundreds of list calls would.
+        'admin_export': os.environ.get('THROTTLE_ADMIN_EXPORT', '20/hour'),
+        # Credentials and six digit codes.
+        'auth': os.environ.get('THROTTLE_AUTH', '10/min'),
+    },
 }
 
 # ─── Simple JWT (RS256) ──────────────────────────────────────────────────────

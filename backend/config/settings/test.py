@@ -36,6 +36,19 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # Disable rate limiting in tests
 RATELIMIT_ENABLE = False
 
+# DRF throttles off by default: a test that makes twenty calls in a loop is not
+# abuse, and leaving them on would make unrelated suites fail intermittently
+# depending on execution order. Tests that exercise throttling re-enable the
+# rates they need with override_settings, so the behaviour is still covered.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_RATES': {key: None for key in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']},
+}
+
+# The test client connects from 127.0.0.1, so trusting it here lets the
+# X-Forwarded-For handling be exercised directly.
+TRUSTED_PROXY_IPS = ['127.0.0.1']
+
 # Faster password hasher for tests
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 
