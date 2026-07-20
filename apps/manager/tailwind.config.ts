@@ -24,6 +24,20 @@ const config = {
         // slate-### class on the functional pages (login, KYC, groups, audit).
         // Console had the identical bug; both are now fixed.
       },
+      // Corner radius never exceeds 5px, matching the member app's flat
+      // banking look. Without this block every rounded-2xl/3xl here rendered
+      // at Tailwind's stock 16px/24px while the same class rendered at 5px in
+      // the member app, so the three apps looked like different products.
+      // rounded-full is intentionally untouched.
+      borderRadius: {
+        DEFAULT: "4px",
+        sm: "2px",
+        md: "5px",
+        lg: "5px",
+        xl: "5px",
+        "2xl": "5px",
+        "3xl": "5px",
+      },
       boxShadow: {
         "theme-xs": "0px 1px 2px 0px rgba(16, 24, 40, 0.05)",
         "theme-sm": "0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06)",

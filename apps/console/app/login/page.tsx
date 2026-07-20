@@ -72,7 +72,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@averissystems.com"
+                    placeholder="name@company.com"
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-lg py-4 pl-12 pr-4 text-navy placeholder:text-slate-300 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                     required
                   />
@@ -143,12 +143,15 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-8 pt-8 border-t border-slate-100 text-center">
-              <button
-                onClick={() => router.push('/register')}
-                className="text-primary hover:text-primary/80 text-sm font-bold transition-all border-b border-primary/20 pb-0.5"
-              >
-                New Averis team member? Request console access
-              </button>
+              <p className="text-sm font-medium text-slate-500">
+                New Averis team member?{' '}
+                <button
+                  onClick={() => router.push('/register')}
+                  className="text-primary hover:text-primary/80 font-bold transition-all"
+                >
+                  Request console access
+                </button>
+              </p>
             </div>
 
             <div className="flex justify-between mt-10 px-1">

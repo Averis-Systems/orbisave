@@ -1,16 +1,30 @@
 export const consoleCopy = {
+  // Group headings in the sidebar. Kept short so they read as quiet section
+  // labels, not competing nav items.
+  sections: {
+    operations: "Operations",
+    oversight: "Oversight",
+    platform: "Platform",
+  },
   nav: {
     overview: "Overview",
     countries: "Countries",
-    platformAdmins: "Platform Admins",
     groups: "Groups",
-    membersKyc: "Members & KYC",
+    // One entry covering both populations. Staff and members are tabs on the
+    // Users page, not separate nav items listing overlapping people.
+    users: "Users",
     loans: "Loans",
-    providers: "Providers",
     savings: "Savings",
     trustAccounts: "Trust Accounts",
     analytics: "Analytics",
     auditLogs: "Audit Logs",
+    // Providers & Config is an expandable parent. Its children are the three
+    // configuration surfaces that actually exist as routes today; nothing here
+    // points at a page that has not been built.
+    providersConfig: "Providers & Config",
+    paymentProviders: "Payment Providers",
+    apiIntegrations: "API & Integrations",
+    platformSettings: "Platform Settings",
     settings: "Settings",
   },
   shell: {
