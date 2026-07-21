@@ -1,25 +1,25 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
-import { Search, ShieldCheck, UserCheck, Users } from 'lucide-react'
+import { ShieldCheck, Users } from 'lucide-react'
 import {
   PageHeader,
-  SectionCard,
-  DataTable,
-  EmptyState,
+  ServerDataTable,
   StatusBadge,
   Tabs,
-  type Column,
+  useServerTable,
+  countryLabel,
+  formatDateTime,
+  type ServerColumn,
+  type TableFetcher,
+  type TablePage,
 } from '@/components/ui'
-import { countryLabel, formatCount, formatDateTime } from '@/lib/format'
 
 /**
  * Users.
  *
- * Two populations that were previously conflated under "Members & KYC" and
- * served by a placeholder:
+ * Two populations that were previously conflated under "Members & KYC":
  *
  *   Staff   - platform admins, one per country, who run Manager. These are
  *             Averis employees. Source: /admin-portal/platform-admins/.
@@ -30,9 +30,10 @@ import { countryLabel, formatCount, formatDateTime } from '@/lib/format'
  * access and is it still live". For members you ask "where are they in KYC".
  * Neither endpoint returns super admins, by deliberate backend policy.
  *
- * Filtering is server-side on both tabs: /admin-portal/users/ accepts role,
- * kyc_status and search, and /admin-portal/platform-admins/ accepts country.
- * Nothing here filters an already-fetched array in the browser.
+ * Both tabs run on the shared ServerDataTable, so search, filters, sorting and
+ * paging are all server-side and all mirrored into the URL. The previous
+ * version fetched up to 200 rows and printed a warning that older records were
+ * unreachable; that caveat is gone because the table can now reach them.
  */
 
 type Tab = 'staff' | 'members'
@@ -61,119 +62,117 @@ interface MemberRow {
   created_at: string
 }
 
-const COUNTRIES = ['kenya', 'rwanda', 'ghana']
-const MEMBER_ROLES = ['member', 'chairperson', 'treasurer']
-const KYC_STATUSES = ['pending', 'submitted', 'verified', 'rejected']
+const COUNTRY_OPTIONS = [
+  { value: 'kenya', label: 'Kenya' },
+  { value: 'rwanda', label: 'Rwanda' },
+  { value: 'ghana', label: 'Ghana' },
+]
 
-const SELECT_CLASS =
-  'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-navy outline-none focus:border-primary focus:ring-4 focus:ring-primary/10'
+const ROLE_OPTIONS = [
+  { value: 'member', label: 'Member' },
+  { value: 'chairperson', label: 'Chairperson' },
+  { value: 'treasurer', label: 'Treasurer' },
+]
 
-/**
- * useSearchParams opts the route into client-side rendering and `next build`
- * fails the page outright unless it sits under a Suspense boundary. Dev does
- * not surface this, so the wrapper is deliberate rather than incidental.
- */
-export default function ConsoleUsersPage() {
+const KYC_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'verified', label: 'Verified' },
+  { value: 'rejected', label: 'Rejected' },
+]
+
+function NameCell({ name, email }: { name: string; email: string }) {
   return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />}>
-      <UsersView />
-    </Suspense>
+    <div>
+      <p className="font-medium text-navy">{name || 'Unnamed'}</p>
+      <p className="text-xs text-slate-400">{email}</p>
+    </div>
   )
 }
 
-function UsersView() {
-  const router = useRouter()
-  const params = useSearchParams()
-
-  // The tab and every filter live in the URL so a view can be linked to, and
-  // so the overview's "KYC awaiting review" card can deep-link straight into
-  // the filtered members list.
-  const tab = (params.get('tab') as Tab) || 'staff'
-  const country = params.get('country') || ''
-  const role = params.get('role') || ''
-  const kycStatus = params.get('kyc_status') || ''
-  const search = params.get('search') || ''
-
-  const [searchInput, setSearchInput] = useState(search)
-  const [staff, setStaff] = useState<StaffRow[]>([])
-  const [members, setMembers] = useState<MemberRow[]>([])
-  const [counts, setCounts] = useState<{ staff: number | null; members: number | null }>({
-    staff: null,
-    members: null,
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const setParam = useCallback(
-    (updates: Record<string, string>) => {
-      const next = new URLSearchParams(params.toString())
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value) next.set(key, value)
-        else next.delete(key)
-      })
-      router.replace(`/dashboard/users?${next.toString()}`)
-    },
-    [params, router],
-  )
+export default function ConsoleUsersPage() {
+  // The tab lives in the URL so the overview's "KYC awaiting review" card can
+  // deep-link straight into the members list. It is resolved AFTER mount
+  // rather than in the initial state: the server has no URL to read, so a
+  // lazy initialiser would render 'staff' on the server and 'members' on the
+  // client for a deep-link, which is a hydration mismatch. Defaulting to
+  // 'staff' on both and correcting in an effect keeps first render identical.
+  const [tab, setTab] = useState<Tab>('staff')
+  const [resolved, setResolved] = useState(false)
 
   useEffect(() => {
-    setSearchInput(search)
-  }, [search])
+    const urlTab = new URLSearchParams(window.location.search).get('tab')
+    if (urlTab === 'members') setTab('members')
+    setResolved(true)
+  }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-
-    const request =
-      tab === 'staff'
-        ? api.get('/admin-portal/platform-admins/', { params: { country: country || undefined } })
-        : api.get('/admin-portal/users/', {
-            params: {
-              role: role || undefined,
-              kyc_status: kycStatus || undefined,
-              search: search || undefined,
-            },
-          })
-
-    request
-      .then(({ data }) => {
-        if (cancelled) return
-        const results = data?.results || []
-        if (tab === 'staff') {
-          setStaff(results)
-          setCounts((c) => ({ ...c, staff: data?.count ?? results.length }))
-        } else {
-          setMembers(results)
-          setCounts((c) => ({ ...c, members: data?.count ?? results.length }))
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError('Could not load this list. Refresh to try again.')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
+  const selectTab = (next: Tab) => {
+    setTab(next)
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    // Switching tab abandons the other tab's filters, which do not apply.
+    for (const key of ['tab', 'page', 'page_size', 'search', 'sort', 'role', 'kyc_status', 'country']) {
+      params.delete(key)
     }
-  }, [tab, country, role, kycStatus, search])
+    if (next === 'members') params.set('tab', 'members')
+    const qs = params.toString()
+    window.history.replaceState(window.history.state, '', qs ? `?${qs}` : window.location.pathname)
+  }
 
-  const staffColumns: Column<StaffRow>[] = useMemo(
+  return (
+    <div className="mx-auto max-w-[1400px] space-y-6 pb-16">
+      <PageHeader
+        title="Users"
+        description="Averis staff who operate the platform, and the members who use it. Listed separately because they are governed differently."
+      />
+
+      <Tabs
+        items={[
+          { id: 'staff', label: 'Staff' },
+          { id: 'members', label: 'Members' },
+        ]}
+        active={tab}
+        onChange={(id) => selectTab(id as Tab)}
+      />
+
+      {/* Rendered only once the tab is resolved from the URL, so a deep-link
+          to members does not first mount the staff table and fire its fetch.
+          Keyed so switching tabs mounts a fresh table: the two tabs have
+          different filters and a different endpoint, and carrying one tab's
+          query into the other would send a role filter to the staff list. */}
+      {!resolved ? (
+        <div className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-slate-50 motion-reduce:animate-none" />
+      ) : tab === 'staff' ? (
+        <StaffTable key="staff" />
+      ) : (
+        <MembersTable key="members" />
+      )}
+    </div>
+  )
+}
+
+function StaffTable() {
+  const fetcher = useCallback<TableFetcher<StaffRow>>(async (params, signal) => {
+    const { data } = await api.get('/admin-portal/platform-admins/', { params, signal })
+    return data as TablePage<StaffRow>
+  }, [])
+
+  const table = useServerTable<StaffRow>(fetcher, { filterKeys: ['country'] })
+
+  const columns: ServerColumn<StaffRow>[] = useMemo(
     () => [
       {
         key: 'name',
         header: 'Name',
-        render: (r) => (
-          <div>
-            <p className="font-medium text-navy">{r.full_name || 'Unnamed'}</p>
-            <p className="text-xs text-slate-400">{r.email}</p>
-          </div>
-        ),
+        sortField: 'full_name',
+        render: (r) => <NameCell name={r.full_name} email={r.email} />,
       },
-      { key: 'country', header: 'Country', render: (r) => countryLabel(r.country) },
-      { key: 'phone', header: 'Phone', render: (r) => <span className="tabular-nums">{r.phone || '-'}</span> },
+      { key: 'country', header: 'Country', sortField: 'country', render: (r) => countryLabel(r.country) },
+      {
+        key: 'phone',
+        header: 'Phone',
+        render: (r) => <span className="tabular-nums">{r.phone || 'Not provided'}</span>,
+      },
       {
         key: 'status',
         header: 'Access',
@@ -193,27 +192,56 @@ function UsersView() {
         key: 'created',
         header: 'Added',
         align: 'right',
+        sortField: 'created_at',
         render: (r) => <span className="tabular-nums text-slate-500">{formatDateTime(r.created_at)}</span>,
       },
     ],
     [],
   )
 
-  const memberColumns: Column<MemberRow>[] = useMemo(
+  return (
+    <ServerDataTable
+      table={table}
+      columns={columns}
+      rowKey={(r) => r.id}
+      minWidth={920}
+      searchPlaceholder="Search staff"
+      filters={[{ key: 'country', label: 'Country', options: COUNTRY_OPTIONS }]}
+      emptyIcon={ShieldCheck}
+      emptyTitle="No platform admins yet"
+      emptyDescription="Nobody has been given Manager access yet. Invite a platform admin to start country operations."
+    />
+  )
+}
+
+function MembersTable() {
+  const fetcher = useCallback<TableFetcher<MemberRow>>(async (params, signal) => {
+    const { data } = await api.get('/admin-portal/users/', { params, signal })
+    return data as TablePage<MemberRow>
+  }, [])
+
+  const table = useServerTable<MemberRow>(fetcher, { filterKeys: ['role', 'kyc_status'] })
+
+  const columns: ServerColumn<MemberRow>[] = useMemo(
     () => [
       {
         key: 'name',
         header: 'Name',
-        render: (r) => (
-          <div>
-            <p className="font-medium text-navy">{r.full_name || 'Unnamed'}</p>
-            <p className="text-xs text-slate-400">{r.email}</p>
-          </div>
-        ),
+        sortField: 'full_name',
+        render: (r) => <NameCell name={r.full_name} email={r.email} />,
       },
-      { key: 'role', header: 'Role', render: (r) => <span className="capitalize">{r.role?.replace(/_/g, ' ')}</span> },
-      { key: 'country', header: 'Country', render: (r) => countryLabel(r.country) },
-      { key: 'kyc', header: 'KYC', render: (r) => <StatusBadge status={r.kyc_status || 'pending'} /> },
+      {
+        key: 'role',
+        header: 'Role',
+        render: (r) => <span className="capitalize">{r.role?.replace(/_/g, ' ')}</span>,
+      },
+      { key: 'country', header: 'Country', sortField: 'country', render: (r) => countryLabel(r.country) },
+      {
+        key: 'kyc',
+        header: 'KYC',
+        sortField: 'kyc_status',
+        render: (r) => <StatusBadge status={r.kyc_status || 'pending'} />,
+      },
       {
         key: 'email_verified',
         header: 'Email',
@@ -223,161 +251,27 @@ function UsersView() {
         key: 'created',
         header: 'Joined',
         align: 'right',
+        sortField: 'created_at',
         render: (r) => <span className="tabular-nums text-slate-500">{formatDateTime(r.created_at)}</span>,
       },
     ],
     [],
   )
 
-  const isStaff = tab === 'staff'
-
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 pb-16">
-      <PageHeader
-        title="Users"
-        description="Averis staff who operate the platform, and the members who use it. Listed separately because they are governed differently."
-      />
-
-      <Tabs
-        items={[
-          { id: 'staff', label: 'Staff', count: counts.staff },
-          { id: 'members', label: 'Members', count: counts.members },
-        ]}
-        active={tab}
-        onChange={(id) => setParam({ tab: id, role: '', kyc_status: '', search: '', country: '' })}
-      />
-
-      {error && (
-        <div className="rounded-2xl border border-[#fecdca] bg-[#fef3f2] px-5 py-4 text-sm text-[#d92d20]">{error}</div>
-      )}
-
-      {isStaff ? (
-        <SectionCard
-          title="Platform admins"
-          description="Each country is run by platform admins working in Manager. Super admins are not listed here."
-          bodyClassName=""
-          actions={
-            <select
-              aria-label="Filter staff by country"
-              value={country}
-              onChange={(e) => setParam({ country: e.target.value })}
-              className={SELECT_CLASS}
-            >
-              <option value="">All countries</option>
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>
-                  {countryLabel(c)}
-                </option>
-              ))}
-            </select>
-          }
-        >
-          {!loading && staff.length === 0 ? (
-            <div className="p-5 sm:p-6">
-              <EmptyState
-                icon={ShieldCheck}
-                title="No platform admins yet"
-                description={
-                  country
-                    ? `No platform admin is assigned to ${countryLabel(country)}. Invite one from the Platform Admins page.`
-                    : 'Nobody has been given Manager access yet. Invite a platform admin to start country operations.'
-                }
-              />
-            </div>
-          ) : (
-            <DataTable
-              columns={staffColumns}
-              rows={staff}
-              rowKey={(r) => r.id}
-              minWidth={880}
-              empty={loading ? 'Loading staff…' : 'No staff match this filter.'}
-            />
-          )}
-        </SectionCard>
-      ) : (
-        <SectionCard
-          title="Members"
-          description="People using the member app. Filter by role or KYC state to work a queue."
-          bodyClassName=""
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  setParam({ search: searchInput.trim() })
-                }}
-                className="relative"
-              >
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Search name or email"
-                  aria-label="Search members"
-                  className="h-10 w-56 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-navy outline-none placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10"
-                />
-              </form>
-              <select
-                aria-label="Filter members by role"
-                value={role}
-                onChange={(e) => setParam({ role: e.target.value })}
-                className={SELECT_CLASS}
-              >
-                <option value="">All roles</option>
-                {MEMBER_ROLES.map((r) => (
-                  <option key={r} value={r} className="capitalize">
-                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Filter members by KYC status"
-                value={kycStatus}
-                onChange={(e) => setParam({ kyc_status: e.target.value })}
-                className={SELECT_CLASS}
-              >
-                <option value="">All KYC states</option>
-                {KYC_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          }
-        >
-          {!loading && members.length === 0 ? (
-            <div className="p-5 sm:p-6">
-              <EmptyState
-                icon={Users}
-                title="No members match"
-                description={
-                  role || kycStatus || search
-                    ? 'Clear the filters to see the full list.'
-                    : 'Nobody has signed up yet. Members appear here as soon as they register.'
-                }
-              />
-            </div>
-          ) : (
-            <DataTable
-              columns={memberColumns}
-              rows={members}
-              rowKey={(r) => r.id}
-              minWidth={880}
-              empty={loading ? 'Loading members…' : 'No members match this filter.'}
-            />
-          )}
-        </SectionCard>
-      )}
-
-      {/* The members endpoint currently returns at most 200 rows with no
-          pagination. Saying so beats a table that silently stops. Removed once
-          the shared server-driven table lands. */}
-      {!isStaff && counts.members != null && counts.members > 200 && (
-        <p className="text-xs text-slate-500">
-          Showing the 200 most recent of {formatCount(counts.members)} members. Narrow the filters to reach older records.
-        </p>
-      )}
-    </div>
+    <ServerDataTable
+      table={table}
+      columns={columns}
+      rowKey={(r) => r.id}
+      minWidth={920}
+      searchPlaceholder="Search name or email"
+      filters={[
+        { key: 'role', label: 'Role', options: ROLE_OPTIONS },
+        { key: 'kyc_status', label: 'KYC', options: KYC_OPTIONS },
+      ]}
+      emptyIcon={Users}
+      emptyTitle="No members yet"
+      emptyDescription="Nobody has signed up yet. Members appear here as soon as they register."
+    />
   )
 }

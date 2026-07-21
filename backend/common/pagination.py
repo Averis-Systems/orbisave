@@ -11,6 +11,24 @@ from rest_framework.response import Response
 RECENT_LIMIT = 50
 
 
+def apply_admin_ordering(request, qs, allowed, default='-created_at'):
+    """
+    Apply ?ordering= to an admin queryset, whitelisted.
+
+    `allowed` names the plain field names that may be sorted on; the param may
+    prefix any of them with '-'. Anything else falls back to the default
+    rather than erroring, so a stale bookmark cannot break a list, and rather
+    than passing user input to order_by, which would open ordering by related
+    fields nobody audited (user__password does not leak values, but ordering
+    by it is still probing).
+    """
+    requested = (request.query_params.get('ordering') or '').strip()
+    field = requested[1:] if requested.startswith('-') else requested
+    if field and field in allowed:
+        return qs.order_by(requested)
+    return qs.order_by(default)
+
+
 def paginate_admin_queryset(request, qs, default_page_size=50, max_page_size=100):
     """
     Page + slice for the hand-rolled admin list views.

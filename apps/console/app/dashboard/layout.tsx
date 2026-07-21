@@ -116,18 +116,19 @@ function DashboardHeader({
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user, logout } = useAuthStore()
+  const { isAuthenticated, user, logout, hasHydrated } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login')
-    } else if (user?.role !== 'super_admin') {
+    // Wait for the persisted store to load before judging the session, or a
+    // full page load bounces an authenticated admin to /login on first render.
+    if (!hasHydrated) return
+    if (!isAuthenticated || user?.role !== 'super_admin') {
       router.push('/login')
     }
-  }, [isAuthenticated, user, router])
+  }, [hasHydrated, isAuthenticated, user, router])
 
   // Close the mobile drawer whenever the route changes, so a link tap never
   // leaves it hanging open over the new page.

@@ -6,6 +6,9 @@ const config = {
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
+    // The shared admin kit ships classes of its own; without this glob
+    // Tailwind purges them and the package renders unstyled.
+    '../../packages/admin-ui/src/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {

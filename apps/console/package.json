@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@orbisave/admin-ui": "file:../../packages/admin-ui",
     "@typescript-eslint/parser": "^8.62.1",
     "axios": "^1.7.2",
     "jose": "^6.2.3",

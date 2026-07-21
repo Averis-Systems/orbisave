@@ -24,6 +24,15 @@ interface User {
 interface AuthState {
   user: User | null
   isAuthenticated: boolean
+  /**
+   * False until zustand has rehydrated this store from localStorage. The
+   * dashboard guard must wait for it: on a full page load the persisted state
+   * is not available on the first render, so a guard that redirects on
+   * `!isAuthenticated` immediately bounces an authenticated admin to /login
+   * before their session is even read. The httpOnly cookie and middleware are
+   * the real gate; this flag stops the client guard from firing too early.
+   */
+  hasHydrated: boolean
   setAuth: (user: User) => void
   /** Forget the cached profile without calling the server (401 handling). */
   clear: () => void
@@ -36,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
+      hasHydrated: false,
       setAuth: (user) => set({ user, isAuthenticated: true }),
       clear: () => set({ user: null, isAuthenticated: false }),
       logout: async () => {
@@ -54,6 +64,8 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'orbisave-console-auth',
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      onRehydrateStorage: () => () => useAuthStore.setState({ hasHydrated: true }),
     }
   )
 )

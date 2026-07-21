@@ -159,16 +159,17 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, user, logout } = useAuthStore()
+  const { isAuthenticated, user, logout, hasHydrated } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login')
-    } else if (user?.role !== 'platform_admin') {
+    // Wait for the persisted store to load before judging the session, or a
+    // full page load bounces an authenticated admin to /login on first render.
+    if (!hasHydrated) return
+    if (!isAuthenticated || user?.role !== 'platform_admin') {
       router.push('/login')
     }
-  }, [isAuthenticated, user, router])
+  }, [hasHydrated, isAuthenticated, user, router])
 
   return (
     <div className="dashboard-shell flex h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white">

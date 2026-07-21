@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
@@ -6,7 +7,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User, KYCDocument
 from apps.accounts.serializers import KYCDocumentSerializer, UserSerializer
 from common.admin_scope import resolve_admin_country, scope_filter
-from common.pagination import paginate_admin_queryset
+from common.pagination import apply_admin_ordering, paginate_admin_queryset
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -79,9 +80,17 @@ class AdminKYCQueueView(APIView):
         country = resolve_admin_country(request)
         qs = qs.filter(**scope_filter(country, field='user__country'))
 
+        # Reviewers search by the person, not the document.
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(
+                Q(user__full_name__icontains=search) | Q(user__email__icontains=search)
+            )
+
         # This queue used to serialize every matching row with no bound at
         # all, the only admin list that was fully unbounded rather than capped.
-        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        qs = apply_admin_ordering(request, qs, allowed={'created_at', 'status'})
+        page_items, meta = paginate_admin_queryset(request, qs)
         serializer = KYCDocumentSerializer(page_items, many=True, context={'request': request})
         return Response({**meta, 'results': serializer.data})
 
@@ -180,6 +189,9 @@ class AdminUserListView(APIView):
         # Exclude super admins from the list for security
         qs = qs.exclude(role='super_admin')
 
-        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        qs = apply_admin_ordering(
+            request, qs, allowed={'created_at', 'full_name', 'kyc_status', 'country'},
+        )
+        page_items, meta = paginate_admin_queryset(request, qs)
         serializer = UserSerializer(page_items, many=True)
         return Response({**meta, 'results': serializer.data})

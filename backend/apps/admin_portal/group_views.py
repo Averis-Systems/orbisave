@@ -4,6 +4,7 @@ Admin Portal — Group Management Views
 Country-scoped group listing, verification, and stats for the Manager portal.
 Super admin can see and manage all countries.
 """
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
@@ -13,7 +14,7 @@ from apps.groups.models import Group, GroupMember
 from apps.groups.serializers import GroupSerializer
 from apps.audit.services import log_audit
 from common.admin_scope import resolve_admin_country, scope_filter
-from common.pagination import paginate_admin_queryset
+from common.pagination import apply_admin_ordering, paginate_admin_queryset
 import structlog
 
 from .views import IsPlatformAdmin, IsSuperAdmin
@@ -72,7 +73,10 @@ class AdminGroupListView(APIView):
         if search:
             qs = qs.filter(name__icontains=search)
 
-        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        qs = apply_admin_ordering(
+            request, qs, allowed={'created_at', 'name', 'country', 'status', 'verification_status'},
+        )
+        page_items, meta = paginate_admin_queryset(request, qs)
 
         # Inline minimal serialization (avoid importing full group serializer cross-DB)
         results = []
@@ -264,16 +268,30 @@ class AdminPlatformAdminListView(APIView):
     def get(self, request):
         from apps.accounts.models import User
 
-        qs = User.objects.filter(role='platform_admin').order_by('country', '-created_at')
+        qs = User.objects.filter(role='platform_admin')
+
         country = request.query_params.get('country')
         if country:
             qs = qs.filter(country=country)
 
-        results = list(qs.values(
+        # Search and paging exist because Console's staff table offers both.
+        # A search box wired to an endpoint that ignores the term is exactly
+        # the decorative control the standing rule forbids.
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(Q(full_name__icontains=search) | Q(email__icontains=search))
+
+        qs = apply_admin_ordering(
+            request, qs, allowed={'created_at', 'full_name', 'country', 'last_login'},
+            default='country',
+        )
+        page_items, meta = paginate_admin_queryset(request, qs)
+
+        results = list(page_items.values(
             'id', 'email', 'full_name', 'phone', 'country',
             'is_active', 'email_verified', 'last_login', 'created_at',
         ))
         for row in results:
             row['id'] = str(row['id'])
 
-        return Response({'count': len(results), 'results': results})
+        return Response({**meta, 'results': results})
