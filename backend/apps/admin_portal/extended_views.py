@@ -611,7 +611,18 @@ class AdminUserDetailView(APIView):
         if 'country' in scope and u.country != scope['country']:
             return Response({'error': 'Forbidden.'}, status=403)
 
-        memberships = GroupMember.objects.filter(member=u).select_related('group')
+        # Membership lives on the member's country shard, not 'default'. Read
+        # it explicitly, or a super_admin (routed to 'default') sees no groups
+        # for anyone. A member with no country has no shard and no membership.
+        if u.country:
+            from common.db_utils import get_db_for_country
+            memberships = list(
+                GroupMember.objects.using(get_db_for_country(u.country))
+                .filter(member=u)
+                .select_related('group')
+            )
+        else:
+            memberships = []
         # Deliberately bounded recent-activity view, not a truncation bug: the
         # full history belongs to the paginated audit list endpoint.
         audit_logs = AuditLog.objects.filter(

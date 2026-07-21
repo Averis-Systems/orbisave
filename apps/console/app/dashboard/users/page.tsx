@@ -2,19 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
-import { ShieldCheck, Users } from 'lucide-react'
+import { Ban, CheckCircle2, Copy, ShieldCheck, UserRound, Users } from 'lucide-react'
 import {
   PageHeader,
+  RowMenu,
   ServerDataTable,
   StatusBadge,
   Tabs,
   useServerTable,
   countryLabel,
   formatDateTime,
+  type RowAction,
   type ServerColumn,
   type TableFetcher,
+  type TableFilter,
   type TablePage,
 } from '@/components/ui'
+import { UserDetailDrawer } from '@/components/UserDetailDrawer'
 
 /**
  * Users.
@@ -60,6 +64,9 @@ interface MemberRow {
   kyc_status: string
   email_verified: boolean
   created_at: string
+  group_id: string | null
+  group_name: string | null
+  group_role: string | null
 }
 
 const COUNTRY_OPTIONS = [
@@ -67,6 +74,10 @@ const COUNTRY_OPTIONS = [
   { value: 'rwanda', label: 'Rwanda' },
   { value: 'ghana', label: 'Ghana' },
 ]
+
+// Sentinel for the "not in any group" filter option; matches the backend's
+// ?group=__none__ handling.
+const NO_GROUP = '__none__'
 
 const ROLE_OPTIONS = [
   { value: 'member', label: 'Member' },
@@ -214,13 +225,78 @@ function StaffTable() {
   )
 }
 
+interface GroupOption {
+  id: string
+  name: string
+  country: string
+}
+
 function MembersTable() {
   const fetcher = useCallback<TableFetcher<MemberRow>>(async (params, signal) => {
     const { data } = await api.get('/admin-portal/users/', { params, signal })
     return data as TablePage<MemberRow>
   }, [])
 
-  const table = useServerTable<MemberRow>(fetcher, { filterKeys: ['role', 'kyc_status'] })
+  const table = useServerTable<MemberRow>(fetcher, {
+    filterKeys: ['role', 'kyc_status', 'country', 'group'],
+  })
+
+  // The member management drawer, opened from a row's action menu. Held here
+  // so a suspend/reactivate inside it can refresh the table underneath.
+  const [managing, setManaging] = useState<MemberRow | null>(null)
+
+  // Group filter options come from the live groups list, so the dropdown only
+  // ever offers groups that exist. Fetched once; the set changes slowly.
+  const [groupOptions, setGroupOptions] = useState<GroupOption[]>([])
+  useEffect(() => {
+    const controller = new AbortController()
+    api
+      .get('/admin-portal/groups/', { params: { page_size: 100 }, signal: controller.signal })
+      .then(({ data }) => setGroupOptions(data.results || []))
+      .catch(() => {
+        // A failed group fetch just leaves the group filter with its base
+        // options; the rest of the table is unaffected.
+      })
+    return () => controller.abort()
+  }, [])
+
+  const filters: TableFilter[] = useMemo(
+    () => [
+      { key: 'country', label: 'Country', options: COUNTRY_OPTIONS },
+      { key: 'role', label: 'Role', options: ROLE_OPTIONS },
+      { key: 'kyc_status', label: 'KYC', options: KYC_OPTIONS },
+      {
+        key: 'group',
+        label: 'Group',
+        options: [
+          { value: NO_GROUP, label: 'Not in a group' },
+          ...groupOptions.map((g) => ({
+            value: g.id,
+            label: `${g.name} · ${countryLabel(g.country)}`,
+          })),
+        ],
+      },
+    ],
+    [groupOptions],
+  )
+
+  const rowActions = useCallback(
+    (member: MemberRow): RowAction[] => [
+      {
+        label: 'View & manage',
+        icon: UserRound,
+        onSelect: () => setManaging(member),
+      },
+      {
+        label: 'Copy email',
+        icon: Copy,
+        onSelect: () => {
+          navigator.clipboard?.writeText(member.email).catch(() => {})
+        },
+      },
+    ],
+    [],
+  )
 
   const columns: ServerColumn<MemberRow>[] = useMemo(
     () => [
@@ -229,6 +305,21 @@ function MembersTable() {
         header: 'Name',
         sortField: 'full_name',
         render: (r) => <NameCell name={r.full_name} email={r.email} />,
+      },
+      {
+        key: 'group',
+        header: 'Group',
+        render: (r) =>
+          r.group_name ? (
+            <div>
+              <p className="text-slate-700">{r.group_name}</p>
+              {r.group_role && r.group_role !== 'member' && (
+                <p className="text-xs capitalize text-slate-400">{r.group_role.replace(/_/g, ' ')}</p>
+              )}
+            </div>
+          ) : (
+            <span className="text-slate-300">No group</span>
+          ),
       },
       {
         key: 'role',
@@ -250,28 +341,41 @@ function MembersTable() {
       {
         key: 'created',
         header: 'Joined',
-        align: 'right',
         sortField: 'created_at',
         render: (r) => <span className="tabular-nums text-slate-500">{formatDateTime(r.created_at)}</span>,
       },
+      {
+        key: 'actions',
+        header: '',
+        align: 'right',
+        render: (r) => <RowMenu label={`Actions for ${r.full_name}`} actions={rowActions(r)} />,
+      },
     ],
-    [],
+    [rowActions],
   )
 
   return (
-    <ServerDataTable
-      table={table}
-      columns={columns}
-      rowKey={(r) => r.id}
-      minWidth={920}
-      searchPlaceholder="Search name or email"
-      filters={[
-        { key: 'role', label: 'Role', options: ROLE_OPTIONS },
-        { key: 'kyc_status', label: 'KYC', options: KYC_OPTIONS },
-      ]}
-      emptyIcon={Users}
-      emptyTitle="No members yet"
-      emptyDescription="Nobody has signed up yet. Members appear here as soon as they register."
-    />
+    <>
+      <ServerDataTable
+        table={table}
+        columns={columns}
+        rowKey={(r) => r.id}
+        minWidth={1100}
+        searchPlaceholder="Search name or email"
+        filters={filters}
+        emptyIcon={Users}
+        emptyTitle="No members yet"
+        emptyDescription="Nobody has signed up yet. Members appear here as soon as they register."
+      />
+
+      {managing && (
+        <UserDetailDrawer
+          userId={managing.id}
+          summaryName={managing.full_name}
+          onClose={() => setManaging(null)}
+          onChanged={() => table.refresh()}
+        />
+      )}
+    </>
   )
 }

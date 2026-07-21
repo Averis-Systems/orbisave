@@ -6,8 +6,13 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User, KYCDocument
 from apps.accounts.serializers import KYCDocumentSerializer, UserSerializer
-from common.admin_scope import resolve_admin_country, scope_filter
+from common.admin_scope import resolve_admin_country, scope_filter, shard_aliases
 from common.pagination import apply_admin_ordering, paginate_admin_queryset
+from .membership_lookup import (
+    active_groups_for_users,
+    all_active_member_ids,
+    member_ids_in_group,
+)
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -181,10 +186,22 @@ class AdminUserListView(APIView):
         kyc_status = request.query_params.get('kyc_status')
         role       = request.query_params.get('role')
         search     = request.query_params.get('search', '').strip()
+        group      = (request.query_params.get('group') or '').strip()
 
         if kyc_status: qs = qs.filter(kyc_status=kyc_status)
         if role:       qs = qs.filter(role=role)
         if search:     qs = qs.filter(full_name__icontains=search) | qs.filter(email__icontains=search)
+
+        # Group filter. Memberships live on the country shards, so a group is
+        # resolved to its people there and the user list is filtered by id.
+        # '__none__' selects members with no active group anywhere, which is
+        # how an admin finds unattached accounts.
+        if group:
+            shards = shard_aliases(country)
+            if group == '__none__':
+                qs = qs.exclude(id__in=all_active_member_ids(shards))
+            else:
+                qs = qs.filter(id__in=member_ids_in_group(group, shards))
 
         # Exclude super admins from the list for security
         qs = qs.exclude(role='super_admin')
@@ -193,5 +210,14 @@ class AdminUserListView(APIView):
             request, qs, allowed={'created_at', 'full_name', 'kyc_status', 'country'},
         )
         page_items, meta = paginate_admin_queryset(request, qs)
-        serializer = UserSerializer(page_items, many=True)
-        return Response({**meta, 'results': serializer.data})
+
+        # Attach each member's active group (batched per country shard).
+        groups_by_user = active_groups_for_users(page_items)
+        rows = UserSerializer(page_items, many=True).data
+        for row in rows:
+            membership = groups_by_user.get(str(row['id']))
+            row['group_id'] = membership['group_id'] if membership else None
+            row['group_name'] = membership['group_name'] if membership else None
+            row['group_role'] = membership['group_role'] if membership else None
+
+        return Response({**meta, 'results': rows})
