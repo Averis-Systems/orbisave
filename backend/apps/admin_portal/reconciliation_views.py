@@ -9,6 +9,7 @@ super_admins see everything.
 import math
 
 import structlog
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
@@ -131,6 +132,7 @@ class ReconciliationItemListView(APIView):
     def get(self, request):
         scope = _country_scope(request)
         wanted_status = request.query_params.get('status', 'open')
+        search = (request.query_params.get('search') or '').strip()
 
         # Same gather-then-page shape as the runs view above.
         items = []
@@ -142,6 +144,14 @@ class ReconciliationItemListView(APIView):
                 qs = qs.filter(status__in=statuses)
             if scope:
                 qs = qs.filter(run__country=scope)
+            if search:
+                # References are how an admin traces a specific discrepancy
+                # back to a provider or bank record.
+                qs = qs.filter(
+                    Q(reference__icontains=search)
+                    | Q(provider_reference__icontains=search)
+                    | Q(bank_reference__icontains=search)
+                )
             total += qs.count()
             items.extend(qs.order_by('-created_at')[:_gather_bound(request)])
 

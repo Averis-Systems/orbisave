@@ -408,31 +408,59 @@ class AdminContributionsView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        scope = _country_scope(request)
-        if 'country' in scope:
-            qs = Contribution.objects.filter(group__country=scope['country'])
-        else:
-            qs = Contribution.objects.all()
+        # Contribution is sharded per country, and its member is a User on
+        # 'default'. Same two constraints as the loans list: read each shard
+        # explicitly so a super_admin does not query the empty 'default'
+        # tables, and never join to the member across databases.
+        country = resolve_admin_country(request)
+        status_filter = request.query_params.get('status')
+        search = (request.query_params.get('search') or '').strip()
 
-        qs = qs.select_related('group').order_by('-created_at')
-        s = request.query_params.get('status')
-        search = request.query_params.get('search', '').strip()
-        if s:
-            qs = qs.filter(status=s)
+        ordering = resolve_admin_ordering(request, allowed={'created_at', 'amount', 'status'})
+        sort_field = ordering.lstrip('-')
+
+        member_ids = None
         if search:
-            qs = qs.filter(
-                Q(member__full_name__icontains=search) |
-                Q(provider_reference__icontains=search)
+            member_ids = list(
+                User.objects.filter(full_name__icontains=search).values_list('id', flat=True)
             )
 
-        page_items, meta = paginate_admin_queryset(request, qs)
+        def build_qs(alias):
+            qs = Contribution.objects.using(alias).select_related('group')
+            if country:
+                qs = qs.filter(group__country=country)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            if search:
+                qs = qs.filter(
+                    Q(member_id__in=member_ids) | Q(provider_reference__icontains=search)
+                )
+            return qs.order_by(ordering)
+
+        page_items, meta = paginate_sharded(
+            request,
+            shard_aliases(country),
+            build_qs,
+            sort_key=lambda c: getattr(c, sort_field),
+            reverse=ordering.startswith('-'),
+        )
+
+        members = {
+            str(u['id']): u
+            for u in User.objects.filter(
+                id__in=[c.member_id for c in page_items]
+            ).values('id', 'full_name', 'phone')
+        }
+
         results = []
         for c in page_items:
+            member = members.get(str(c.member_id), {})
             results.append({
                 'id': str(c.id),
-                'member_name': c.member.full_name,
-                'member_phone': c.member.phone,
+                'member_name': member.get('full_name', 'Unknown'),
+                'member_phone': member.get('phone', ''),
                 'group_name': c.group.name,
+                'group_country': c.group.country,
                 'amount': str(c.amount),
                 'currency': c.currency,
                 'method': c.method,
