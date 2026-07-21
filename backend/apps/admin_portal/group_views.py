@@ -13,8 +13,13 @@ from rest_framework.views import APIView
 from apps.groups.models import Group, GroupMember
 from apps.groups.serializers import GroupSerializer
 from apps.audit.services import log_audit
-from common.admin_scope import resolve_admin_country, scope_filter
-from common.pagination import apply_admin_ordering, paginate_admin_queryset
+from common.admin_scope import resolve_admin_country, scope_filter, shard_aliases
+from common.pagination import (
+    apply_admin_ordering,
+    paginate_admin_queryset,
+    paginate_sharded,
+    resolve_admin_ordering,
+)
 import structlog
 
 from .views import IsPlatformAdmin, IsSuperAdmin
@@ -59,24 +64,38 @@ class AdminGroupListView(APIView):
         # anyone else (it used to be silently ignored, so the URL looked like
         # it worked), and refuses a platform_admin with no country outright.
         country = resolve_admin_country(request)
-        qs = Group.objects.filter(**scope_filter(country))
 
-        # Filters
         v_status = request.query_params.get('verification_status')
         g_status = request.query_params.get('status')
         search   = request.query_params.get('search', '').strip()
 
-        if v_status:
-            qs = qs.filter(verification_status=v_status)
-        if g_status:
-            qs = qs.filter(status=g_status)
-        if search:
-            qs = qs.filter(name__icontains=search)
-
-        qs = apply_admin_ordering(
-            request, qs, allowed={'created_at', 'name', 'country', 'status', 'verification_status'},
+        ordering = resolve_admin_ordering(
+            request, allowed={'created_at', 'name', 'country', 'status', 'verification_status'},
         )
-        page_items, meta = paginate_admin_queryset(request, qs)
+        sort_field = ordering.lstrip('-')
+
+        def build_qs(alias):
+            # Group is sharded per country, so read each shard explicitly.
+            # Filtering by the country column alone is not enough: an unscoped
+            # super_admin query routes to 'default', where no groups live.
+            qs = Group.objects.using(alias).all()
+            if country:
+                qs = qs.filter(country=country)
+            if v_status:
+                qs = qs.filter(verification_status=v_status)
+            if g_status:
+                qs = qs.filter(status=g_status)
+            if search:
+                qs = qs.filter(name__icontains=search)
+            return qs.order_by(ordering)
+
+        page_items, meta = paginate_sharded(
+            request,
+            shard_aliases(country),
+            build_qs,
+            sort_key=lambda g: getattr(g, sort_field),
+            reverse=ordering.startswith('-'),
+        )
 
         # Inline minimal serialization (avoid importing full group serializer cross-DB)
         results = []

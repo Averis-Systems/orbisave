@@ -10,8 +10,13 @@ from apps.contributions.models import Contribution
 from apps.audit.models import AuditLog
 from apps.accounts.models import User
 from .views import IsPlatformAdmin, IsSuperAdmin
-from common.admin_scope import resolve_admin_country, scope_filter
-from common.pagination import RECENT_LIMIT, paginate_admin_queryset
+from common.admin_scope import resolve_admin_country, scope_filter, shard_aliases
+from common.pagination import (
+    RECENT_LIMIT,
+    paginate_admin_queryset,
+    paginate_sharded,
+    resolve_admin_ordering,
+)
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -258,23 +263,65 @@ class AdminLoanListView(APIView):
     permission_classes = [IsPlatformAdmin]
 
     def get(self, request):
-        scope = _country_scope(request)
-        if 'country' in scope:
-            qs = Loan.objects.select_related('group').filter(group__country=scope['country'])
-        else:
-            qs = Loan.objects.select_related('group').all()
+        country = resolve_admin_country(request)
+        status_filter = request.query_params.get('status')
+        search = (request.query_params.get('search') or '').strip()
 
-        s = request.query_params.get('status')
-        if s:
-            qs = qs.filter(status=s)
+        ordering = resolve_admin_ordering(
+            request, allowed={'created_at', 'amount', 'status'},
+        )
+        sort_field = ordering.lstrip('-')
 
-        page_items, meta = paginate_admin_queryset(request, qs.order_by('-created_at'))
+        # Borrowers are Users on 'default', while loans are on the country
+        # shards, so a borrower-name search cannot be a join (cross-database
+        # joins are not possible). Resolve matching borrower ids from 'default'
+        # first, then filter loans by id. select_related is limited to 'group'
+        # for the same reason: the group is on the shard, the borrower is not.
+        borrower_ids = None
+        if search:
+            borrower_ids = list(
+                User.objects.filter(full_name__icontains=search).values_list('id', flat=True)
+            )
+
+        def build_qs(alias):
+            # Read each shard with an explicit .using(): an unscoped super_admin
+            # query routes to 'default', where no loans live, so the
+            # platform-wide list came back empty.
+            qs = Loan.objects.using(alias).select_related('group')
+            if country:
+                qs = qs.filter(group__country=country)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            if search:
+                qs = qs.filter(
+                    Q(borrower_id__in=borrower_ids) | Q(group__name__icontains=search)
+                )
+            return qs.order_by(ordering)
+
+        page_items, meta = paginate_sharded(
+            request,
+            shard_aliases(country),
+            build_qs,
+            sort_key=lambda loan: getattr(loan, sort_field),
+            reverse=ordering.startswith('-'),
+        )
+        # Borrowers are on 'default'; fetch every borrower on this page in one
+        # query and map by id, rather than lazy-loading each (which would be a
+        # cross-database round trip per row).
+        borrowers = {
+            str(u['id']): u
+            for u in User.objects.filter(
+                id__in=[loan.borrower_id for loan in page_items]
+            ).values('id', 'full_name', 'phone')
+        }
+
         results = []
         for loan in page_items:
+            borrower = borrowers.get(str(loan.borrower_id), {})
             results.append({
                 'id': str(loan.id),
-                'borrower_name': loan.borrower.full_name,
-                'borrower_phone': loan.borrower.phone,
+                'borrower_name': borrower.get('full_name', 'Unknown'),
+                'borrower_phone': borrower.get('phone', ''),
                 'group_name': loan.group.name,
                 'group_country': loan.group.country,
                 'amount': str(loan.amount),

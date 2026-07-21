@@ -71,3 +71,19 @@ def scope_filter(country, field='country'):
     relation (run__country, group__country).
     """
     return {field: country} if country else {}
+
+
+def shard_aliases(country):
+    """
+    The database aliases an admin's list request must read.
+
+    A resolved country reads exactly that country's shard. Platform-wide (None,
+    super_admin) reads every country shard. This is for the models that live
+    ONLY in the country databases (groups, loans, contributions): 'default' is
+    not included because those tables are empty there, and a country-scoped
+    admin must not have their query fall back to the wrong shard.
+    """
+    from common.db_utils import COUNTRY_DB_MAP, get_db_for_country
+    if country:
+        return [get_db_for_country(country)]
+    return [alias for c, alias in COUNTRY_DB_MAP.items() if c in ADMIN_COUNTRIES]

@@ -11,22 +11,85 @@ from rest_framework.response import Response
 RECENT_LIMIT = 50
 
 
-def apply_admin_ordering(request, qs, allowed, default='-created_at'):
+def resolve_admin_ordering(request, allowed, default='-created_at'):
     """
-    Apply ?ordering= to an admin queryset, whitelisted.
+    The whitelisted ?ordering= value as an order_by string.
 
     `allowed` names the plain field names that may be sorted on; the param may
-    prefix any of them with '-'. Anything else falls back to the default
-    rather than erroring, so a stale bookmark cannot break a list, and rather
-    than passing user input to order_by, which would open ordering by related
-    fields nobody audited (user__password does not leak values, but ordering
-    by it is still probing).
+    prefix any of them with '-'. Anything else falls back to the default,
+    rather than passing user input to order_by, which would open ordering by
+    related fields nobody audited (user__password does not leak values, but
+    ordering by it is still probing), and rather than erroring so a stale
+    bookmark cannot break a list.
     """
     requested = (request.query_params.get('ordering') or '').strip()
     field = requested[1:] if requested.startswith('-') else requested
-    if field and field in allowed:
-        return qs.order_by(requested)
-    return qs.order_by(default)
+    return requested if field and field in allowed else default
+
+
+def apply_admin_ordering(request, qs, allowed, default='-created_at'):
+    """resolve_admin_ordering applied to a queryset."""
+    return qs.order_by(resolve_admin_ordering(request, allowed, default))
+
+
+def _read_page_params(request, default_page_size, max_page_size):
+    try:
+        page = max(1, int(request.query_params.get('page', 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        size = int(request.query_params.get('page_size', default_page_size))
+    except (TypeError, ValueError):
+        size = default_page_size
+    size = max(1, min(size, max_page_size))
+    return page, size
+
+
+def paginate_sharded(request, aliases, build_qs, sort_key, reverse=True, default_page_size=50, max_page_size=100):
+    """
+    Page a per-country sharded model across one or more database aliases.
+
+    Groups, loans and contributions live in the country databases, so a
+    country-scoped admin reads exactly their own shard while a super_admin
+    operating platform-wide must read all of them. Django cannot sort or offset
+    across aliases, so this gathers each shard's first (offset + page_size)
+    rows already ordered, merges them, sorts once in Python by sort_key, and
+    slices the requested window. That per-shard bound is the most any single
+    shard could contribute to the page, so no row that belongs on the page is
+    missed, and no shard streams its whole table.
+
+    This is the same gather-then-page shape the reconciliation views use,
+    generalised so the sharded list endpoints stop reading the wrong database:
+    a super_admin has country=None and thread-local routing sends an unscoped
+    query to 'default', where the sharded tables are empty, so those lists
+    silently returned nothing platform-wide.
+
+    aliases:  DB aliases to read (one for a scoped admin, all for platform-wide).
+    build_qs: alias -> a queryset scoped to that alias with .using(alias),
+              already filtered and ordered.
+    sort_key: row -> comparable; applied after the merge, descending, so the
+              merged order matches each shard's own ordering.
+    """
+    page, size = _read_page_params(request, default_page_size, max_page_size)
+    bound = page * size
+
+    gathered = []
+    total = 0
+    for alias in aliases:
+        qs = build_qs(alias)
+        total += qs.count()
+        gathered.extend(list(qs[:bound]))
+
+    gathered.sort(key=sort_key, reverse=reverse)
+    offset = (page - 1) * size
+    items = gathered[offset:offset + size]
+    meta = {
+        'count': total,
+        'page': page,
+        'page_size': size,
+        'total_pages': max(1, math.ceil(total / size)) if total else 1,
+    }
+    return items, meta
 
 
 def paginate_admin_queryset(request, qs, default_page_size=50, max_page_size=100):
