@@ -2,7 +2,8 @@
 Coverage for the admin hardening pass: the KYC reset action, the pre-DRF
 admin-portal gate, and the production JWT key requirement.
 """
-import importlib
+import os
+import pathlib
 
 import pytest
 from django.contrib.auth.hashers import make_password
@@ -178,33 +179,77 @@ class TestAdminPortalGate:
 
 
 class TestProductionJwtKeys:
-    def test_production_refuses_to_boot_without_rsa_keys(self, monkeypatch):
+    def test_production_refuses_to_boot_without_rsa_keys(self):
         """
         base.py resolves the HS256/SECRET_KEY fallback while its own DEBUG=True
         still holds, so production must hard-fail when the key files are
         missing rather than quietly signing sessions with a SECRET_KEY that
         has been committed to a public repository.
+
+        Run in a SUBPROCESS on purpose: importing the production settings has
+        global, one-way side effects (it reads key files, rebinds DRF settings,
+        raises on failure), so reloading it inside the test process leaks state
+        into every test that runs afterwards and behaves differently depending
+        on whether secrets/*.pem happen to exist on the machine. A clean
+        interpreter with a controlled environment is the only faithful way to
+        assert "this settings module refuses to boot".
         """
-        from django.core.exceptions import ImproperlyConfigured
+        import subprocess
+        import sys
 
-        # Point the key paths at nothing so base's loader returns ''.
-        monkeypatch.setenv('JWT_PRIVATE_KEY_PATH', 'secrets/does-not-exist.pem')
-        monkeypatch.setenv('JWT_PUBLIC_KEY_PATH', 'secrets/does-not-exist.pem')
-        monkeypatch.setenv('SECRET_KEY', 'test-secret')
+        backend_dir = pathlib.Path(__file__).resolve().parent.parent
+        env = {
+            **os.environ,
+            'DJANGO_SETTINGS_MODULE': 'config.settings.production',
+            'SECRET_KEY': 'irrelevant-should-not-be-used-to-sign',
+            # Point the key paths at files that do not exist, so base's loader
+            # returns '' and production's guard must fire.
+            'JWT_PRIVATE_KEY_PATH': 'secrets/definitely-not-here.pem',
+            'JWT_PUBLIC_KEY_PATH': 'secrets/definitely-not-here.pem',
+            # Give the other production-only settings harmless values so the
+            # failure can only be the JWT guard, nothing incidental.
+            'ALLOWED_HOSTS': 'example.com',
+            'DATABASE_URL': 'sqlite:///boot_check.sqlite3',
+        }
+        result = subprocess.run(
+            [sys.executable, '-c', 'import django; django.setup()'],
+            cwd=str(backend_dir),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode != 0, 'production booted without RSA keys'
+        assert 'RSA JWT keys' in result.stderr, result.stderr
 
-        import config.settings.base as base
-        import config.settings.production as production
+    def test_production_boots_with_rsa_keys_present(self):
+        """
+        The mirror case, so the guard cannot pass by rejecting everything.
+        Skipped when the dev keypair is not on this machine (e.g. CI), because
+        the point is only to prove the guard does not fire when keys DO load.
+        """
+        import subprocess
+        import sys
 
-        # production does `from .base import *`, which reads the CACHED base
-        # module; base must be reloaded first so its key loader actually runs
-        # against the patched paths.
-        try:
-            importlib.reload(base)
-            with pytest.raises(ImproperlyConfigured, match='RSA JWT keys'):
-                importlib.reload(production)
-        finally:
-            # Whatever happened, put both modules back the way the rest of the
-            # process expects them.
-            monkeypatch.undo()
-            importlib.reload(base)
-            importlib.reload(production)
+        backend_dir = pathlib.Path(__file__).resolve().parent.parent
+        if not (backend_dir / 'secrets' / 'jwt_private.pem').exists():
+            pytest.skip('No dev RSA keypair on this machine to exercise the positive path.')
+
+        env = {
+            **os.environ,
+            'DJANGO_SETTINGS_MODULE': 'config.settings.production',
+            'SECRET_KEY': 'irrelevant',
+            'ALLOWED_HOSTS': 'example.com',
+            'DATABASE_URL': 'sqlite:///boot_check.sqlite3',
+        }
+        env.pop('JWT_PRIVATE_KEY_PATH', None)
+        env.pop('JWT_PUBLIC_KEY_PATH', None)
+        result = subprocess.run(
+            [sys.executable, '-c', 'import django; django.setup()'],
+            cwd=str(backend_dir),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
