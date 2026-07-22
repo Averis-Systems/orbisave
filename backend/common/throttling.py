@@ -23,14 +23,12 @@ whole point is that admin surfaces are the exposure. Prefix matching makes
 coverage structural: a new admin endpoint is throttled the moment it is
 routed.
 
-Known limitation
+Note on ordering
 ----------------
-DRF's APIView.initial checks permissions BEFORE throttles, so a request that
-is going to be denied never reaches the throttle at all. An authenticated
-non-admin can therefore hammer an admin endpoint for unlimited 403s. No data
-leaks that way, which is why it is not treated as blocking here, but it is
-still an unbounded request sink. Closing it needs a check that runs ahead of
-permissions, which means middleware rather than a DRF throttle class.
+DRF's APIView.initial checks permissions BEFORE these throttle classes, so a
+request that is going to be denied never reaches them: 401/403 responses are
+not limited here. That gap is closed by common/admin_gate.py, a pre-DRF
+middleware backstop on the admin-portal paths.
 """
 import structlog
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle

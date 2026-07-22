@@ -49,6 +49,10 @@ REST_FRAMEWORK = {
 # X-Forwarded-For handling be exercised directly.
 TRUSTED_PROXY_IPS = ['127.0.0.1']
 
+# The admin gate would trip suites that hammer admin endpoints in a loop
+# (pagination, RBAC). Its own tests re-enable it with override_settings.
+ADMIN_GATE_PER_MINUTE = 0
+
 # django_ratelimit rejects a non-shared cache, correctly: local memory is
 # per-process, so with multiple workers each keeps its own counter and the real
 # limit is N times what it says. That matters in production and not in a

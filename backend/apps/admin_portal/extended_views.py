@@ -710,6 +710,75 @@ class AdminUserSuspendView(APIView):
             return Response({'message': f'{u.full_name} reinstated.', 'is_active': True})
 
 
+class AdminUserKycResetView(APIView):
+    """
+    POST /api/v1/admin-portal/users/<id>/kyc-reset/  {reason}
+
+    Returns a member's KYC to 'pending' so they can resubmit from scratch.
+
+    This is the recovery path for the states the normal review flow cannot fix:
+    a wrong rejection the member cannot appeal, a wrong approval that must be
+    withdrawn, or a submission stuck behind an unreadable document. Any open
+    'submitted' document is rejected with the admin's reason at the same time,
+    so the review queue does not keep showing paperwork that no longer counts.
+
+    Deliberately NOT offered for admins, and a reason is mandatory because the
+    member sees the effect (their app returns to the KYC step) and other admins
+    see the audit row. Resetting a verified chairperson does not un-verify
+    their group: group verification is a separate decision with its own flow,
+    and silently cascading it here would be a surprise with financial side
+    effects.
+    """
+    permission_classes = [IsPlatformAdmin]
+
+    def post(self, request, user_id):
+        try:
+            u = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=404)
+
+        scope = _country_scope(request)
+        if 'country' in scope and u.country != scope['country']:
+            return Response({'error': 'Forbidden.'}, status=403)
+        if u.role in ('super_admin', 'platform_admin'):
+            return Response({'error': 'Admin accounts do not go through member KYC.'}, status=403)
+
+        reason = str(request.data.get('reason', '')).strip()
+        if not reason:
+            return Response({'error': 'A reason is required to reset KYC.'}, status=400)
+        if u.kyc_status == 'pending' and not u.kyc_documents.filter(status='submitted').exists():
+            return Response({'error': 'KYC is already pending with nothing to reset.'}, status=400)
+
+        previous = u.kyc_status
+
+        # Close any open submission so the review queue stays truthful.
+        from django.utils import timezone as tz
+        u.kyc_documents.filter(status='submitted').update(
+            status='rejected',
+            rejection_reason=f'Reset by admin: {reason}',
+            reviewed_by=request.user,
+            reviewed_at=tz.now(),
+        )
+
+        u.kyc_status = 'pending'
+        u.save(update_fields=['kyc_status'])
+
+        from apps.audit.services import log_audit
+        log_audit(
+            action='admin_action',
+            actor=request.user,
+            target_user=u,
+            country=u.country,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            metadata={'action': 'kyc_reset', 'reason': reason, 'previous_status': previous},
+        )
+
+        return Response({
+            'message': f"{u.full_name}'s KYC was reset. They can resubmit documents now.",
+            'kyc_status': 'pending',
+        })
+
+
 # ── Trust Account ─────────────────────────────────────────────────────────────
 
 class AdminTrustAccountView(APIView):

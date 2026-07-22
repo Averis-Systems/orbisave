@@ -26,6 +26,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  // Two stages, mirroring Console: details, then the emailed 6 digit code.
+  // Verification is what flips is_active and signs the admin in, so sending
+  // them away to /login between the two steps was a dead end.
+  const [stage, setStage] = useState<'details' | 'verify'>('details')
+  const [code, setCode] = useState('')
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
 
@@ -49,34 +54,58 @@ export default function RegisterPage() {
     setSuccess(null)
 
     try {
-      const { data } = await api.post('/admin-portal/auth/register/', { 
-        email: form.email,
+      const { data } = await api.post('/admin-portal/auth/register/', {
+        email: form.email.trim().toLowerCase(),
         full_name: `${form.first_name} ${form.last_name}`.trim(),
         phone: form.phone,
         password: form.password,
         country: form.country,
         portal: 'manager' // Maps to platform_admin
       })
-      
+
       if (data.success) {
         // The account is created is_active=False pending email verification,
-        // and this endpoint returns no tokens. The old code called setAuth
-        // with data.data.access, which does not exist, then redirected to
-        // /dashboard, so every successful registration bounced straight back
-        // to login with no explanation. Hand over to the code step instead.
-        // TODO(ui): Manager has no in-page verify stage yet, unlike Console.
-        setSuccess(
-          'Request received. We emailed a 6 digit code to your work address. ' +
-          'Verify it to activate your account, then sign in.'
-        )
-        setTimeout(() => {
-          router.push('/login')
-        }, 2500)
+        // and the register endpoint returns no tokens. Hand over to the
+        // in-page code step; verification is what activates and signs in.
+        setSuccess('We emailed a 6 digit code to your work address.')
+        setStage('verify')
       } else {
         setError(data.message || 'Enrollment failed.')
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Account request failed. Please check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!/^\d{6}$/.test(code)) {
+      setError('Enter the 6 digit code from your email.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Flips is_active and returns the token pair; the proxy captures the
+      // tokens into httpOnly cookies and hands back only the profile.
+      const { data } = await api.post('/admin-portal/auth/verify-email/', {
+        email: form.email.trim().toLowerCase(),
+        code,
+      })
+
+      if (data.success) {
+        setSuccess('Verified. Opening Manager.')
+        setAuth(data.data.user)
+        setTimeout(() => router.push('/dashboard'), 1000)
+      } else {
+        setError(data.message || 'Verification failed.')
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Verification failed. Request a new code and try again.')
     } finally {
       setLoading(false)
     }
@@ -97,6 +126,58 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
+          {stage === 'verify' ? (
+            <form onSubmit={handleVerify} className="space-y-5">
+              <div>
+                <h2 className="text-lg font-semibold text-navy">Check your email</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Enter the 6 digit code we sent to <span className="font-medium text-navy">{form.email.trim().toLowerCase()}</span>.
+                  It expires in 15 minutes.
+                </p>
+              </div>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                aria-label="6 digit verification code"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-4 text-center text-2xl font-semibold tracking-[0.5em] text-navy placeholder:text-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+              />
+
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm font-medium">{error}</div>
+              )}
+              {success && !error && (
+                <div className="p-4 bg-green-50 border border-green-100 rounded-lg text-green-600 text-sm font-medium">{success}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || code.length !== 6}
+                title={code.length !== 6 ? 'Enter the full 6 digit code' : undefined}
+                className="w-full bg-primary hover:bg-[#009200] disabled:bg-primary/50 disabled:cursor-not-allowed text-white font-bold py-5 rounded-lg transition-all flex items-center justify-center gap-3"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify and continue'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStage('details')
+                  setCode('')
+                  setError(null)
+                  setSuccess(null)
+                }}
+                className="w-full text-center text-sm font-medium text-slate-500 hover:text-navy transition-colors"
+              >
+                Wrong email? Go back and edit the details
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -211,6 +292,7 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+          )}
 
           <div className="mt-8 pt-8 border-t border-slate-100 text-center">
             <p className="text-slate-500 text-sm font-medium">

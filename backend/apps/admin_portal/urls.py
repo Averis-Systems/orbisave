@@ -31,6 +31,7 @@ from .extended_views import (
     AdminAuditView,
     AdminAnalyticsView,
     AdminUserDetailView,
+    AdminUserKycResetView,
     AdminUserSuspendView,
     AdminTrustAccountView,
 )
@@ -101,6 +102,7 @@ urlpatterns = [
     path('users/',                        AdminUserListView.as_view(),      name='admin-users'),
     path('users/<uuid:user_id>/',         AdminUserDetailView.as_view(),    name='admin-user-detail'),
     path('users/<uuid:user_id>/suspend/', AdminUserSuspendView.as_view(),   name='admin-user-suspend'),
+    path('users/<uuid:user_id>/kyc-reset/', AdminUserKycResetView.as_view(), name='admin-user-kyc-reset'),
     path('platform-admins/',              AdminPlatformAdminListView.as_view(), name='admin-platform-admins'),
 
     # ── Groups ────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ import {
   Copy,
   FileText,
   Loader2,
+  RotateCcw,
   ShieldCheck,
   Smartphone,
   UserRound,
@@ -103,6 +104,11 @@ export function UserDetailDrawer({
   const [actionError, setActionError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
+  const [kycResetOpen, setKycResetOpen] = useState(false)
+  const [kycReason, setKycReason] = useState('')
+  const [kycActing, setKycActing] = useState(false)
+  const [kycError, setKycError] = useState<string | null>(null)
+
   const load = useCallback(
     async (signal?: AbortSignal) => {
       setLoading(true)
@@ -152,6 +158,23 @@ export function UserDetailDrawer({
       setActionError(detail?.error || detail?.message || 'That action could not be completed.')
     } finally {
       setActing(false)
+    }
+  }
+
+  const runKycReset = async () => {
+    setKycActing(true)
+    setKycError(null)
+    try {
+      await api.post(`/admin-portal/users/${userId}/kyc-reset/`, { reason: kycReason.trim() })
+      setKycResetOpen(false)
+      setKycReason('')
+      await load()
+      onChanged()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data
+      setKycError(detail?.error || detail?.message || 'The KYC reset could not be completed.')
+    } finally {
+      setKycActing(false)
     }
   }
 
@@ -277,6 +300,73 @@ export function UserDetailDrawer({
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Reset is the recovery path for states the review queue cannot
+                    fix: a wrong rejection, a wrong approval, or a stuck
+                    submission. Offered only when there is something to reset,
+                    mirroring the endpoint's own rule. */}
+                {(detail.kyc_status !== 'pending' || detail.kyc_documents.some((d) => d.status === 'submitted')) && (
+                  <div className="border-t border-slate-100 pt-3">
+                    {kycError && (
+                      <p role="alert" className="mb-2.5 rounded-lg bg-[#fef3f2] px-3.5 py-2.5 text-sm text-[#d92d20]">
+                        {kycError}
+                      </p>
+                    )}
+                    {kycResetOpen ? (
+                      <div className="space-y-2.5">
+                        <label htmlFor="kyc-reset-reason" className="block text-sm font-medium text-navy">
+                          Reason for resetting KYC
+                        </label>
+                        <p className="text-xs text-slate-500">
+                          The member returns to the KYC step and any open submission is closed with this reason.
+                        </p>
+                        <textarea
+                          id="kyc-reset-reason"
+                          value={kycReason}
+                          onChange={(e) => setKycReason(e.target.value)}
+                          placeholder="e.g. Rejected in error; asked the member to resubmit a clearer photo."
+                          className="h-20 w-full resize-none rounded-lg border border-slate-200 p-3 text-sm text-navy outline-none placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/15"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKycResetOpen(false)
+                              setKycReason('')
+                              setKycError(null)
+                            }}
+                            className="h-9 flex-1 cursor-pointer rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-navy"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={runKycReset}
+                            disabled={kycActing || kycReason.trim().length === 0}
+                            title={kycReason.trim().length === 0 ? 'Enter a reason first' : undefined}
+                            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-amber-600 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {kycActing ? (
+                              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4" />
+                            )}
+                            Confirm reset
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setKycResetOpen(true)}
+                        className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-amber-700 hover:underline"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Reset KYC so the member can resubmit
+                      </button>
+                    )}
                   </div>
                 )}
               </Card>

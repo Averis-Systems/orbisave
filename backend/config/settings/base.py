@@ -58,6 +58,10 @@ MIDDLEWARE = [
     # django_ratelimit read REMOTE_ADDR, and every browser-facing app now
     # reaches Django through a Next proxy, so it needs correcting once here.
     'common.client_ip.ClientIPMiddleware',
+    # Right after the IP rewrite: pre-DRF backstop for admin-portal paths,
+    # because DRF checks permissions before throttles and would otherwise
+    # serve unlimited 401/403s to a prober. See common/admin_gate.py.
+    'common.admin_gate.AdminPortalGateMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -69,6 +73,11 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+# Pre-DRF abuse backstop for /api/v1/admin-portal/ (see common/admin_gate.py).
+# Requests per client IP per minute; far above the DRF throttles so a real
+# admin can never reach it. 0 disables the gate.
+ADMIN_GATE_PER_MINUTE = int(os.environ.get('ADMIN_GATE_PER_MINUTE', '300'))
 
 # Addresses whose X-Forwarded-For header may be believed, as a comma separated
 # list of IPs or CIDR blocks. This must name the Next.js proxies (and any load
