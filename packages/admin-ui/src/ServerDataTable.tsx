@@ -127,7 +127,7 @@ export function ServerDataTable<Row>({
       </div>
 
       {/* Table */}
-      <div className="max-w-full overflow-x-auto">
+      <div className="thin-scrollbar max-w-full overflow-x-auto">
         <table className="w-full" style={{ minWidth }}>
           <thead className="sticky top-0 z-10 border-b border-slate-100 bg-white">
             <tr>

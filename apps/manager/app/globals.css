@@ -39,6 +39,27 @@ body {
   scrollbar-width: none;
 }
 
+/* Slim, subtle horizontal/vertical scrollbar for data tables, so a wide table
+   scrolls without the chunky default OS scrollbar drawing attention. */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
 .glass {
   @apply bg-white/80 backdrop-blur-md border border-white/20;
 }

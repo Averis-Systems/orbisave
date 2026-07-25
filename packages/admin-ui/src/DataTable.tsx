@@ -33,7 +33,7 @@ export function DataTable<T>({
 
   return (
     // Wide tables scroll horizontally rather than forcing the page to.
-    <div className="max-w-full overflow-x-auto">
+    <div className="thin-scrollbar max-w-full overflow-x-auto">
       <table className="w-full" style={{ minWidth }}>
         <thead className="border-y border-slate-100">
           <tr>
