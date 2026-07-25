@@ -133,6 +133,49 @@ def _country_kpis(country):
     }
 
 
+class SuperAdminNavCountsView(APIView):
+    """
+    GET /api/v1/admin-portal/superadmin/nav-counts/
+
+    The small set of "something is waiting for you" counts the sidebar shows as
+    badges, so the navigation itself tells a super admin where the work is
+    before they open a page. COUNT-only and deliberately cheap: this is polled
+    on navigation, so it must not do the overview's full KPI fan-out.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        # Groups are sharded per country; a bare COUNT per shard is cheap.
+        groups_pending = 0
+        for c in COUNTRIES:
+            groups_pending += (
+                Group.objects.using(get_db_for_country(c))
+                .filter(country=c, verification_status='pending_review')
+                .count()
+            )
+
+        # Members live on 'default' and are globally queryable.
+        kyc_pending = User.objects.filter(kyc_status='submitted').count()
+
+        # Reconciliation exceptions are sharded too; open + investigating are
+        # the states that need a human.
+        from apps.ledger.models import ReconciliationItem
+        from common.db_utils import financial_db_aliases
+        trust_open = 0
+        for alias in financial_db_aliases():
+            trust_open += (
+                ReconciliationItem.objects.using(alias)
+                .filter(status__in=['open', 'investigating'])
+                .count()
+            )
+
+        return Response({
+            'groups_pending': groups_pending,
+            'kyc_pending': kyc_pending,
+            'trust_open': trust_open,
+        })
+
+
 class SuperAdminOverviewView(APIView):
     """GET /api/v1/superadmin/overview/ — global KPI summary across all countries."""
     permission_classes = [IsSuperAdmin]

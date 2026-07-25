@@ -2,11 +2,14 @@ export {
   PageHeader,
   SectionCard,
   StatCard,
+  Delta,
   StatusBadge,
   EmptyState,
   Tabs,
 } from './primitives'
-export type { BadgeTone, TabItem } from './primitives'
+export type { BadgeTone, TabItem, StatTone, StatDelta } from './primitives'
+
+export { Sparkline } from './Sparkline'
 
 export { DataTable } from './DataTable'
 export type { Column } from './DataTable'

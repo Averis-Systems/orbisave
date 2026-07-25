@@ -18,7 +18,9 @@
 
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { Sparkline } from './Sparkline'
 
 export function PageHeader({
   title,
@@ -72,31 +74,78 @@ export function SectionCard({
   )
 }
 
+/**
+ * Semantic tone for a stat card. Drives the icon tint and, for attention/risk,
+ * a hairline left accent so a tile with work waiting draws the eye without a
+ * loud fill. Colour is always paired with the number and label, never the only
+ * signal (accessibility, and Emanuel's no-colour-only rule).
+ */
+export type StatTone = 'default' | 'positive' | 'attention' | 'risk'
+
+const STAT_TONE: Record<StatTone, { chip: string; accent: string; value: string }> = {
+  default: { chip: 'bg-slate-100 text-slate-500', accent: '', value: 'text-navy' },
+  positive: { chip: 'bg-[#ecfdf3] text-[#039855]', accent: '', value: 'text-navy' },
+  attention: { chip: 'bg-amber-50 text-amber-600', accent: 'border-l-2 border-l-amber-400', value: 'text-navy' },
+  risk: { chip: 'bg-[#fef3f2] text-[#d92d20]', accent: 'border-l-2 border-l-[#f97066]', value: 'text-navy' },
+}
+
+export type StatDelta = {
+  /** Rendered verbatim, e.g. "+12" or "3.2%". The caller formats it. */
+  label: string
+  /** up = green, down = red, flat = slate. Direction, not raw sign. */
+  direction: 'up' | 'down' | 'flat'
+}
+
 export function StatCard({
   label,
   value,
   sub,
   icon: Icon,
   href,
+  tone = 'default',
+  delta,
+  spark,
+  sparkColor,
 }: {
   label: string
   value: string | number
   sub?: string
   icon?: LucideIcon
   href?: string
+  tone?: StatTone
+  /** Small period-over-period change shown under the value. */
+  delta?: StatDelta
+  /** Recent series for an inline sparkline; the value stays the headline. */
+  spark?: number[]
+  sparkColor?: string
 }) {
+  const t = STAT_TONE[tone]
+
   const body = (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300">
+    <div
+      className={`group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 ${t.accent}`}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm text-slate-500">{label}</p>
-          <p className="mt-2 text-[28px] font-semibold leading-9 tracking-tight tabular-nums text-navy">{value}</p>
-          {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
-        </div>
+        <p className="text-sm font-medium text-slate-500">{label}</p>
         {Icon && (
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <Icon className="h-5 w-5" />
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.chip}`}>
+            <Icon className="h-[18px] w-[18px]" />
           </div>
+        )}
+      </div>
+
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-[30px] font-semibold leading-none tracking-tight tabular-nums ${t.value}`}>{value}</p>
+          {(delta || sub) && (
+            <div className="mt-2 flex items-center gap-1.5">
+              {delta && <Delta {...delta} />}
+              {sub && <p className="truncate text-xs text-slate-400">{sub}</p>}
+            </div>
+          )}
+        </div>
+        {spark && spark.length > 1 && (
+          <Sparkline data={spark} color={sparkColor || (tone === 'risk' ? '#d92d20' : '#00ab00')} className="shrink-0" />
         )}
       </div>
     </div>
@@ -104,17 +153,40 @@ export function StatCard({
 
   // Only wrap in a link when there is somewhere to go, so a card never looks
   // clickable without being clickable.
-  return href ? <Link href={href}>{body}</Link> : body
+  return href ? (
+    <Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 rounded-2xl">
+      {body}
+    </Link>
+  ) : (
+    body
+  )
+}
+
+/** Directional change chip. The value text carries the meaning; colour reinforces. */
+export function Delta({ label, direction }: StatDelta) {
+  const tone =
+    direction === 'up'
+      ? 'text-[#039855]'
+      : direction === 'down'
+        ? 'text-[#d92d20]'
+        : 'text-slate-400'
+  const Arrow = direction === 'up' ? ArrowUpRight : direction === 'down' ? ArrowDownRight : Minus
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium tabular-nums ${tone}`}>
+      <Arrow className="h-3.5 w-3.5" />
+      {label}
+    </span>
+  )
 }
 
 export type BadgeTone = 'green' | 'amber' | 'red' | 'gray' | 'blue'
 
-const TONE: Record<BadgeTone, string> = {
-  green: 'bg-[#ecfdf3] text-[#039855]',
-  amber: 'bg-amber-50 text-amber-700',
-  red: 'bg-[#fef3f2] text-[#d92d20]',
-  gray: 'bg-slate-100 text-slate-600',
-  blue: 'bg-blue-50 text-blue-700',
+const TONE: Record<BadgeTone, { chip: string; dot: string }> = {
+  green: { chip: 'bg-[#ecfdf3] text-[#027a48]', dot: 'bg-[#12b76a]' },
+  amber: { chip: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
+  red: { chip: 'bg-[#fef3f2] text-[#b42318]', dot: 'bg-[#f04438]' },
+  gray: { chip: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+  blue: { chip: 'bg-blue-50 text-blue-700', dot: 'bg-blue-500' },
 }
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -141,11 +213,13 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   closed: 'gray',
 }
 
-export function StatusBadge({ status, tone }: { status: string; tone?: BadgeTone }) {
+export function StatusBadge({ status, tone, dot = true }: { status: string; tone?: BadgeTone; dot?: boolean }) {
   const key = status.toLowerCase().replace(/\s+/g, '_')
   const resolved = tone || STATUS_TONE[key] || 'gray'
+  const t = TONE[resolved]
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${TONE[resolved]}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${t.chip}`}>
+      {dot && <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} aria-hidden="true" />}
       {status.replace(/_/g, ' ')}
     </span>
   )

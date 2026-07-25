@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
+import { useNavCounts, type NavCounts } from '@/hooks/useNavCounts'
 import { ct } from '@/lib/terminology'
 
 /**
@@ -43,8 +44,10 @@ import { ct } from '@/lib/terminology'
  * as a drawer and passes onNavigate so tapping a link closes the drawer.
  */
 
+/** A nav item may key a live badge to one of the nav-count fields. */
+type BadgeKey = keyof NavCounts
 type NavChild = { name: string; href: string }
-type NavItem = { name: string; icon: ElementType; href?: string; children?: NavChild[] }
+type NavItem = { name: string; icon: ElementType; href?: string; children?: NavChild[]; badge?: BadgeKey }
 type NavSection = { label?: string; items: NavItem[] }
 
 const sections: NavSection[] = [
@@ -55,8 +58,10 @@ const sections: NavSection[] = [
     label: ct('sections.operations'),
     items: [
       { name: ct('nav.countries'), icon: Globe, href: '/dashboard/countries' },
-      { name: ct('nav.groups'), icon: ShieldCheck, href: '/dashboard/groups' },
-      { name: ct('nav.users'), icon: Users, href: '/dashboard/users' },
+      // Badges surface where work is waiting, so the nav itself reads as a
+      // to-do list: groups awaiting verification, members awaiting KYC review.
+      { name: ct('nav.groups'), icon: ShieldCheck, href: '/dashboard/groups', badge: 'groups_pending' },
+      { name: ct('nav.users'), icon: Users, href: '/dashboard/users', badge: 'kyc_pending' },
       { name: ct('nav.loans'), icon: Banknote, href: '/dashboard/loans' },
       { name: ct('nav.savings'), icon: PiggyBank, href: '/dashboard/savings' },
     ],
@@ -64,7 +69,7 @@ const sections: NavSection[] = [
   {
     label: ct('sections.oversight'),
     items: [
-      { name: ct('nav.trustAccounts'), icon: Landmark, href: '/dashboard/trust' },
+      { name: ct('nav.trustAccounts'), icon: Landmark, href: '/dashboard/trust', badge: 'trust_open' },
       { name: ct('nav.analytics'), icon: BarChart3, href: '/dashboard/analytics' },
       { name: ct('nav.auditLogs'), icon: FileText, href: '/dashboard/logs' },
     ],
@@ -85,13 +90,21 @@ const sections: NavSection[] = [
   },
 ]
 
-const ACTIVE = 'bg-[#e9f3ed] text-[#00ab00]'
-const IDLE = 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+/** Amber attention pill for a waiting count. Hidden at zero (calm by default). */
+function NavBadge({ count }: { count: number }) {
+  if (!count) return null
+  return (
+    <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-50 px-1.5 text-xs font-semibold tabular-nums text-amber-700">
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
+  const counts = useNavCounts()
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
@@ -102,23 +115,23 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const parentActive = (item: NavItem) => !!item.children?.some((c) => isActive(c.href))
 
   return (
-    <aside className="dashboard-shell flex h-full w-[264px] flex-shrink-0 flex-col border-r border-gray-200 bg-white px-4">
-      <div className="flex-shrink-0 px-1 py-6">
-        <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ab00] text-sm font-bold text-white">
+    <aside className="dashboard-shell flex h-full w-[260px] flex-shrink-0 flex-col border-r border-slate-200 bg-white">
+      <div className="flex-shrink-0 border-b border-slate-100 px-5 py-[18px]">
+        <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00ab00] text-[13px] font-bold text-white">
             OS
           </span>
-          <span className="text-xl font-semibold tracking-tight text-gray-900">{ct('shell.title')}</span>
+          <span className="text-[17px] font-semibold tracking-tight text-navy">{ct('shell.title')}</span>
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto pb-4 no-scrollbar">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 no-scrollbar">
         {sections.map((section, i) => (
           <div key={section.label || `top-${i}`} className={i === 0 ? '' : 'mt-6'}>
             {section.label && (
-              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">{section.label}</p>
+              <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{section.label}</p>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {section.items.map((item) =>
                 item.children ? (
                   <NavParent
@@ -129,22 +142,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     onNavigate={onNavigate}
                   />
                 ) : (
-                  <Link
+                  <NavLink
                     key={item.name}
-                    href={item.href!}
-                    onClick={onNavigate}
-                    aria-current={isActive(item.href!) ? 'page' : undefined}
-                    className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                      isActive(item.href!) ? ACTIVE : IDLE
-                    }`}
-                  >
-                    <item.icon
-                      className={`h-5 w-5 flex-shrink-0 ${
-                        isActive(item.href!) ? 'text-[#00ab00]' : 'text-gray-500 group-hover:text-gray-900'
-                      }`}
-                    />
-                    <span className="truncate">{item.name}</span>
-                  </Link>
+                    item={item}
+                    active={isActive(item.href!)}
+                    count={item.badge ? counts[item.badge] : 0}
+                    onNavigate={onNavigate}
+                  />
                 ),
               )}
             </div>
@@ -152,25 +156,61 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div className="flex-shrink-0 py-4">
-        <div className="mb-3 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9f3ed] text-xs font-semibold text-[#00ab00]">
+      <div className="flex-shrink-0 border-t border-slate-100 p-3">
+        <div className="mb-2 flex items-center gap-2.5 px-2 py-1.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9f3ed] text-xs font-semibold text-[#027a48]">
             {user?.full_name?.charAt(0).toUpperCase() || 'S'}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-800">{user?.full_name || ct('shell.userFallback')}</p>
-            <p className="truncate text-xs text-gray-400">{ct('shell.scope')}</p>
+            <p className="truncate text-sm font-medium text-navy">{user?.full_name || ct('shell.userFallback')}</p>
+            <p className="truncate text-xs text-slate-400">{ct('shell.scope')}</p>
           </div>
         </div>
         <button
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#d92d20] transition-colors hover:bg-[#fef3f2]"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-[#b42318] transition-colors hover:bg-[#fef3f2]"
         >
           <LogOut className="h-4 w-4" />
           {ct('shell.signOut')}
         </button>
       </div>
     </aside>
+  )
+}
+
+/**
+ * One leaf nav row. Active state is a faint green tint plus a rounded left
+ * accent bar — depth from structure, not shadow. An amber count badge rides
+ * on the right when work is waiting.
+ */
+function NavLink({
+  item,
+  active,
+  count,
+  onNavigate,
+}: {
+  item: NavItem
+  active: boolean
+  count: number
+  onNavigate?: () => void
+}) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href!}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      className={`group relative flex items-center gap-2.5 rounded-lg py-2 pl-3 pr-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        active ? 'bg-[#e9f3ed] text-[#027a48]' : 'text-slate-600 hover:bg-slate-50 hover:text-navy'
+      }`}
+    >
+      {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-[#00ab00]" aria-hidden="true" />}
+      <Icon
+        className={`h-[18px] w-[18px] flex-shrink-0 ${active ? 'text-[#00ab00]' : 'text-slate-400 group-hover:text-slate-600'}`}
+      />
+      <span className="truncate">{item.name}</span>
+      <NavBadge count={count} />
+    </Link>
   )
 }
 
@@ -200,17 +240,17 @@ function NavParent({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-          defaultOpen ? 'text-gray-900' : IDLE
+        className={`group flex w-full items-center gap-2.5 rounded-lg py-2 pl-3 pr-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+          defaultOpen ? 'text-navy' : 'text-slate-600 hover:bg-slate-50 hover:text-navy'
         }`}
       >
-        <Icon className={`h-5 w-5 flex-shrink-0 ${defaultOpen ? 'text-[#00ab00]' : 'text-gray-500 group-hover:text-gray-900'}`} />
+        <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${defaultOpen ? 'text-[#00ab00]' : 'text-slate-400 group-hover:text-slate-600'}`} />
         <span className="flex-1 truncate text-left">{item.name}</span>
-        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="mt-1 space-y-1 pl-4">
+        <div className="mt-0.5 space-y-0.5 pl-[22px]">
           {item.children!.map((child) => {
             const active = isActive(child.href)
             return (
@@ -219,12 +259,12 @@ function NavParent({
                 href={child.href}
                 onClick={onNavigate}
                 aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-3 rounded-lg py-2 pl-4 pr-3 text-sm font-medium transition-colors ${
-                  active ? ACTIVE : IDLE
+                className={`relative flex items-center gap-2.5 rounded-lg py-1.5 pl-3 pr-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                  active ? 'bg-[#e9f3ed] text-[#027a48]' : 'text-slate-500 hover:bg-slate-50 hover:text-navy'
                 }`}
               >
                 {/* A short rail so children read as belonging to the parent. */}
-                <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${active ? 'bg-[#00ab00]' : 'bg-gray-300'}`} />
+                <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${active ? 'bg-[#00ab00]' : 'bg-slate-300'}`} />
                 <span className="truncate">{child.name}</span>
               </Link>
             )

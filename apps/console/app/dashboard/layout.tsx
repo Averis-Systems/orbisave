@@ -22,6 +22,49 @@ import { ChevronDown, LogOut, Menu, Settings, UserCircle, X } from 'lucide-react
  * On desktop the sidebar is a permanent rail and the hamburger is hidden.
  */
 
+/** Section label for the top bar, from the deepest matching route prefix. */
+const PATH_TITLES: Array<[string, string]> = [
+  ['/dashboard/countries', 'Countries'],
+  ['/dashboard/groups', 'Groups'],
+  ['/dashboard/users', 'Users'],
+  ['/dashboard/loans', 'Loans'],
+  ['/dashboard/savings', 'Savings'],
+  ['/dashboard/trust', 'Trust reconciliation'],
+  ['/dashboard/analytics', 'Analytics'],
+  ['/dashboard/logs', 'Audit logs'],
+  ['/dashboard/payments', 'Payment providers'],
+  ['/dashboard/settings/apis', 'API & integrations'],
+  ['/dashboard/settings', 'Platform settings'],
+  ['/dashboard', 'Overview'],
+]
+
+function titleForPath(pathname: string): string {
+  const match = PATH_TITLES.find(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  return match ? match[1] : 'Console'
+}
+
+/**
+ * Environment badge. Development is flagged in amber so a real environment is
+ * never mistaken for a sandbox; production stays quiet (a green "Live" dot).
+ */
+function EnvironmentBadge() {
+  const isProd = process.env.NODE_ENV === 'production'
+  if (isProd) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ecfdf3] px-2.5 py-0.5 text-xs font-medium text-[#027a48]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#12b76a]" aria-hidden="true" />
+        Live
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+      Development
+    </span>
+  )
+}
+
 function DashboardHeader({
   user,
   logout,
@@ -32,6 +75,8 @@ function DashboardHeader({
   onOpenSidebar: () => void
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const pageTitle = titleForPath(pathname)
   const profileRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
 
@@ -54,18 +99,22 @@ function DashboardHeader({
   }
 
   return (
-    <header className="z-10 flex w-full items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-3 sm:px-6">
+    <header className="z-10 flex w-full items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
       <button
         onClick={onOpenSidebar}
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 lg:hidden"
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 lg:hidden"
         aria-label="Open navigation"
       >
         <Menu size={20} />
       </button>
 
-      {/* Pushes the profile menu to the right on desktop, where the hamburger
-          is hidden. */}
-      <div className="hidden flex-1 lg:block" />
+      {/* Section context on the left, so a super admin always knows where they
+          are, plus an environment badge that makes staging impossible to
+          mistake for production. */}
+      <div className="hidden flex-1 items-center gap-3 lg:flex">
+        <span className="text-sm font-medium text-slate-500">{pageTitle}</span>
+        <EnvironmentBadge />
+      </div>
 
       <div className="relative" ref={profileRef}>
         <button

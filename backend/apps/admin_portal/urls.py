@@ -36,6 +36,7 @@ from .extended_views import (
     AdminTrustAccountView,
 )
 from .super_views import (
+    SuperAdminNavCountsView,
     SuperAdminOverviewView,
     SuperAdminCountryView,
     SuperAdminSystemHealthView,
@@ -136,6 +137,7 @@ urlpatterns = [
     # SUPER ADMIN ONLY
     # ─────────────────────────────────────────────────────────────────────────
     path('superadmin/overview/',       SuperAdminOverviewView.as_view(),    name='superadmin-overview'),
+    path('superadmin/nav-counts/',     SuperAdminNavCountsView.as_view(),   name='superadmin-nav-counts'),
     path('superadmin/country/<str:country>/', SuperAdminCountryView.as_view(), name='superadmin-country'),
     path('superadmin/system-health/',  SuperAdminSystemHealthView.as_view(), name='superadmin-health'),
     path('superadmin/audit/',          SuperAdminGlobalAuditView.as_view(), name='superadmin-audit'),
