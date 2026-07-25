@@ -75,18 +75,18 @@ export function SectionCard({
 }
 
 /**
- * Semantic tone for a stat card. Drives the icon tint and, for attention/risk,
- * a hairline left accent so a tile with work waiting draws the eye without a
- * loud fill. Colour is always paired with the number and label, never the only
- * signal (accessibility, and Emanuel's no-colour-only rule).
+ * Semantic tone for a stat card. Kept deliberately restrained: it tints only
+ * the small icon chip, never the card border or background. No accent bars, no
+ * coloured fills. Colour is always paired with the number and label, never the
+ * only signal (accessibility, and Emanuel's no-colour-only rule).
  */
 export type StatTone = 'default' | 'positive' | 'attention' | 'risk'
 
-const STAT_TONE: Record<StatTone, { chip: string; accent: string; value: string }> = {
-  default: { chip: 'bg-slate-100 text-slate-500', accent: '', value: 'text-navy' },
-  positive: { chip: 'bg-[#ecfdf3] text-[#039855]', accent: '', value: 'text-navy' },
-  attention: { chip: 'bg-amber-50 text-amber-600', accent: 'border-l-2 border-l-amber-400', value: 'text-navy' },
-  risk: { chip: 'bg-[#fef3f2] text-[#d92d20]', accent: 'border-l-2 border-l-[#f97066]', value: 'text-navy' },
+const STAT_TONE: Record<StatTone, { chip: string; value: string }> = {
+  default: { chip: 'bg-slate-100 text-slate-500', value: 'text-navy' },
+  positive: { chip: 'bg-[#ecfdf3] text-[#039855]', value: 'text-navy' },
+  attention: { chip: 'bg-amber-50 text-amber-600', value: 'text-navy' },
+  risk: { chip: 'bg-[#fef3f2] text-[#d92d20]', value: 'text-navy' },
 }
 
 export type StatDelta = {
@@ -123,7 +123,7 @@ export function StatCard({
 
   const body = (
     <div
-      className={`group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 ${t.accent}`}
+      className="group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300"
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-medium text-slate-500">{label}</p>
