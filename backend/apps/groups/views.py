@@ -216,7 +216,8 @@ class GroupViewSet(viewsets.ModelViewSet):
             actor=request.user, 
             target_group=group, 
             ip_address=request.META.get('REMOTE_ADDR'),
-            metadata={'reason': reason}
+            metadata={'reason': reason},
+            country=group.country,
         )
         return success_response(data=None, message="Group heavily paused. Financial engine halted.")
         
@@ -230,7 +231,8 @@ class GroupViewSet(viewsets.ModelViewSet):
             action='group_closed', 
             actor=request.user, 
             target_group=group, 
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=request.META.get('REMOTE_ADDR'),
+            country=group.country,
         )
         return success_response(data=None, message="Group closed permanently.")
 
@@ -245,7 +247,8 @@ class GroupViewSet(viewsets.ModelViewSet):
             actor=request.user, 
             target_group=group, 
             ip_address=request.META.get('REMOTE_ADDR'),
-            metadata={'action': 'initialize_rotation', 'members_count': count}
+            metadata={'action': 'initialize_rotation', 'members_count': count},
+            country=group.country,
         )
         return success_response(data={"members_scheduled": count}, message="Rotation schedule strictly initialized.")
 
@@ -260,7 +263,8 @@ class GroupViewSet(viewsets.ModelViewSet):
             actor=request.user, 
             target_group=group, 
             ip_address=request.META.get('REMOTE_ADDR'),
-            metadata={'action': 'next_cycle', 'cycle_number': cycle.cycle_number}
+            metadata={'action': 'next_cycle', 'cycle_number': cycle.cycle_number},
+            country=group.country,
         )
         return success_response(data={"cycle_number": cycle.cycle_number}, message="Group transitioned to next financial cycle.")
 
@@ -305,6 +309,7 @@ class GroupViewSet(viewsets.ModelViewSet):
             actor=request.user,
             target_group=group,
             ip_address=request.META.get('REMOTE_ADDR'),
+            country=group.country,
         )
         return success_response(data=None, message="Group is now active. Financial engine is running.")
 
@@ -369,7 +374,8 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             actor=request.user,
             target_user=membership.member,
             target_group=membership.group,
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=request.META.get('REMOTE_ADDR'),
+            country=membership.group.country,
         )
         return success_response(data=None, message="Member exited from collective.")
 
@@ -387,7 +393,8 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             actor=request.user, 
             target_user=membership.member,
             target_group=membership.group,
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=request.META.get('REMOTE_ADDR'),
+            country=membership.group.country,
         )
         return success_response(data=None, message="Member successfully suspended.")
 
@@ -414,7 +421,8 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             actor=request.user,
             target_user=membership.member,
             target_group=membership.group,
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=request.META.get('REMOTE_ADDR'),
+            country=membership.group.country,
         )
         return success_response(data=None, message="Member actively reinstated into all active pools.")
 
@@ -501,6 +509,7 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             target_user=member,
             target_group=group,
             ip_address=request.META.get('REMOTE_ADDR'),
+            country=group.country,
             metadata=settlement,
         )
         return success_response(data=settlement, message="Member exited. Settlement summary generated.")

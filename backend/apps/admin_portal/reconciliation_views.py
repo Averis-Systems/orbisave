@@ -242,6 +242,7 @@ class ReconciliationItemActionView(APIView):
             actor=request.user,
             ip_address=request.META.get('REMOTE_ADDR'),
             metadata={'item_id': str(item.id), 'action': action, 'issue_type': item.issue_type},
+            country=item.run.country if item.run_id else None,
         )
         logger.info('reconciliation_item_action', item_id=str(item.id), action=action, by=request.user.email)
         return Response({'status': item.status})

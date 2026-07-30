@@ -47,6 +47,18 @@ class Group(BaseModel):
     name                      = models.CharField(max_length=255)
     description               = models.TextField(blank=True)
     country                   = models.CharField(max_length=10, choices=COUNTRIES)
+    # Sub-country location the chairperson already picks in the group-creation
+    # form (County/Province/Region + Sub-county/District — see
+    # frontend/lib/location-data.ts). Until 2026-07 this was only ever baked
+    # into the free-text `description` above and never queryable — a country
+    # manager could not chart "new groups by region" at all. `region` is the
+    # level1 pick (e.g. a Kenyan county); `sub_region` is level2. Both are
+    # blank for groups created before this field existed and for any group
+    # created without picking a location — that's real "not specified" data,
+    # not backfilled from the free-text description (too unreliable to trust
+    # for a KPI the manager verifies against marketers' own reporting).
+    region                    = models.CharField(max_length=100, blank=True)
+    sub_region                = models.CharField(max_length=100, blank=True)
     chairperson               = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='chaired_groups', db_constraint=False)
     treasurer                 = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='treasured_groups', null=True, blank=True, db_constraint=False)
     max_members               = models.PositiveIntegerField(default=20)

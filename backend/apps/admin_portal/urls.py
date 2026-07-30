@@ -30,6 +30,8 @@ from .extended_views import (
     AdminContributionsView,
     AdminAuditView,
     AdminAnalyticsView,
+    AdminAttentionView,
+    AdminQuickSearchView,
     AdminUserDetailView,
     AdminUserKycResetView,
     AdminUserSuspendView,
@@ -94,6 +96,8 @@ urlpatterns = [
     path('stats/',        AdminDashboardStatsView.as_view(), name='admin-stats'),
     path('group-stats/',  AdminGroupStatsView.as_view(),     name='admin-group-stats'),
     path('analytics/',    AdminAnalyticsView.as_view(),      name='admin-analytics'),
+    path('attention/',    AdminAttentionView.as_view(),      name='admin-attention'),
+    path('quick-search/', AdminQuickSearchView.as_view(),    name='admin-quick-search'),
 
     # ── KYC ──────────────────────────────────────────────────────────────────
     path('kyc/queue/',                AdminKYCQueueView.as_view(),  name='admin-kyc-queue'),

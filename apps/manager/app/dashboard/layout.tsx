@@ -5,14 +5,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import Sidebar from '@/components/Sidebar'
+import { HeaderSearch } from '@/components/HeaderSearch'
+import { AlertsPopover } from '@/components/AlertsPopover'
+import { AttentionProvider } from '@/hooks/useAttention'
 import {
-  Bell,
   ChevronDown,
   Info,
   LogOut,
   Menu,
   Moon,
-  Search,
   Settings,
   Sun,
   UserCircle,
@@ -42,21 +43,9 @@ function useDashboardTheme() {
 
 function DashboardHeader({ user, logout }: { user: any; logout: () => Promise<void> }) {
   const router = useRouter()
-  const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const { theme, toggleTheme } = useDashboardTheme()
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        inputRef.current?.focus()
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,18 +72,7 @@ function DashboardHeader({ user, logout }: { user: any; logout: () => Promise<vo
           <button className="flex h-14 w-14 items-center justify-center rounded-xl border border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-300">
             <Menu size={24} />
           </button>
-          <div className="relative hidden lg:block">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search groups or members..."
-              className="h-14 w-[520px] rounded-xl border border-gray-200 bg-transparent py-2.5 pl-12 pr-16 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#77cc77] focus:outline-none focus:ring-4 focus:ring-[#00ab00]/10 dark:border-gray-800 dark:text-white dark:placeholder:text-gray-500"
-            />
-            <span className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300">
-              Ctrl K
-            </span>
-          </div>
+          <HeaderSearch />
         </div>
 
         <div className="flex items-center gap-3">
@@ -105,9 +83,7 @@ function DashboardHeader({ user, logout }: { user: any; logout: () => Promise<vo
           >
             {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
           </button>
-          <button className="relative flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800">
-            <Bell size={22} />
-          </button>
+          <AlertsPopover />
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen((open) => !open)}
@@ -172,14 +148,16 @@ export default function DashboardLayout({
   }, [hasHydrated, isAuthenticated, user, router])
 
   return (
-    <div className="dashboard-shell flex h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white">
-      <Sidebar />
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <DashboardHeader user={user} logout={logout} />
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {children}
-        </div>
-      </main>
-    </div>
+    <AttentionProvider>
+      <div className="dashboard-shell flex h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white">
+        <Sidebar />
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <DashboardHeader user={user} logout={logout} />
+          <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
+            {children}
+          </div>
+        </main>
+      </div>
+    </AttentionProvider>
   )
 }

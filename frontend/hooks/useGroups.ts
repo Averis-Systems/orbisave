@@ -6,6 +6,8 @@ export interface Group {
   name: string
   description: string
   country: string
+  region?: string
+  sub_region?: string
   currency: string
   status: string
   max_members: number
@@ -34,6 +36,8 @@ export interface CreateGroupPayload {
   name: string
   description?: string
   country: string
+  region?: string
+  sub_region?: string
   max_members: number
   contribution_amount: string
   contribution_frequency: string

@@ -56,7 +56,8 @@ class LoanViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
                 actor=request.user,
                 target_user=loan.borrower,
                 target_group=loan.group,
-                ip_address=request.META.get('REMOTE_ADDR')
+                ip_address=request.META.get('REMOTE_ADDR'),
+                country=loan.group.country,
             )
             return success_response(data=LoanDetailSerializer(finalized_loan).data, message="Loan approved successfully.")
         except Exception as e:
@@ -76,7 +77,8 @@ class LoanViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
                 target_user=loan.borrower,
                 target_group=loan.group,
                 metadata={'reason': reason},
-                ip_address=request.META.get('REMOTE_ADDR')
+                ip_address=request.META.get('REMOTE_ADDR'),
+                country=loan.group.country,
             )
             return success_response(message="Loan rejected successfully.")
         except Exception as e:

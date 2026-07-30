@@ -202,6 +202,7 @@ class ConfirmEmailOTPView(views.APIView):
         log_audit(
             action='email_verified',
             actor=user,
+            country=user.country,
             ip_address=request.META.get('REMOTE_ADDR'),
         )
         return success_response(

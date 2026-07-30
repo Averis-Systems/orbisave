@@ -59,12 +59,12 @@ export function SectionCard({
   bodyClassName?: string
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
       {(title || actions) && (
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
-          <div>
+          <div className="min-w-0">
             {title && <h3 className="text-base font-semibold text-navy">{title}</h3>}
-            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+            {description && <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </div>
@@ -123,10 +123,10 @@ export function StatCard({
 
   const body = (
     <div
-      className="group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300"
+      className="group flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300"
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className="min-w-0 truncate text-sm font-medium text-slate-500">{label}</p>
         {Icon && (
           <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.chip}`}>
             <Icon className="h-[18px] w-[18px]" />
@@ -134,11 +134,11 @@ export function StatCard({
         )}
       </div>
 
-      <div className="mt-3 flex items-end justify-between gap-3">
+      <div className="mt-3 flex min-w-0 items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className={`text-[30px] font-semibold leading-none tracking-tight tabular-nums ${t.value}`}>{value}</p>
+          <p className={`truncate text-[30px] font-semibold leading-none tracking-tight tabular-nums ${t.value}`}>{value}</p>
           {(delta || sub) && (
-            <div className="mt-2 flex items-center gap-1.5">
+            <div className="mt-2 flex min-w-0 items-center gap-1.5">
               {delta && <Delta {...delta} />}
               {sub && <p className="truncate text-xs text-slate-400">{sub}</p>}
             </div>

@@ -32,6 +32,8 @@ describe("chairperson onboarding helpers", () => {
       rotation_savings_pct: 70,
       loan_pool_pct: 30,
       mandatory_savings_amount: 800,
+      region: "Kiambu",
+      sub_region: "Limuru",
       description: "Type: Farmers. Location: Limuru, Kiambu.",
     })
   })

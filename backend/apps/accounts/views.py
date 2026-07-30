@@ -150,6 +150,7 @@ class TokenObtainPairView(APIView):
         AuditLog.objects.create(
             action='user_login',
             actor=user,
+            country=user.country,
             ip_address=request.META.get('REMOTE_ADDR'),
             user_agent=request.META.get('HTTP_USER_AGENT', '')
         )

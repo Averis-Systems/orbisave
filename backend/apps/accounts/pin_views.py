@@ -30,6 +30,7 @@ class TransactionPinView(views.APIView):
         log_audit(
             action='transaction_pin_instantiated',
             actor=request.user,
+            country=request.user.country,
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return success_response(data=None, message="Crucial highly-sensitive transaction PIN structurally embedded.")

@@ -150,6 +150,13 @@ class AdminKYCReviewView(APIView):
                 note='Chairperson KYC approved.',
             )
 
+            from apps.audit.services import log_audit
+            log_audit(
+                action='kyc_verified',
+                actor=request.user,
+                target_user=kyc_doc.user,
+                ip_address=request.META.get('REMOTE_ADDR'),
+            )
             logger.info('kyc_approved', kyc_id=str(kyc_id), admin=str(request.user.id))
             return Response({'message': 'KYC approved. User account activated.', 'kyc_status': 'verified'})
 
@@ -163,6 +170,14 @@ class AdminKYCReviewView(APIView):
             kyc_doc.user.kyc_status = 'rejected'
             kyc_doc.user.save(update_fields=['kyc_status'])
 
+            from apps.audit.services import log_audit
+            log_audit(
+                action='kyc_rejected',
+                actor=request.user,
+                target_user=kyc_doc.user,
+                ip_address=request.META.get('REMOTE_ADDR'),
+                metadata={'reason': rejection_reason},
+            )
             logger.info('kyc_rejected', kyc_id=str(kyc_id), admin=str(request.user.id))
             return Response({'message': 'KYC rejected.', 'kyc_status': 'rejected'})
 

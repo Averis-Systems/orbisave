@@ -1,288 +1,413 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
-import { useAuthStore } from '@/store/auth'
-import { 
-  Users, 
-  ShieldCheck, 
-  AlertCircle, 
-  TrendingUp,
-  Clock,
-  ArrowUpRight,
-  ChevronRight,
-  Target,
+import { useMemo } from 'react'
+import Link from 'next/link'
+import {
   Banknote,
   Landmark,
-  BarChart3,
-  Search,
-  Loader2
+  MapPin,
+  ShieldCheck,
+  UserCheck,
+  UserPlus,
+  Users2,
 } from 'lucide-react'
-import Link from 'next/link'
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar
-} from 'recharts'
+import {
+  PageHeader,
+  SectionCard,
+  StatCard,
+  EmptyState,
+  DataTable,
+  formatCount,
+  formatMoney,
+  formatDateTime,
+  type Column,
+} from '@orbisave/admin-ui'
+import { TrendAreaChart } from '@/components/ui/TrendAreaChart'
+import { GenderPieChart } from '@/components/ui/GenderPieChart'
+import { RegionBarChart } from '@/components/ui/RegionBarChart'
+import { useAttention, type AttentionWorklistItem, type GrowthLogItem } from '@/hooks/useAttention'
 
-const currencyByCountry: Record<string, string> = {
-  kenya: 'KES',
-  rwanda: 'RWF',
-  ghana: 'GHS',
-}
-
-function formatCurrency(amount: number | undefined, currency: string) {
-  return `${currency} ${Number(amount || 0).toLocaleString()}`
-}
-
-interface Analytics {
-  summary: {
-    total_groups: number
-    active_groups: number
-    pending_review: number
-    total_members: number
-    kyc_verified: number
-    kyc_pending: number
-    total_contributions_this_month: number
-    total_contributions_last_month: number
-    active_loans: number
-    pending_admin_loans: number
-    defaulted_loans: number
-    total_loan_value: number
-  }
-  monthly_contribution_trend: Array<{ month: string; contributions: number }>
-}
+/**
+ * Manager overview — an operations cockpit for a country admin managing
+ * thousands of groups, not a ceremonial scoreboard.
+ *
+ * Layout rules for this page (kept tight so cards never spill the shell):
+ *   - Every grid child carries min-w-0 so flex/grid children can shrink.
+ *   - Table SectionCards use bodyClassName="p-0" so DataTable's own
+ *     horizontal padding is the only padding (no double-pad overflow).
+ *   - Tables scroll inside their card, never the page.
+ */
 
 export default function DashboardOverview() {
-  const [data, setData] = useState<Analytics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const user = useAuthStore((s) => s.user)
+  const { data, loading, error } = useAttention()
+  const country = data?.country || 'kenya'
 
-  useEffect(() => {
-    async function fetchAnalytics() {
-      try {
-        const { data } = await api.get('/admin-portal/analytics/')
-        setData(data)
-      } catch (err) {
-        console.error('Failed to fetch analytics', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchAnalytics()
-  }, [])
+  const scale = data?.scale
+  const queues = data?.queues
+  const trend = useMemo(() => data?.monthly_contribution_trend || [], [data])
 
-  const stats = data?.summary
-  const currency = currencyByCountry[user?.country || 'kenya'] || 'KES'
-
-  const mainStats = [
-    { label: 'Managed Groups', value: stats?.total_groups || 0, icon: Users, color: 'text-[#00ab00]', bg: 'bg-[#e9f3ed]' },
-    { label: 'Active Loans', value: stats?.active_loans || 0, icon: Banknote, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { label: 'KYC Pending', value: stats?.kyc_pending || 0, icon: ShieldCheck, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { label: 'Contributions (MTD)', value: formatCurrency(stats?.total_contributions_this_month, currency), icon: Landmark, color: 'text-[#00ab00]', bg: 'bg-[#e9f3ed]' },
-  ]
+  const pluralize = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-12 pb-20">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-bold text-navy tracking-tight">Country Operations</h1>
-          <p className="text-slate-500 text-lg mt-2 font-medium">Country-scoped oversight for groups, members, contributions, KYC, and loan approvals.</p>
-        </div>
-        <div className="flex gap-3">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search groups or members..." 
-              className="pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none w-64"
-            />
-          </div>
-          <button className="px-5 py-2.5 bg-navy text-white rounded-xl font-bold text-sm shadow-xl shadow-navy/10 hover:opacity-90 transition-all">
-            Generate Audit
-          </button>
+    <div className="mx-auto w-full min-w-0 max-w-[1400px] space-y-6 pb-10">
+      <PageHeader
+        title="Country operations"
+        description={
+          loading || !scale
+            ? undefined
+            : `${formatCount(scale.total_groups)} ${pluralize(scale.total_groups, 'group', 'groups')} · ${formatCount(scale.total_members)} ${pluralize(scale.total_members, 'member', 'members')} · ${formatMoney(scale.contributions_mtd, country)} collected this month`
+        }
+      />
+
+      {error && (
+        <div className="rounded-2xl border border-[#fecdca] bg-[#fef3f2] px-5 py-4 text-sm text-[#b42318]">{error}</div>
+      )}
+
+      {/* 1. Needs your action */}
+      <div className="min-w-0">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Needs your action</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[128px] animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
+            ))
+          ) : (
+            <>
+              <div className="min-w-0">
+                <StatCard
+                  label="Groups pending review"
+                  value={formatCount(queues?.groups_pending_review.count)}
+                  icon={ShieldCheck}
+                  tone={queues && queues.groups_pending_review.count > 0 ? 'attention' : 'default'}
+                  sub={
+                    queues && queues.groups_pending_review.count > 0
+                      ? `Oldest waiting ${queues.groups_pending_review.oldest_days}d`
+                      : 'Queue clear'
+                  }
+                  href="/dashboard/groups"
+                />
+              </div>
+              <div className="min-w-0">
+                <StatCard
+                  label="KYC pending"
+                  value={formatCount(queues?.kyc_pending.count)}
+                  icon={UserCheck}
+                  tone={queues && queues.kyc_pending.count > 0 ? 'attention' : 'default'}
+                  sub={
+                    queues && queues.kyc_pending.count > 0
+                      ? `Oldest waiting ${queues.kyc_pending.oldest_days}d`
+                      : 'Queue clear'
+                  }
+                  href="/dashboard/kyc"
+                />
+              </div>
+              <div className="min-w-0">
+                <StatCard
+                  label="Loan arrears"
+                  value={formatMoney(queues?.loan_arrears.amount_overdue || 0, country)}
+                  icon={Banknote}
+                  tone={queues && (queues.loan_arrears.overdue_installments > 0 || queues.loan_arrears.defaulted_count > 0) ? 'risk' : 'default'}
+                  sub={
+                    queues
+                      ? queues.loan_arrears.defaulted_count > 0
+                        ? `${formatCount(queues.loan_arrears.overdue_installments)} overdue · ${formatCount(queues.loan_arrears.defaulted_count)} defaulted`
+                        : `${formatCount(queues.loan_arrears.overdue_installments)} overdue installments`
+                      : undefined
+                  }
+                />
+              </div>
+              <div className="min-w-0">
+                <StatCard
+                  label="Reconciliation"
+                  value={formatMoney(queues?.reconciliation.amount_at_risk || 0, country)}
+                  icon={Landmark}
+                  tone={queues && queues.reconciliation.by_severity.red > 0 ? 'risk' : queues && queues.reconciliation.count > 0 ? 'attention' : 'default'}
+                  sub={
+                    queues && queues.reconciliation.count > 0
+                      ? `${formatCount(queues.reconciliation.count)} open · ${formatCount(queues.reconciliation.by_severity.red)} red · oldest ${queues.reconciliation.oldest_days}d`
+                      : 'Nothing open'
+                  }
+                  href="/dashboard/trust-account"
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {mainStats.map((stat) => (
-          <div key={stat.label} className="bg-white p-8 rounded-lg border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.03)] transition-all group relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-32 h-32 ${stat.bg} rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-110 transition-transform`} />
-            <div className="relative z-10 space-y-6">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.color} bg-white shadow-sm border border-slate-50`}>
-                <stat.icon className="w-6 h-6" />
+      {/* 2. Priority worklist + contribution trend */}
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <SectionCard
+            title="Priority worklist"
+            description="Oldest and most severe items waiting on you."
+            bodyClassName="p-0"
+          >
+            {loading ? (
+              <div className="space-y-2.5 p-5 sm:p-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-50" />
+                ))}
               </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-                <h3 className="text-3xl font-bold text-navy tabular-nums h-9 flex items-center">
-                  {loading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-primary opacity-20" />
-                  ) : stat.value}
-                </h3>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Chart Column */}
-        <div className="lg:col-span-8 space-y-8">
-          <div className="bg-white rounded-lg border border-slate-100 p-10 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h3 className="text-2xl font-bold text-navy tracking-tight">Contribution Volume</h3>
-                <p className="text-sm text-slate-400 font-medium mt-1">Global collection trend across jurisdictional groups.</p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full">
-                <TrendingUp className="w-3 h-3 text-emerald-500" />
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
-                  +{data ? Math.round(((data.summary.total_contributions_this_month / (data.summary.total_contributions_last_month || 1)) - 1) * 100) : 0}% vs Last Month
-                </span>
-              </div>
-            </div>
-            
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data?.monthly_contribution_trend || []}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00ab00" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#00ab00" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 600}} 
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 600}} 
-                  />
-                  <Tooltip 
-                    contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)'}}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="contributions" 
-                    stroke="#00ab00" 
-                    strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorValue)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-slate-100 p-10 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
-            <h3 className="text-xl font-bold text-navy tracking-tight mb-8">System Attention Required</h3>
-            <div className="space-y-4">
-              {stats && stats.pending_review > 0 && (
-                <Link href="/dashboard/groups" className="flex items-center gap-6 p-6 bg-amber-50/30 border border-amber-100 hover:bg-white hover:shadow-xl rounded-lg group transition-all">
-                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-amber-500 shadow-sm border border-amber-50">
-                    <Clock className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-navy">{stats.pending_review} Groups Awaiting Verification</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Review onboarding documents for jurisdictional activation.</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary transition-all" />
-                </Link>
-              )}
-              {stats && stats.pending_admin_loans > 0 && (
-                <Link href="/dashboard/loans" className="flex items-center gap-6 p-6 bg-[#e9f3ed]/50 border border-[#d6e4df] hover:bg-white hover:shadow-xl rounded-lg group transition-all">
-                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-[#00ab00] shadow-sm border border-[#d6e4df]">
-                    <AlertCircle className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-navy">{stats.pending_admin_loans} Loans Pending Approval</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Administrative authorization required for disbursement.</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary transition-all" />
-                </Link>
-              )}
-              {(!stats || (stats.pending_review === 0 && stats.pending_admin_loans === 0)) && (
-                <div className="py-12 text-center">
-                  <Target className="w-10 h-10 text-slate-200 mx-auto mb-4" />
-                  <p className="text-sm text-slate-400 font-medium">All queues are clear. Performance is optimal.</p>
-                </div>
-              )}
-            </div>
-          </div>
+            ) : (
+              <WorklistTable items={data?.worklist ?? []} />
+            )}
+          </SectionCard>
         </div>
 
-        {/* Sidebar Column */}
-        <div className="lg:col-span-4 space-y-8">
-          <div className="bg-navy rounded-lg p-8 text-white shadow-2xl shadow-navy/20 relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary" />
-                Compliance Score
-              </h3>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">
-                    <span>KYC Completion</span>
-                    <span>{stats ? Math.round((stats.kyc_verified / (stats.total_members || 1)) * 100) : 0}%</span>
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-1000" 
-                      style={{ width: `${stats ? (stats.kyc_verified / (stats.total_members || 1)) * 100 : 0}%` }} 
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">
-                    <span>Active Rotation</span>
-                    <span>{stats ? Math.round((stats.active_groups / (stats.total_groups || 1)) * 100) : 0}%</span>
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-white/40 transition-all duration-1000" 
-                      style={{ width: `${stats ? (stats.active_groups / (stats.total_groups || 1)) * 100 : 0}%` }} 
-                    />
-                  </div>
-                </div>
+        <div className="min-w-0">
+          <SectionCard
+            title="Contribution volume"
+            description="Confirmed contributions, last six months."
+          >
+            {loading ? (
+              <div className="h-[200px] animate-pulse rounded-xl bg-slate-50" />
+            ) : trend.some((p) => p.contributions > 0) ? (
+              <div className="min-w-0">
+                <TrendAreaChart
+                  data={trend}
+                  xKey="month"
+                  yKey="contributions"
+                  height={200}
+                  formatValue={(v) => formatMoney(v, country)}
+                  formatAxis={(v) =>
+                    v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : String(v)
+                  }
+                  formatTooltipLabel={(label) => `${label} — contributions`}
+                />
               </div>
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <div className="flex items-center gap-4">
-                  <div className="text-2xl font-bold">A+</div>
-                  <p className="text-[10px] text-white/40 font-medium leading-relaxed">
-                    System health is optimal. No critical anomalies detected in the last 24 hours.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            ) : (
+              <EmptyState
+                icon={Banknote}
+                title="No contributions in this window"
+                description="Confirmed contributions will chart here by month."
+              />
+            )}
+          </SectionCard>
+        </div>
+      </div>
 
-          <div className="bg-white rounded-lg border border-slate-100 p-8 shadow-[0_4px_20px_rgba(0,0,0,0.01)]">
-            <h3 className="text-sm font-bold text-navy mb-6 uppercase tracking-widest">Recent Activity</h3>
-            <div className="space-y-6">
-              <div className="py-8 text-center">
-                <p className="text-sm font-semibold text-slate-400">Recent activity will appear after audit events are connected.</p>
+      {/* 3. Analytics band — the two country-shape charts, grouped together */}
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <SectionCard
+            title="Groups by region"
+            description="This month vs all-time — check against marketers' reported regional recruitment."
+          >
+            {loading ? (
+              <div className="h-[260px] animate-pulse rounded-xl bg-slate-50" />
+            ) : data?.region_distribution && data.region_distribution.length > 0 ? (
+              <div className="min-w-0 overflow-hidden">
+                <RegionBarChart data={data.region_distribution} height={260} />
               </div>
-            </div>
-            <button className="w-full mt-8 py-3 bg-slate-50 text-slate-400 font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all">
-              View Full Audit
-            </button>
-          </div>
+            ) : (
+              <EmptyState
+                icon={MapPin}
+                title="No regional data yet"
+                description="Groups created with a county/region selected will chart here."
+              />
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="min-w-0">
+          <SectionCard
+            title="Gender split"
+            description="Signed-up members with a gender on file."
+          >
+            {loading ? (
+              <div className="h-[260px] animate-pulse rounded-xl bg-slate-50" />
+            ) : data?.gender_distribution?.some((g) => g.count > 0) ? (
+              <GenderPieChart data={data.gender_distribution} />
+            ) : (
+              <EmptyState
+                icon={Users2}
+                title="No gender data yet"
+                description="Appears once members add gender to their profile."
+              />
+            )}
+          </SectionCard>
+        </div>
+      </div>
+
+      {/* 4. Activity feeds band — two peer feeds at equal width, newest-first slices */}
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
+        <div className="min-w-0">
+          <SectionCard
+            title="New signups & groups"
+            description="Newest members and groups in your country."
+            bodyClassName="p-0"
+          >
+            {loading ? (
+              <div className="space-y-2.5 p-5 sm:p-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-50" />
+                ))}
+              </div>
+            ) : (
+              <GrowthLogTable items={data?.growth_log ?? []} />
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="min-w-0">
+          <SectionCard
+            title="Recent activity"
+            description="Operational decisions in your country."
+            actions={
+              <Link href="/dashboard/audit" className="text-sm font-medium text-primary hover:underline">
+                Audit log
+              </Link>
+            }
+          >
+            {loading ? (
+              <div className="space-y-2.5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-10 animate-pulse rounded-xl bg-slate-50" />
+                ))}
+              </div>
+            ) : data?.recent_activity && data.recent_activity.length > 0 ? (
+              <ul className="divide-y divide-slate-100">
+                {data.recent_activity.map((a) => (
+                  <li key={a.id} className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-navy">{a.summary}</p>
+                      {a.target_group_name && (
+                        <span className="mt-1 inline-block max-w-full truncate rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                          {a.target_group_name}
+                        </span>
+                      )}
+                    </div>
+                    <span className="shrink-0 pt-0.5 text-xs tabular-nums text-slate-400">{formatDateTime(a.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState title="Nothing yet" description="Country actions will appear here as they happen." />
+            )}
+          </SectionCard>
         </div>
       </div>
     </div>
+  )
+}
+
+const GROWTH_TYPE_LABEL: Record<GrowthLogItem['type'], string> = {
+  signup: 'Signup',
+  group: 'Group',
+}
+
+function GrowthLogTable({ items }: { items: GrowthLogItem[] }) {
+  const columns: Column<GrowthLogItem>[] = [
+    {
+      key: 'type',
+      header: 'Type',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            row.type === 'signup' ? 'bg-[#ecfdf3] text-[#027a48]' : 'bg-blue-50 text-blue-700'
+          }`}
+        >
+          {row.type === 'signup' ? <UserPlus className="h-3 w-3" /> : <Users2 className="h-3 w-3" />}
+          {GROWTH_TYPE_LABEL[row.type]}
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Name',
+      render: (row) => <span className="block max-w-[220px] truncate font-medium text-navy">{row.name}</span>,
+    },
+    {
+      key: 'detail',
+      header: 'Detail',
+      render: (row) => <span className="block max-w-[160px] truncate text-slate-500">{row.detail}</span>,
+    },
+    {
+      key: 'created_at',
+      header: 'Date',
+      align: 'right',
+      render: (row) => <span className="whitespace-nowrap tabular-nums text-slate-500">{formatDateTime(row.created_at)}</span>,
+    },
+  ]
+
+  return (
+    <DataTable
+      columns={columns}
+      rows={items}
+      rowKey={(row) => `${row.type}-${row.id}`}
+      minWidth={480}
+      empty={
+        <EmptyState
+          title="No new signups or groups yet"
+          description="New members and groups in your country will appear here."
+        />
+      }
+    />
+  )
+}
+
+const WORKLIST_TYPE_LABEL: Record<AttentionWorklistItem['type'], string> = {
+  group_verification: 'Group',
+  kyc: 'KYC',
+  reconciliation: 'Recon',
+}
+
+function WorklistTable({ items }: { items: AttentionWorklistItem[] }) {
+  const columns: Column<AttentionWorklistItem>[] = [
+    {
+      key: 'type',
+      header: 'Type',
+      render: (row) => (
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+          {WORKLIST_TYPE_LABEL[row.type]}
+        </span>
+      ),
+    },
+    {
+      key: 'label',
+      header: 'Item',
+      render: (row) => <span className="block max-w-[220px] truncate font-medium text-navy">{row.label}</span>,
+    },
+    {
+      key: 'detail',
+      header: 'Detail',
+      render: (row) => <span className="block max-w-[200px] truncate text-slate-500">{row.detail}</span>,
+    },
+    {
+      key: 'age',
+      header: 'Age',
+      align: 'right',
+      render: (row) => (
+        <span className={`tabular-nums ${row.age_days >= 7 ? 'font-semibold text-[#d92d20]' : 'text-slate-500'}`}>
+          {row.age_days}d
+        </span>
+      ),
+    },
+    {
+      key: 'action',
+      header: '',
+      align: 'right',
+      render: (row) => (
+        <Link href={row.href} className="text-sm font-medium text-primary hover:underline">
+          Review
+        </Link>
+      ),
+    },
+  ]
+
+  return (
+    <DataTable
+      columns={columns}
+      rows={items}
+      rowKey={(row) => `${row.type}-${row.id}`}
+      minWidth={520}
+      empty={
+        <EmptyState
+          title="All clear"
+          description="No groups, KYC, or reconciliation items waiting on you."
+        />
+      }
+    />
   )
 }

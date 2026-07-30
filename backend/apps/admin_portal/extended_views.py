@@ -1,16 +1,21 @@
 """Admin Portal — Extended views for groups, loans, contributions, audit, analytics."""
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, F, Value, DecimalField
+from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.groups.models import Group, GroupMember
-from apps.loans.models import Loan
+from apps.loans.models import Loan, LoanRepayment
 from apps.contributions.models import Contribution
+from apps.ledger.models import ReconciliationItem
+from .super_views import COUNTRY_CURRENCY
 from apps.audit.models import AuditLog
-from apps.accounts.models import User
+from apps.audit.humanize import describe_audit
+from apps.accounts.models import User, KYCDocument
 from .views import IsPlatformAdmin, IsSuperAdmin
 from common.admin_scope import resolve_admin_country, scope_filter, shard_aliases
+from common.db_utils import get_db_for_country, financial_db_aliases
 from common.pagination import (
     RECENT_LIMIT,
     paginate_admin_queryset,
@@ -68,6 +73,8 @@ class AdminGroupDetailView(APIView):
             'name': g.name,
             'description': g.description,
             'country': g.country,
+            'region': g.region,
+            'sub_region': g.sub_region,
             'currency': g.currency,
             'status': g.status,
             'verification_status': g.verification_status,
@@ -365,6 +372,7 @@ class AdminLoanApproveView(APIView):
             log_audit(action='loan_admin_approved', actor=request.user,
                       target_user=loan.borrower, target_group=loan.group,
                       ip_address=request.META.get('REMOTE_ADDR'),
+                      country=loan.group.country,
                       metadata={'amount': str(loan.amount)})
             return Response({'message': 'Loan approved. Disbursement is pending.', 'status': 'approved'})
 
@@ -381,6 +389,7 @@ class AdminLoanApproveView(APIView):
             log_audit(action='loan_disbursed', actor=request.user,
                       target_user=loan.borrower, target_group=loan.group,
                       ip_address=request.META.get('REMOTE_ADDR'),
+                      country=loan.group.country,
                       metadata={'amount': str(loan.amount), 'reference': loan.disbursement_reference})
             return Response({'message': 'Loan disbursed.', 'status': loan.status})
 
@@ -396,6 +405,7 @@ class AdminLoanApproveView(APIView):
             log_audit(action='loan_admin_rejected', actor=request.user,
                       target_user=loan.borrower, target_group=loan.group,
                       ip_address=request.META.get('REMOTE_ADDR'),
+                      country=loan.group.country,
                       metadata={'reason': reason})
             return Response({'message': 'Loan rejected.', 'status': 'rejected'})
 
@@ -482,9 +492,27 @@ class AdminAuditView(APIView):
 
     def get(self, request):
         scope = _country_scope(request)
-        qs = AuditLog.objects.select_related('actor', 'target_user').order_by('-created_at')
+        qs = AuditLog.objects.select_related('actor', 'target_user', 'target_group').order_by('-created_at')
         if 'country' in scope:
-            qs = qs.filter(country=scope['country'])
+            country = scope['country']
+            # Every log_audit() call site now stamps `country` explicitly
+            # (see apps/groups, apps/loans, apps/admin_portal call sites),
+            # so an exact match is the primary, reliable filter. target_user
+            # is kept as a fallback for any historical/未-stamped rows —
+            # target_user is a User (always on 'default', a real
+            # cross-table filter). actor__country is deliberately NOT used:
+            # it matches the actor's own home country, not the country the
+            # action happened in, which is how a super_admin's personal
+            # actions (their own login, password reset...) used to leak
+            # into a country manager's feed just because their seed account
+            # happens to carry country='kenya'. target_group is deliberately
+            # not joined here — Group lives on a country shard and this
+            # queryset always runs on 'default', so that join would just
+            # match nothing (see the target_group resolution below instead).
+            qs = qs.filter(
+                Q(country=country)
+                | Q(target_user__country=country)
+            )
 
         action_filter = request.query_params.get('action')
         search = request.query_params.get('search', '').strip()
@@ -504,14 +532,46 @@ class AdminAuditView(APIView):
             qs = qs.filter(created_at__date__lte=date_to)
 
         page_items, meta = paginate_admin_queryset(request, qs)
+
+        # target_group is a cross-database FK: Group lives on a country
+        # shard, this queryset always runs on 'default'. Resolve the small
+        # set of ids this page actually needs with one extra query (scoped
+        # to the admin's single country when known — the normal case —
+        # else checked across every shard for a platform-wide super_admin
+        # view), instead of touching log.target_group directly (which
+        # either silently returns None via select_related's empty LEFT JOIN,
+        # or raises Group.DoesNotExist on a bare lazy access).
+        group_ids = {log.target_group_id for log in page_items if log.target_group_id}
+        groups_by_id = {}
+        if group_ids:
+            country = scope.get('country')
+            if country:
+                db_alias = get_db_for_country(country)
+                groups_by_id = {
+                    g.id: g
+                    for g in Group.objects.using(db_alias).filter(id__in=group_ids).only('id', 'name', 'currency')
+                }
+            else:
+                remaining = set(group_ids)
+                for alias in financial_db_aliases():
+                    if not remaining:
+                        break
+                    for g in Group.objects.using(alias).filter(id__in=remaining).only('id', 'name', 'currency'):
+                        groups_by_id[g.id] = g
+                        remaining.discard(g.id)
+
         results = []
         for log in page_items:
+            target_group = groups_by_id.get(log.target_group_id) if log.target_group_id else None
             results.append({
                 'id': str(log.id),
                 'action': log.action,
+                'summary': describe_audit(log, target_group=target_group),
                 'actor_name': log.actor.full_name if log.actor_id else 'System',
                 'actor_email': log.actor.email if log.actor_id else None,
                 'target_user': log.target_user.full_name if log.target_user_id else None,
+                'target_group_id': str(log.target_group_id) if log.target_group_id else None,
+                'target_group_name': target_group.name if target_group else None,
                 'country': log.country,
                 'ip_address': log.ip_address,
                 'metadata': log.metadata,
@@ -595,6 +655,365 @@ class AdminAnalyticsView(APIView):
             },
             'monthly_contribution_trend': monthly_trend,
         })
+
+
+# ── Attention (operations cockpit) ────────────────────────────────────────────
+
+class AdminAttentionView(APIView):
+    """
+    GET /api/v1/admin-portal/attention/
+
+    One read model for the Manager overview's exception strip + priority
+    worklist, and the header's alerts popover — all three consume this so
+    they can never drift from each other. Country-scoped like
+    AdminAnalyticsView, but explicit about which database every query hits:
+    admin JWT traffic cannot rely on thread-local routing (CountryMiddleware
+    runs before DRF resolves the authenticated user — see
+    common/db_utils.financial_db_aliases and AdminLoanApproveView above),
+    so every FINANCIAL_APPS model (Group, Loan, LoanRepayment,
+    ReconciliationItem) is read with an explicit `.using(db_alias)`.
+    """
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        country = resolve_admin_country(request)
+        if not country:
+            # Platform-wide (super_admin, no ?country=): this cockpit is
+            # built for a single country's desk. Refuse loudly rather than
+            # silently reading an arbitrary/empty shard.
+            return Response(
+                {'error': 'Pass ?country= to view the operations cockpit for a specific country.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        db_alias = get_db_for_country(country)
+        now = timezone.now()
+
+        def age_days(dt):
+            if not dt:
+                return 0
+            return max(0, (now - dt).days)
+
+        # ── Scale (the de-emphasised footnote line) ───────────────────────
+        group_qs = Group.objects.using(db_alias).filter(country=country)
+        user_qs = User.objects.filter(country=country)
+        this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        contrib_this_month = (
+            Contribution.objects.using(db_alias)
+            .filter(group__country=country, status='confirmed', confirmed_at__gte=this_month)
+            .aggregate(total=Sum('amount'))['total'] or 0
+        )
+        scale = {
+            'total_groups': group_qs.count(),
+            'total_members': user_qs.filter(role__in=['member', 'chairperson', 'treasurer']).count(),
+            'contributions_mtd': float(contrib_this_month),
+            'currency': COUNTRY_CURRENCY.get(country, ''),
+        }
+
+        # Demoted secondary chart, same shape as AdminAnalyticsView's trend
+        # so it can reuse the same TrendAreaChart component.
+        from datetime import timedelta
+        contrib_qs = Contribution.objects.using(db_alias).filter(group__country=country)
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            month_start = (now.replace(day=1) - timedelta(days=30 * i)).replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0,
+            )
+            month_end = (month_start + timedelta(days=32)).replace(day=1)
+            val = contrib_qs.filter(
+                status='confirmed', confirmed_at__gte=month_start, confirmed_at__lt=month_end,
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            monthly_trend.append({'month': month_start.strftime('%b %Y'), 'contributions': float(val)})
+
+        # ── Queues (exception strip) ──────────────────────────────────────
+        groups_pending_qs = group_qs.filter(verification_status='pending_review').order_by('created_at')
+        oldest_group = groups_pending_qs.first()
+
+        kyc_qs = (
+            KYCDocument.objects.filter(status='submitted', user__country=country)
+            .select_related('user')
+            .order_by('created_at')
+        )
+        oldest_kyc = kyc_qs.first()
+
+        overdue_repayments_qs = (
+            LoanRepayment.objects.using(db_alias)
+            .filter(loan__group__country=country, status='overdue')
+            .select_related('loan', 'loan__group')
+        )
+        amount_overdue = overdue_repayments_qs.aggregate(
+            total=Sum(F('total_due') - F('amount_paid'))
+        )['total'] or 0
+        defaulted_count = Loan.objects.using(db_alias).filter(
+            group__country=country, status='defaulted'
+        ).count()
+
+        recon_qs = (
+            ReconciliationItem.objects.using(db_alias)
+            .filter(run__country=country, status__in=['open', 'investigating'])
+            .select_related('run', 'group')
+            .order_by('created_at')
+        )
+        recon_by_severity = {
+            sev: recon_qs.filter(severity=sev).count() for sev, _ in ReconciliationItem.SEVERITIES
+        }
+        recon_amount_at_risk = recon_qs.aggregate(
+            total=Sum(Coalesce(
+                'observed_amount', 'expected_amount', Value(0, output_field=DecimalField()),
+            ))
+        )['total'] or 0
+        oldest_recon = recon_qs.first()
+
+        queues = {
+            'groups_pending_review': {
+                'count': groups_pending_qs.count(),
+                'oldest_days': age_days(oldest_group.created_at if oldest_group else None),
+            },
+            'kyc_pending': {
+                'count': kyc_qs.count(),
+                'oldest_days': age_days(oldest_kyc.created_at if oldest_kyc else None),
+            },
+            'loan_arrears': {
+                'overdue_installments': overdue_repayments_qs.count(),
+                'amount_overdue': float(amount_overdue),
+                'defaulted_count': defaulted_count,
+            },
+            'reconciliation': {
+                'count': recon_qs.count(),
+                'amount_at_risk': float(recon_amount_at_risk),
+                'by_severity': recon_by_severity,
+                'oldest_days': age_days(oldest_recon.created_at if oldest_recon else None),
+            },
+        }
+
+        # ── Priority worklist (merged, oldest/most severe first) ──────────
+        worklist = []
+        for g in groups_pending_qs[:5]:
+            worklist.append({
+                'type': 'group_verification',
+                'id': str(g.id),
+                'label': g.name,
+                'detail': 'Group verification pending',
+                'age_days': age_days(g.created_at),
+                'href': '/dashboard/groups?verification_status=pending_review',
+            })
+        for doc in kyc_qs[:5]:
+            worklist.append({
+                'type': 'kyc',
+                'id': str(doc.id),
+                'label': doc.user.full_name if doc.user_id else 'Unknown',
+                'detail': 'KYC submitted, awaiting review',
+                'age_days': age_days(doc.created_at),
+                'href': '/dashboard/kyc',
+            })
+        for item in recon_qs[:5]:
+            amount = item.observed_amount if item.observed_amount is not None else item.expected_amount
+            issue_label = item.get_issue_type_display()
+            if amount is not None:
+                label = f"{item.currency} {float(amount):,.0f} — {issue_label}"
+            else:
+                label = issue_label
+            worklist.append({
+                'type': 'reconciliation',
+                'id': str(item.id),
+                'label': label,
+                'detail': f"{item.get_severity_display()} severity · {item.get_status_display()}",
+                'age_days': age_days(item.created_at),
+                'href': '/dashboard/trust-account',
+                'severity': item.severity,
+            })
+        worklist.sort(key=lambda w: w['age_days'], reverse=True)
+        worklist = worklist[:8]
+
+        # ── Recent activity (humanized, curated) ──────────────────────────
+        # Scoped by `country` / `target_user__country` only (see
+        # AdminAuditView's comment above for why actor__country was
+        # dropped: a super_admin's OWN actions — their login, their
+        # password reset — used to leak into every country's feed just
+        # because their seed account carries country='kenya'). Also
+        # restricted to a whitelist of actually operational action codes:
+        # this widget is "what happened in your country that matters for
+        # running it", not a personal-account-hygiene log (logins,
+        # password/PIN/2FA changes belong in the full audit trail, not
+        # here — that noise is exactly what made the old feed unreadable).
+        OPERATIONAL_ACTIONS = {
+            'group_created', 'group_verified', 'group_rejected', 'group_paused',
+            'group_closed', 'group_activated',
+            'member_joined', 'member_suspended', 'member_reinstated', 'member_exited',
+            'kyc_verified', 'kyc_rejected', 'kyc_submitted',
+            'loan_requested', 'loan_admin_approved', 'loan_admin_rejected', 'loan_disbursed',
+            'loan_approved', 'loan_rejected', 'loan_repayment_received',
+            'contribution_confirmed', 'contribution_failed',
+            'invite_accepted', 'reconciliation_item_action', 'admin_action',
+        }
+        audit_qs = (
+            AuditLog.objects.select_related('actor', 'target_user')
+            .filter(Q(country=country) | Q(target_user__country=country))
+            .filter(action__in=OPERATIONAL_ACTIONS)
+            .order_by('-created_at')[:8]
+        )
+        audit_logs = list(audit_qs)
+        group_ids = {log.target_group_id for log in audit_logs if log.target_group_id}
+        groups_by_id = {
+            g.id: g
+            for g in Group.objects.using(db_alias).filter(id__in=group_ids).only('id', 'name', 'currency')
+        } if group_ids else {}
+
+        recent_activity = []
+        for log in audit_logs:
+            target_group = groups_by_id.get(log.target_group_id) if log.target_group_id else None
+            recent_activity.append({
+                'id': str(log.id),
+                'action': log.action,
+                'summary': describe_audit(log, target_group=target_group),
+                'target_group_name': target_group.name if target_group else None,
+                'created_at': log.created_at.isoformat(),
+            })
+
+        # ── Growth log: new signups + new group creations ─────────────────
+        # Not audit-log-derived: registration is never written to AuditLog
+        # at all today, so the only truthful source for "who signed up and
+        # when" is User.created_at itself. Merging it with Group.created_at
+        # gives the manager one chronological "what grew today" table,
+        # entirely separate from admin/operational activity above.
+        recent_signups = (
+            User.objects.filter(country=country)
+            .exclude(role__in=['platform_admin', 'super_admin'])
+            .order_by('-created_at')
+            .only('id', 'full_name', 'role', 'created_at')[:15]
+        )
+        recent_groups = (
+            group_qs.order_by('-created_at')
+            .only('id', 'name', 'status', 'verification_status', 'created_at')[:15]
+        )
+        growth_log = [
+            {
+                'type': 'signup',
+                'id': str(u.id),
+                'name': u.full_name,
+                'detail': dict(User.ROLES).get(u.role, u.role),
+                'created_at': u.created_at.isoformat(),
+            }
+            for u in recent_signups
+        ] + [
+            {
+                'type': 'group',
+                'id': str(g.id),
+                'name': g.name,
+                'detail': g.get_verification_status_display(),
+                'created_at': g.created_at.isoformat(),
+            }
+            for g in recent_groups
+        ]
+        growth_log.sort(key=lambda row: row['created_at'], reverse=True)
+        # Overview shows this as a compact "newest first" feed paired beside
+        # recent_activity (also capped at 8), so the two cards stay balanced.
+        # The full history belongs on the members/groups list pages, not here.
+        growth_log = growth_log[:8]
+
+        # ── Gender distribution (signed-up members, this country) ─────────
+        GENDER_LABELS = dict(User.GENDER_CHOICES)
+        gender_counts = (
+            User.objects.filter(country=country)
+            .exclude(role__in=['platform_admin', 'super_admin'])
+            .values('gender')
+            .annotate(count=Count('id'))
+        )
+        gender_by_key = {(row['gender'] or ''): row['count'] for row in gender_counts}
+        gender_distribution = [
+            {'gender': key, 'label': label, 'count': gender_by_key.get(key, 0)}
+            for key, label in GENDER_LABELS.items()
+        ]
+        not_specified = gender_by_key.get('', 0)
+        if not_specified:
+            gender_distribution.append({'gender': '', 'label': 'Not specified', 'count': not_specified})
+
+        # ── Regional distribution (groups by region, this country) ────────
+        # `region` is the county/province the chairperson already picks at
+        # group creation (see Group.region) — the closest thing this system
+        # has to "where a marketer recruited". Both this-month and all-time
+        # counts are surfaced so the manager can check a marketer's monthly
+        # claim ("I signed up 6 groups in Kiambu this month") against the
+        # real number, not just see a cumulative total that hides it.
+        region_all_time = (
+            group_qs.values('region').annotate(count=Count('id')).order_by('-count')
+        )
+        region_this_month_by_key = {
+            (row['region'] or ''): row['count']
+            for row in group_qs.filter(created_at__gte=this_month).values('region').annotate(count=Count('id'))
+        }
+        region_distribution = [
+            {
+                'region': (row['region'] or '').strip() or 'Not specified',
+                'count_all_time': row['count'],
+                'count_this_month': region_this_month_by_key.get(row['region'] or '', 0),
+            }
+            for row in region_all_time
+        ]
+        region_distribution.sort(key=lambda r: (r['count_this_month'], r['count_all_time']), reverse=True)
+        region_distribution = region_distribution[:10]
+
+        return Response({
+            'country': country,
+            'scale': scale,
+            'queues': queues,
+            'worklist': worklist,
+            'monthly_contribution_trend': monthly_trend,
+            'recent_activity': recent_activity,
+            'growth_log': growth_log,
+            'gender_distribution': gender_distribution,
+            'region_distribution': region_distribution,
+        })
+
+
+class AdminQuickSearchView(APIView):
+    """
+    GET /api/v1/admin-portal/quick-search/?q=
+
+    Backs the header search box: top 5 groups and top 5 members in one
+    request, each tagged with a destination, instead of the client juggling
+    the separate groups/users list endpoints just to power a dropdown.
+    """
+    permission_classes = [IsPlatformAdmin]
+
+    def get(self, request):
+        country = resolve_admin_country(request)
+        query = (request.query_params.get('q') or '').strip()
+        if not country:
+            return Response({'error': 'Pass ?country= to search within a country.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(query) < 2:
+            return Response({'groups': [], 'members': []})
+
+        db_alias = get_db_for_country(country)
+        groups = [
+            {
+                'type': 'group',
+                'id': str(g.id),
+                'label': g.name,
+                'detail': g.get_status_display(),
+                'href': f'/dashboard/groups/{g.id}',
+            }
+            for g in Group.objects.using(db_alias)
+            .filter(country=country, name__icontains=query)
+            .only('id', 'name', 'status')[:5]
+        ]
+        members = [
+            {
+                'type': 'member',
+                'id': str(u.id),
+                'label': u.full_name,
+                # No member-detail page exists yet (Members is still an
+                # OperationsPlaceholder) — the KYC queue is the closest real
+                # per-member destination this portal has today.
+                'detail': u.email,
+                'href': '/dashboard/kyc' if u.kyc_status == 'submitted' else '/dashboard/members',
+            }
+            for u in User.objects.filter(country=country)
+            .filter(Q(full_name__icontains=query) | Q(email__icontains=query))
+            .exclude(role='super_admin')
+            .only('id', 'full_name', 'email', 'kyc_status')[:5]
+        ]
+        return Response({'groups': groups, 'members': members})
 
 
 # ── User Actions ──────────────────────────────────────────────────────────────

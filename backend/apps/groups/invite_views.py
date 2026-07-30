@@ -90,7 +90,8 @@ class GroupInviteCreateView(views.APIView):
             actor=request.user,
             target_group=group,
             ip_address=request.META.get('REMOTE_ADDR'),
-            metadata={'channel': channel, 'address': address}
+            metadata={'channel': channel, 'address': address},
+            country=group.country,
         )
         
         return success_response(data={"token": token}, message="Invite created and queued for delivery.", status_code=201)
@@ -213,7 +214,8 @@ class GroupInvitePublicView(views.APIView):
             action='invite_accepted',
             actor=request.user,
             target_group=group,
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=request.META.get('REMOTE_ADDR'),
+            country=group.country,
         )
         
         return success_response(data={"group_id": group.id}, message="Invite accepted. Membership is pending activation.")

@@ -31,8 +31,8 @@ Single source of truth every page imports: `PageHeader`, `SectionCard`, `StatCar
 | `my-loans` | ✅ Done | On primitives; **loan-pool-inactive `LockedState`** with honest unlock steps (no fake vote button); tabs/empty states kept |
 | `fines` | ✅ Done | On primitives; governance/voting copy kept as UI-ready-pending-backend |
 | `members` | ✅ Done | On primitives; search/filter/table/inspector/invite logic preserved |
-| `overview` `StatisticsChart` | ⏳ Next | Wire to real contribution-vs-payout history, or remove; kill dead buttons |
-| `savings` | ⏳ Next | Build into a real page: balance, cycle history, trend |
+| `overview` `StatisticsChart` | ✅ Done | Already resolved in an earlier pass (`e00b432`): dead period toggle removed, replaced with a real `PoolBarChart` fed by confirmed contributions. Re-verified 2026-07-26 — no dead buttons remain. |
+| `savings` | ✅ Done | Rebuilt 2026-07-26: real accrued balance (`wallet.mandatory_savings`, was previously showing only the per-cycle configured amount — a mislabeled figure), a savings-growth trend chart and a recent-allocations table, both derived client-side from `useContributions` using the same split formula the webhook posts to the ledger. No backend change. |
 | `contributions`, `rotations`, `meetings`, `profile`, `settings`, `my-group` | ⏳ Backlog | Verify against primitives; most already calm |
 
 Verification: `tsc --noEmit` clean across the frontend after every page. Full logged-in visual verification is **blocked** — DB wiped (no seeded member account), so screenshots of the rendered dashboard need a bootstrap account first.
@@ -41,10 +41,10 @@ Verification: `tsc --noEmit` clean across the frontend after every page. Full lo
 
 - **Member-vote loan-pool activation.** There is *no* voting mechanism in the backend today (`apps/loans`, `apps/groups` have none). The pool currently derives from `loan_pool_pct` of the wallet + group `status`. The my-loans `LockedState` reflects that real condition. A true member-vote governance gate = new models + endpoints + quorum/majority rules + tests. Same gap underlies the `fines` "Rule Proposals" tab (drafts a proposal but posts nowhere).
 - **Movement stats** for real trend badges (needs wallet history series).
-- **Wallet-history endpoint** for the overview statistics chart.
+- **Wallet-history / per-stream ledger read endpoint.** Still doesn't exist. The overview movement chart and the savings trend both worked around it by deriving figures client-side from `useContributions` (confirmed contributions × the group's known split rule) rather than reading `LedgerEntry` directly — fine for contribution-sourced inflows, but it can't show loan disbursements, repayments, or a *personal* (per-member) savings balance, since `LedgerEntry.member` isn't exposed through any API today. A real read-only ledger endpoint (group + stream + optional member filter, paginated) would unlock both cleanly.
 
 ## Next session
 
-1. Overview truthfulness (StatisticsChart + dead buttons).
-2. `savings` buildout.
-3. Decide on the loan-pool voting backend (governance app) — or keep the honest locked state.
+1. Verify `contributions`, `rotations`, `meetings`, `profile`, `settings`, `my-group` against the primitives (backlog above) — most are believed calm already but haven't been re-checked since the primitives layer landed.
+2. Decide on the loan-pool voting backend (governance app) — or keep the honest locked state.
+3. Once a per-member ledger read endpoint exists (see backend follow-ups below), revisit `savings` to show a personal accrued balance alongside the group total — today it is intentionally group-wide only, since the ledger has no read API yet and attributing by contribution `member_name` string-matching would be fragile.

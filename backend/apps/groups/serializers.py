@@ -66,12 +66,16 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'name', 'description', 'country', 'max_members', 'contribution_amount',
-            'contribution_frequency', 'contribution_day', 'rotation_savings_pct',
-            'loan_pool_pct', 'max_loan_multiplier', 'loan_term_weeks',
+            'name', 'description', 'country', 'region', 'sub_region', 'max_members',
+            'contribution_amount', 'contribution_frequency', 'contribution_day',
+            'rotation_savings_pct', 'loan_pool_pct', 'max_loan_multiplier', 'loan_term_weeks',
             'loan_interest_rate_monthly', 'mandatory_savings_amount',
             'savings_access_month', 'savings_access_day', 'rotation_method'
         ]
+        extra_kwargs = {
+            'region': {'required': False, 'allow_blank': True},
+            'sub_region': {'required': False, 'allow_blank': True},
+        }
 
     def validate(self, data):
         total = data.get('rotation_savings_pct', 0) + data.get('loan_pool_pct', 0)
@@ -111,7 +115,7 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'country', 'currency', 'status',
+            'id', 'name', 'description', 'country', 'region', 'sub_region', 'currency', 'status',
             'max_members', 'contribution_amount', 'contribution_frequency',
             'contribution_day', 'mandatory_savings_amount',
             'savings_access_month', 'savings_access_day',

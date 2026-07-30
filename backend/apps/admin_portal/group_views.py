@@ -105,6 +105,8 @@ class AdminGroupListView(APIView):
                 'name':                g.name,
                 'description':         g.description,
                 'country':             g.country,
+                'region':              g.region,
+                'sub_region':          g.sub_region,
                 'status':              g.status,
                 'verification_status': g.verification_status,
                 'verification_note':   g.verification_note,
@@ -202,6 +204,7 @@ class AdminGroupVerifyView(APIView):
                 target_group=group,
                 ip_address=request.META.get('REMOTE_ADDR'),
                 metadata={'note': note},
+                country=group.country,
             )
             logger.info('group_verified', group_id=str(group_id), admin=str(request.user.id))
             return Response({
@@ -227,6 +230,7 @@ class AdminGroupVerifyView(APIView):
                 target_group=group,
                 ip_address=request.META.get('REMOTE_ADDR'),
                 metadata={'reason': note},
+                country=group.country,
             )
             logger.info('group_rejected', group_id=str(group_id), admin=str(request.user.id))
             return Response({'message': f'Group "{group.name}" has been rejected.', 'verification_status': 'rejected'})
