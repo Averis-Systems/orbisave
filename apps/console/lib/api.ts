@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { attachNetworkMonitor } from '@orbisave/admin-ui'
 import { useAuthStore } from '@/store/auth'
 
 /**
@@ -20,6 +21,9 @@ export const api = axios.create({
   // Same-origin, but explicit so the session cookies ride every request.
   withCredentials: true,
 })
+
+// Default timeout + offline/slow tracking for the ConnectionBanner.
+attachNetworkMonitor(api)
 
 api.interceptors.response.use(
   (response) => response,

@@ -31,3 +31,6 @@ export {
   formatDateTime,
   formatMoney,
 } from './format'
+
+export { ConnectionBanner, useConnectionStatus, attachNetworkMonitor } from './network'
+export type { ConnectionStatus } from './network'

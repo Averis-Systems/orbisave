@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import Sidebar from '@/components/Sidebar'
 import { ChevronDown, LogOut, Menu, Settings, UserCircle, X } from 'lucide-react'
+import { ConnectionBanner } from '@orbisave/admin-ui'
 
 /**
  * Console shell.
@@ -215,6 +216,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <main className="flex flex-1 flex-col overflow-hidden">
         <DashboardHeader user={user} logout={logout} onOpenSidebar={() => setDrawerOpen(true)} />
+        <ConnectionBanner />
         <div className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">{children}</div>
       </main>
     </div>

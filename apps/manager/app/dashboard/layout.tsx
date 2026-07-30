@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar'
 import { HeaderSearch } from '@/components/HeaderSearch'
 import { AlertsPopover } from '@/components/AlertsPopover'
 import { AttentionProvider } from '@/hooks/useAttention'
+import { ConnectionBanner } from '@orbisave/admin-ui'
 import {
   ChevronDown,
   Info,
@@ -153,6 +154,7 @@ export default function DashboardLayout({
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <DashboardHeader user={user} logout={logout} />
+          <ConnectionBanner />
           <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
             {children}
           </div>

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/store/auth'
+import { attachNetworkMonitor } from '@/lib/network'
 
 /**
  * All requests go through the same-origin proxy (/api/backend/*), which
@@ -13,6 +14,9 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 })
+
+// Default timeout + offline/slow tracking for the ConnectionBanner.
+attachNetworkMonitor(api)
 
 /**
  * Normalise a list response to a plain array.

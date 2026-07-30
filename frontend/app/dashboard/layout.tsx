@@ -20,6 +20,7 @@ import {
 import { KYCModal } from "@/components/dashboard/KYCModal"
 import { GuidedOnboardingModal } from "@/components/dashboard/GuidedOnboardingModal"
 import { AppStateNotice } from "@/components/states/AppState"
+import { ConnectionBanner } from "@/components/states/ConnectionBanner"
 import { useActiveGroup } from "@/hooks/useGroups"
 import { useNotifications } from "@/hooks/useNotifications"
 import { getUserDashboardNavItems, type DashboardNavSection } from "@/lib/dashboard-reference"
@@ -443,6 +444,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             router.push("/login")
           }}
         />
+
+        <ConnectionBanner />
 
         {showKycBanner && (
           <div className="border-b border-[#d6e4df] bg-[#f7fbf8] px-4 py-3 dark:border-gray-800 dark:bg-gray-900 md:px-6">
