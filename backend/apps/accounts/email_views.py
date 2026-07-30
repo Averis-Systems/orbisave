@@ -79,6 +79,8 @@ def send_email_otp(user, raw_code: str):
         user,
     )
 
+    from apps.admin_portal.branding_views import email_branding_context
+
     html_message = render_to_string(
         'emails/verify_email.html',
         {
@@ -88,6 +90,7 @@ def send_email_otp(user, raw_code: str):
             'expiry': expiry,
             'disclaimer': disclaimer,
             'year': timezone.now().year,
+            **email_branding_context(),
         },
     )
 

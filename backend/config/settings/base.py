@@ -365,6 +365,10 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 # Public URL of the member web app — used for links inside emails (activation
 # nudges, invites). Point at the deployed domain in production.
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+# Public URL of THIS backend — used to build absolute media URLs (e.g. the
+# uploaded platform logo) inside emails, which have no request to resolve
+# them against. Point at the deployed backend/CDN origin in production.
+BACKEND_PUBLIC_URL = os.environ.get('BACKEND_PUBLIC_URL', 'http://localhost:8000')
 # Display name included so the code arrives from "OrbiSave", not a bare
 # address. The address must sit on the Resend-verified domain (orbisave.com).
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'OrbiSave <noreply@orbisave.com>')

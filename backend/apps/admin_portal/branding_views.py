@@ -1,10 +1,28 @@
+from django.conf import settings
 from rest_framework import status, views
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.admin_portal.models import PlatformBranding
+from apps.admin_portal.models import PlatformBranding, SystemConfiguration
 from apps.audit.services import log_audit
+
+
+def email_branding_context():
+    """
+    Branding for server-rendered emails, which have no request to build
+    absolute URLs against. Returns the uploaded member logo as an absolute URL
+    (or None to fall back to the built-in CSS mark) plus the platform display
+    name. Safe to call from any send path.
+    """
+    branding = PlatformBranding.current()
+    logo_url = None
+    if branding.member_logo:
+        base = (getattr(settings, 'BACKEND_PUBLIC_URL', '') or '').rstrip('/')
+        if base:
+            logo_url = f'{base}{branding.member_logo.url}'
+    platform_name = SystemConfiguration.get_value('platform_name', 'OrbiSave') or 'OrbiSave'
+    return {'logo_url': logo_url, 'platform_name': platform_name}
 
 
 # The uploadable slots. Keys are the model field names, which double as the
