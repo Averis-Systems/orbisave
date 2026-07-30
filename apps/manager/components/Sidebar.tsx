@@ -3,6 +3,7 @@
 import type { ElementType } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { usePlatformBranding } from '@/lib/useBranding'
 import {
   Banknote,
   FileText,
@@ -42,6 +43,7 @@ const menuItems: NavItem[] = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { logoUrl } = usePlatformBranding()
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
 
@@ -54,10 +56,17 @@ export default function Sidebar() {
     <aside className="dashboard-shell flex h-full w-[260px] flex-shrink-0 flex-col border-r border-gray-200 bg-white px-5 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
       <div className="flex-shrink-0 py-8">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ab00] text-sm font-bold text-white">
-            OS
-          </span>
-          <span className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">{mt('shell.title')}</span>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={mt('shell.title')} className="h-10 w-auto max-w-[190px] object-contain" />
+          ) : (
+            <>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ab00] text-sm font-bold text-white">
+                OS
+              </span>
+              <span className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">{mt('shell.title')}</span>
+            </>
+          )}
         </Link>
       </div>
 

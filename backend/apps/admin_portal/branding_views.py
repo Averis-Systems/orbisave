@@ -7,11 +7,17 @@ from apps.admin_portal.models import PlatformBranding
 from apps.audit.services import log_audit
 
 
+# The uploadable slots. Keys are the model field names, which double as the
+# multipart field names the Console settings UI posts.
+BRANDING_SLOTS = ('member_logo', 'console_logo', 'manager_logo', 'favicon')
+
+
 def _branding_payload(request, branding):
-    return {
-        'logo_url': request.build_absolute_uri(branding.logo.url) if branding.logo else None,
-        'favicon_url': request.build_absolute_uri(branding.favicon.url) if branding.favicon else None,
-    }
+    def url(field):
+        f = getattr(branding, field)
+        return request.build_absolute_uri(f.url) if f else None
+
+    return {f'{slot}_url': url(slot) for slot in BRANDING_SLOTS}
 
 
 class PlatformBrandingView(views.APIView):
@@ -29,8 +35,8 @@ class PlatformBrandingView(views.APIView):
 class UpdatePlatformBrandingView(views.APIView):
     """
     PATCH /api/v1/admin-portal/platform-branding/ — super_admin only.
-    Body: multipart/form-data with an optional 'logo' and/or 'favicon' file.
-    Sending only one of the two leaves the other untouched.
+    Body: multipart/form-data with any of member_logo / console_logo /
+    manager_logo / favicon. Slots not included are left untouched.
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -42,17 +48,16 @@ class UpdatePlatformBrandingView(views.APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if 'logo' not in request.FILES and 'favicon' not in request.FILES:
+        provided = [slot for slot in BRANDING_SLOTS if slot in request.FILES]
+        if not provided:
             return Response(
-                {'error': "Include a 'logo' and/or 'favicon' file."},
+                {'error': f"Include at least one of: {', '.join(BRANDING_SLOTS)}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         branding = PlatformBranding.current()
-        if 'logo' in request.FILES:
-            branding.logo = request.FILES['logo']
-        if 'favicon' in request.FILES:
-            branding.favicon = request.FILES['favicon']
+        for slot in provided:
+            setattr(branding, slot, request.FILES[slot])
         branding.updated_by = request.user
         branding.save()
 
@@ -60,5 +65,6 @@ class UpdatePlatformBrandingView(views.APIView):
             action='platform_branding_updated',
             actor=request.user,
             ip_address=request.META.get('REMOTE_ADDR'),
+            metadata={'slots': provided},
         )
         return Response(_branding_payload(request, branding))

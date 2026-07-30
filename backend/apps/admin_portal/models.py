@@ -197,12 +197,20 @@ class NotificationProviderConfiguration(BaseModel):
 
 class PlatformBranding(BaseModel):
     """
-    Singleton: the platform-wide logo and favicon, editable by super_admin
-    from Console, served publicly (unauthenticated) so all three frontends
-    (member, Console, Manager) can fetch it before login. Falls back to each
-    app's built-in static branding (Logo.tsx, favicon.ico) when unset.
+    Singleton branding record, editable by super_admin from Console and served
+    publicly (unauthenticated) so all three frontends can fetch it before
+    login. Falls back to each app's built-in static branding (Logo.tsx,
+    favicon.ico) when a slot is unset.
+
+    Each dashboard carries its OWN logo (they are named products — "OrbiSave",
+    "OrbiSave Console", "OrbiSave Manager"), shown both in that app's shell and
+    on its login/signup screens. The member logo also drives the public
+    surfaces that live in the member app (landing, onboarding). The favicon is
+    a single global asset shared by every surface, member and admin alike.
     """
-    logo = models.ImageField(upload_to='branding/', null=True, blank=True)
+    member_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
+    console_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
+    manager_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     favicon = models.ImageField(upload_to='branding/', null=True, blank=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -16,7 +16,9 @@ function fetchBranding(): Promise<PlatformBranding> {
   if (!cached) {
     cached = api
       .get('platform-branding/')
-      .then((res) => ({ logoUrl: res.data.logo_url, faviconUrl: res.data.favicon_url }))
+      // The member app (and its public pages) read the member logo; favicon
+      // is the global asset shared by every surface.
+      .then((res) => ({ logoUrl: res.data.member_logo_url, faviconUrl: res.data.favicon_url }))
       .catch(() => FALLBACK)
   }
   return cached

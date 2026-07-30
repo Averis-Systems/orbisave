@@ -16,7 +16,8 @@ function fetchBranding(): Promise<PlatformBranding> {
   if (!cached) {
     cached = api
       .get('platform-branding/')
-      .then((res) => ({ logoUrl: res.data.logo_url, faviconUrl: res.data.favicon_url }))
+      // Manager reads its own dashboard logo; favicon is the global asset.
+      .then((res) => ({ logoUrl: res.data.manager_logo_url, faviconUrl: res.data.favicon_url }))
       .catch(() => FALLBACK)
   }
   return cached

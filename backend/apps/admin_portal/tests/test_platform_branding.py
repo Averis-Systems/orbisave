@@ -54,7 +54,12 @@ class TestPublicBrandingRead:
     def test_unset_branding_returns_nulls(self):
         response = APIClient().get('/api/v1/platform-branding/')
         assert response.status_code == 200
-        assert response.data == {'logo_url': None, 'favicon_url': None}
+        assert response.data == {
+            'member_logo_url': None,
+            'console_logo_url': None,
+            'manager_logo_url': None,
+            'favicon_url': None,
+        }
 
     def test_no_auth_required(self):
         # Regression guard: this must stay reachable pre-login.
@@ -64,46 +69,55 @@ class TestPublicBrandingRead:
 
 class TestUpdatePlatformBranding:
 
-    def test_super_admin_can_set_logo_and_favicon(self, super_admin):
+    def test_super_admin_can_set_per_app_logos_and_favicon(self, super_admin):
         client = APIClient()
         client.force_authenticate(user=super_admin)
         response = client.patch(
             '/api/v1/admin-portal/platform-branding/',
-            {'logo': _test_image('logo.png'), 'favicon': _test_image('favicon.png')},
+            {
+                'member_logo': _test_image('member.png'),
+                'console_logo': _test_image('console.png'),
+                'manager_logo': _test_image('manager.png'),
+                'favicon': _test_image('favicon.png'),
+            },
             format='multipart',
         )
         assert response.status_code == 200, response.data
-        assert response.data['logo_url'].endswith('.png')
+        assert response.data['member_logo_url'].endswith('.png')
+        assert response.data['console_logo_url'].endswith('.png')
+        assert response.data['manager_logo_url'].endswith('.png')
         assert response.data['favicon_url'].endswith('.png')
 
         public = APIClient().get('/api/v1/platform-branding/')
-        assert public.data['logo_url'] == response.data['logo_url']
+        assert public.data['console_logo_url'] == response.data['console_logo_url']
 
         branding = PlatformBranding.current()
         assert branding.updated_by == super_admin
 
-    def test_partial_update_leaves_other_field_untouched(self, super_admin):
+    def test_partial_update_leaves_other_slots_untouched(self, super_admin):
         client = APIClient()
         client.force_authenticate(user=super_admin)
         client.patch(
             '/api/v1/admin-portal/platform-branding/',
-            {'logo': _test_image('logo.png'), 'favicon': _test_image('favicon.png')},
+            {'member_logo': _test_image('member.png'), 'favicon': _test_image('favicon.png')},
             format='multipart',
         )
         second = client.patch(
             '/api/v1/admin-portal/platform-branding/',
-            {'logo': _test_image('new-logo.png')},
+            {'console_logo': _test_image('console.png')},
             format='multipart',
         )
         assert second.status_code == 200
-        assert second.data['favicon_url'] is not None  # untouched, still set
+        assert second.data['console_logo_url'] is not None  # newly set
+        assert second.data['member_logo_url'] is not None   # untouched, still set
+        assert second.data['favicon_url'] is not None        # untouched, still set
 
     def test_platform_admin_cannot_update(self, platform_admin):
         client = APIClient()
         client.force_authenticate(user=platform_admin)
         response = client.patch(
             '/api/v1/admin-portal/platform-branding/',
-            {'logo': _test_image()},
+            {'member_logo': _test_image()},
             format='multipart',
         )
         assert response.status_code == 403
@@ -115,7 +129,7 @@ class TestUpdatePlatformBranding:
         # proxy's transparent token refresh and the frontends' session logout.
         response = APIClient().patch(
             '/api/v1/admin-portal/platform-branding/',
-            {'logo': _test_image()},
+            {'member_logo': _test_image()},
             format='multipart',
         )
         assert response.status_code == 401

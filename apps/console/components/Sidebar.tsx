@@ -4,6 +4,7 @@ import type { ElementType } from 'react'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { usePlatformBranding } from '@/lib/useBranding'
 import {
   BarChart3,
   Banknote,
@@ -102,6 +103,7 @@ function NavBadge({ count }: { count: number }) {
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
+  const { logoUrl } = usePlatformBranding()
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
   const counts = useNavCounts()
@@ -118,10 +120,17 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="dashboard-shell flex h-full w-[260px] flex-shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex-shrink-0 border-b border-slate-100 px-5 py-[18px]">
         <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00ab00] text-[13px] font-bold text-white">
-            OS
-          </span>
-          <span className="text-[17px] font-semibold tracking-tight text-navy">{ct('shell.title')}</span>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={ct('shell.title')} className="h-9 w-auto max-w-[190px] object-contain" />
+          ) : (
+            <>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00ab00] text-[13px] font-bold text-white">
+                OS
+              </span>
+              <span className="text-[17px] font-semibold tracking-tight text-navy">{ct('shell.title')}</span>
+            </>
+          )}
         </Link>
       </div>
 
