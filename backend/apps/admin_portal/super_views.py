@@ -258,6 +258,86 @@ class SuperAdminCountryView(APIView):
         })
 
 
+class SuperAdminDemographicsView(APIView):
+    """
+    GET /api/v1/superadmin/demographics/ — cross-country member and group
+    demographics: signups per country, gender split (global and per country),
+    and the top regions / sub-regions per country.
+
+    These are cheap live aggregates, not the deferred nightly financial
+    rollup: signups and gender come from `accounts` (default DB, globally
+    queryable by the country column); regions come from Group.region /
+    sub_region, which live on the sharded country DBs, so that part fans out
+    one query per country. Counts aggregate freely — people are not currency.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        member_qs = User.objects.exclude(role__in=['platform_admin', 'super_admin'])
+        month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # ── Signups per country (default DB) ──────────────────────────────
+        signups_by_country = [
+            {
+                'country': c,
+                'total': member_qs.filter(country=c).count(),
+                'this_month': member_qs.filter(country=c, created_at__gte=month_start).count(),
+            }
+            for c in COUNTRIES
+        ]
+
+        # ── Gender split, global and per country (default DB) ─────────────
+        GENDER_LABELS = dict(User.GENDER_CHOICES)
+
+        def gender_dist(qs):
+            by_key = {(r['gender'] or ''): r['count']
+                      for r in qs.values('gender').annotate(count=Count('id'))}
+            dist = [{'gender': k, 'label': label, 'count': by_key.get(k, 0)}
+                    for k, label in GENDER_LABELS.items()]
+            not_specified = by_key.get('', 0)
+            if not_specified:
+                dist.append({'gender': '', 'label': 'Not specified', 'count': not_specified})
+            return [d for d in dist if d['count'] > 0]
+
+        gender_global = gender_dist(member_qs)
+        gender_by_country = {c: gender_dist(member_qs.filter(country=c)) for c in COUNTRIES}
+
+        # ── Top regions / sub-regions per country (sharded — fan out) ─────
+        regions_by_country = {}
+        for c in COUNTRIES:
+            gq = Group.objects.using(get_db_for_country(c)).filter(country=c)
+
+            region_rows = gq.values('region').annotate(count=Count('id')).order_by('-count')
+            regions = [
+                {'region': (r['region'] or '').strip() or 'Not specified', 'groups': r['count']}
+                for r in region_rows
+            ][:10]
+
+            sub_rows = (
+                gq.exclude(sub_region='')
+                .values('region', 'sub_region')
+                .annotate(count=Count('id'))
+                .order_by('-count')
+            )
+            sub_regions = [
+                {
+                    'region': (r['region'] or '').strip() or 'Not specified',
+                    'sub_region': r['sub_region'].strip(),
+                    'groups': r['count'],
+                }
+                for r in sub_rows
+            ][:10]
+
+            regions_by_country[c] = {'regions': regions, 'sub_regions': sub_regions}
+
+        return Response({
+            'signups_by_country': signups_by_country,
+            'gender_global': gender_global,
+            'gender_by_country': gender_by_country,
+            'regions_by_country': regions_by_country,
+        })
+
+
 class SuperAdminSystemHealthView(APIView):
     """GET /api/v1/superadmin/system-health/ — DB, Celery, and provider connectivity."""
     permission_classes = [IsSuperAdmin]
