@@ -27,7 +27,7 @@ def email_branding_context():
 
 # The uploadable slots. Keys are the model field names, which double as the
 # multipart field names the Console settings UI posts.
-BRANDING_SLOTS = ('member_logo', 'console_logo', 'manager_logo', 'favicon')
+BRANDING_SLOTS = ('member_logo', 'console_logo', 'manager_logo', 'footer_logo', 'favicon')
 
 
 def _branding_payload(request, branding):

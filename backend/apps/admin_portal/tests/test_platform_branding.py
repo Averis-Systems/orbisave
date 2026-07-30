@@ -58,6 +58,7 @@ class TestPublicBrandingRead:
             'member_logo_url': None,
             'console_logo_url': None,
             'manager_logo_url': None,
+            'footer_logo_url': None,
             'favicon_url': None,
         }
 

@@ -211,6 +211,10 @@ class PlatformBranding(BaseModel):
     member_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     console_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     manager_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
+    # Shown on the public site's dark footer, which repeats on every marketing
+    # and legal page — kept a separate slot from member_logo because it sits on
+    # a navy background and usually needs a light/white treatment.
+    footer_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     favicon = models.ImageField(upload_to='branding/', null=True, blank=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

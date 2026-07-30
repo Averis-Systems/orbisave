@@ -7,12 +7,13 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 
 type LogoField = 'member_logo' | 'console_logo' | 'manager_logo'
-type BrandingField = LogoField | 'favicon'
+type BrandingField = LogoField | 'footer_logo' | 'favicon'
 
 type BrandingUrls = {
   member_logo_url: string | null
   console_logo_url: string | null
   manager_logo_url: string | null
+  footer_logo_url: string | null
   favicon_url: string | null
 }
 
@@ -20,6 +21,7 @@ const EMPTY_BRANDING: BrandingUrls = {
   member_logo_url: null,
   console_logo_url: null,
   manager_logo_url: null,
+  footer_logo_url: null,
   favicon_url: null,
 }
 
@@ -76,6 +78,7 @@ function BrandingCard() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<BrandingField | null>(null)
   const faviconRef = useRef<HTMLInputElement>(null)
+  const footerRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     api
@@ -94,7 +97,12 @@ function BrandingCard() {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       setUrls(data)
-      const label = field === 'favicon' ? 'Favicon' : LOGO_SLOTS.find((s) => s.field === field)?.label
+      const label =
+        field === 'favicon'
+          ? 'Favicon'
+          : field === 'footer_logo'
+            ? 'Footer logo'
+            : LOGO_SLOTS.find((s) => s.field === field)?.label
       toast.success(`${label} updated.`)
     } catch (err) {
       const detail = (err as { response?: { data?: { error?: string } } })?.response?.data
@@ -105,7 +113,7 @@ function BrandingCard() {
   }
 
   return (
-    <SectionCard title="Branding" description="One logo per dashboard, plus a favicon shared everywhere. Empty keeps the built-in mark.">
+    <SectionCard title="Branding" description="A logo per dashboard, a logo for the public footer, and a shared favicon. Empty keeps the built-in mark.">
       {loading ? (
         <div className="flex h-40 items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
@@ -124,34 +132,71 @@ function BrandingCard() {
             ))}
           </div>
 
-          <div className="mt-6 flex items-center gap-4 border-t border-slate-100 pt-6">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
-              {urls.favicon_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={urls.favicon_url} alt="Favicon" className="h-8 w-8 object-contain" />
-              ) : (
-                <ImageIcon className="h-5 w-5 text-slate-300" />
-              )}
+          <div className="mt-6 grid grid-cols-1 gap-6 border-t border-slate-100 pt-6 sm:grid-cols-2">
+            {/* Footer logo — previewed on navy, since it sits on the dark footer */}
+            <div className="flex items-center gap-4">
+              <div
+                className="flex h-14 w-24 shrink-0 items-center justify-center rounded-xl border border-slate-200"
+                style={{ background: '#0a2540' }}
+              >
+                {urls.footer_logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={urls.footer_logo_url} alt="Footer logo" className="max-h-9 max-w-[80%] object-contain" />
+                ) : (
+                  <span className="text-xs font-bold text-white">OrbiSave</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-navy">Footer logo</p>
+                <p className="text-xs text-slate-500">Public footer, dark background — use a light version.</p>
+              </div>
+              <input
+                ref={footerRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleUpload('footer_logo', e.target.files[0])}
+              />
+              <button
+                onClick={() => footerRef.current?.click()}
+                disabled={uploading === 'footer_logo'}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
+              >
+                {uploading === 'footer_logo' ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Upload className="h-4 w-4 text-primary" />}
+                {urls.footer_logo_url ? 'Replace' : 'Upload'}
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-navy">Favicon</p>
-              <p className="text-xs text-slate-500">Shared across every surface.</p>
+
+            {/* Favicon */}
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+                {urls.favicon_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={urls.favicon_url} alt="Favicon" className="h-8 w-8 object-contain" />
+                ) : (
+                  <ImageIcon className="h-5 w-5 text-slate-300" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-navy">Favicon</p>
+                <p className="text-xs text-slate-500">Shared across every surface.</p>
+              </div>
+              <input
+                ref={faviconRef}
+                type="file"
+                accept="image/png,image/x-icon,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleUpload('favicon', e.target.files[0])}
+              />
+              <button
+                onClick={() => faviconRef.current?.click()}
+                disabled={uploading === 'favicon'}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
+              >
+                {uploading === 'favicon' ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Upload className="h-4 w-4 text-primary" />}
+                {urls.favicon_url ? 'Replace' : 'Upload'}
+              </button>
             </div>
-            <input
-              ref={faviconRef}
-              type="file"
-              accept="image/png,image/x-icon,image/svg+xml,image/webp"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleUpload('favicon', e.target.files[0])}
-            />
-            <button
-              onClick={() => faviconRef.current?.click()}
-              disabled={uploading === 'favicon'}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
-            >
-              {uploading === 'favicon' ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Upload className="h-4 w-4 text-primary" />}
-              {urls.favicon_url ? 'Replace' : 'Upload'}
-            </button>
           </div>
         </>
       )}

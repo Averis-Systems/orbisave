@@ -1,172 +1,109 @@
+"use client"
+
 import Link from "next/link"
-import { ShieldCheck, Lock, Database, ArrowRight } from "lucide-react"
+import { ShieldCheck, Lock } from "lucide-react"
+import { usePlatformBranding } from "@/lib/useBranding"
 
-const NAV = {
-  Platform: [
-    { label: "How It Works",         href: "/#how-it-works" },
-    { label: "How Loaning Works",    href: "/how-loaning-works" },
-    { label: "Grow Your Farm",       href: "/input-financing" },
-    { label: "Grant Eligibility",    href: "/grants" },
-  ],
-  Company: [
-    { label: "About OrbiSave",       href: "/about" },
-    { label: "Security & Trust",     href: "/security" },
-    { label: "Contact Support",      href: "/support" },
-    { label: "Averis Systems",       href: "https://averissystems.com" },
-  ],
-  Legal: [
-    { label: "Fees and Costs",       href: "/fees" },
-    { label: "Terms of Service",     href: "/terms" },
-    { label: "Privacy Policy",       href: "/privacy" },
-    { label: "KYC Policy",           href: "/kyc-policy" },
-  ],
-  Resources: [
-    { label: "Help Centre & FAQs",   href: "/support" },
-    { label: "Compare OrbiSave",     href: "/#why-choose-orbisave" },
-    { label: "How Loans Work",       href: "/how-loaning-works" },
-  ],
-}
+/**
+ * Public footer — an app footer, not a website footer. It repeats on every
+ * marketing and legal page, so it stays lean: brand + one tagline, a single
+ * compact link row, a legal micro-line, and a slim trust signal. The old
+ * five-column sitemap, pre-footer CTA bar, and "a product of" block were the
+ * website-footer sprawl this replaced.
+ */
 
-const MARKETS = [
-  { name: "Kenya",  currency: "KES", network: "M-Pesa · Airtel" },
-  { name: "Rwanda", currency: "RWF", network: "MTN MoMo" },
-  { name: "Ghana",  currency: "GHS", network: "MTN MoMo" },
+const LINKS = [
+  { label: "About", href: "/about" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Security", href: "/security" },
+  { label: "Fees", href: "/fees" },
+  { label: "Support", href: "/support" },
 ]
 
-const SECURITY_BADGES = [
-  { icon: ShieldCheck, label: "Bank-Backed Custody" },
-  { icon: Database,    label: "SHA-256 Ledger" },
-  { icon: Lock,        label: "End-to-End Encrypted" },
-  { icon: ShieldCheck, label: "GDPR Compliant" },
+const LEGAL = [
+  { label: "Terms", href: "/terms" },
+  { label: "Privacy", href: "/privacy" },
+  { label: "KYC Policy", href: "/kyc-policy" },
 ]
 
 export function Footer() {
+  const { footerLogoUrl } = usePlatformBranding()
+
   return (
-    <footer>
-      {/* ── Pre-footer CTA bar ──────────────────────────────── */}
-      <div style={{ background: "#ffffff", borderTop: "1px solid #d6e4df" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div>
-              <h3
-                className="text-2xl sm:text-3xl font-black tracking-tight mb-3"
-                style={{ color: "#0a2540" }}
-              >
-                Ready to take your chama online?
-              </h3>
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {["No setup fees", "Mobile money ready", "Free to start"].map((item) => (
-                  <div key={item} className="flex items-center gap-2 text-sm font-medium" style={{ color: "#4a5c6a" }}>
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#00ab00" }} />
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <Link
-              href="/onboarding"
-              className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold text-white whitespace-nowrap group transition-opacity hover:opacity-90 flex-shrink-0"
-              style={{ background: "#00ab00", borderRadius: "6px" }}
-            >
-              Get Started
-              <ArrowRight className="w-4 h-4 icon-arrow" />
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Main footer body ──────────────────────────────────── */}
-      <div style={{ background: "#0a2540" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-10">
-
-          {/* Top grid: brand + nav columns */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 mb-12">
-
-            {/* Brand column */}
-            <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-5">
-              <Link href="/" className="flex items-center gap-2.5 w-fit group">
-                <div
-                  className="w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:rotate-6"
-                  style={{ background: "#00ab00", borderRadius: "6px" }}
-                >
-                  <span className="text-white font-black text-sm">O</span>
-                </div>
-                <span className="text-lg font-bold text-white tracking-tight">OrbiSave</span>
-              </Link>
-
-              <p className="text-xs font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-                OrbiSave is made by Averis Systems. We help groups in Kenya, Rwanda, and Ghana save money safely on their phones and grow together.
-              </p>
-
-              <div className="flex flex-col gap-1">
-                <p className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: "rgba(255,255,255,0.3)" }}>
-                  A product of
-                </p>
-                <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.6)" }}>
-                  Averis Systems Ltd.
-                </span>
-              </div>
-
-              {/* Markets */}
-              <div className="flex flex-col gap-1.5 pt-1">
-                {MARKETS.map(m => (
-                  <div key={m.name} className="flex items-center gap-2 text-xs font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>
-                    <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: "#00ab00" }}
-                    />
-                    <span style={{ color: "rgba(255,255,255,0.55)" }} className="font-semibold">{m.name}</span>
-                    <span>{m.currency} · {m.network}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Nav columns */}
-            {Object.entries(NAV).map(([section, links]) => (
-              <div key={section} className="flex flex-col gap-3">
-                <h4
-                  className="text-xs font-bold tracking-[0.12em] uppercase mb-1"
-                  style={{ color: "rgba(255,255,255,0.85)" }}
-                >
-                  {section}
-                </h4>
-                {links.map(link => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    className="text-sm font-medium transition-colors duration-200 hover:text-white"
-                    style={{ color: "rgba(255,255,255,0.4)" }}
+    <footer style={{ background: "#0a2540" }}>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12">
+        {/* Brand + links */}
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div className="max-w-sm">
+            <Link href="/" className="flex w-fit items-center gap-2.5">
+              {footerLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={footerLogoUrl} alt="OrbiSave" className="h-8 w-auto max-w-[160px] object-contain" />
+              ) : (
+                <>
+                  <span
+                    className="flex h-8 w-8 items-center justify-center text-sm font-black text-white"
+                    style={{ background: "#00ab00", borderRadius: "6px" }}
                   >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
+                    O
+                  </span>
+                  <span className="text-lg font-bold tracking-tight text-white">OrbiSave</span>
+                </>
+              )}
+            </Link>
+            <p className="mt-4 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+              Digitizing Africa&rsquo;s oldest savings tradition. By Averis Systems, across Kenya, Rwanda &amp; Ghana.
+            </p>
+          </div>
+
+          <nav className="flex flex-wrap gap-x-6 gap-y-2.5">
+            {LINKS.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-sm font-medium transition-colors hover:text-white"
+                style={{ color: "rgba(255,255,255,0.6)" }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* Bottom bar */}
+        <div
+          className="mt-10 flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>
+              © {new Date().getFullYear()} Averis Systems Ltd.
+            </span>
+            {LEGAL.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-xs font-medium transition-colors hover:text-white"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                {link.label}
+              </Link>
             ))}
           </div>
 
-          {/* Bottom bar */}
-          <div
-            className="flex flex-col sm:flex-row items-center justify-between gap-5 pt-8"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
-          >
-            <div className="text-xs font-medium text-center sm:text-left" style={{ color: "rgba(255,255,255,0.3)" }}>
-              © {new Date().getFullYear()} Averis Systems Ltd. All rights reserved.
-              <span className="mx-2 opacity-50">·</span>
-              OrbiSave™ is a registered trademark.
-            </div>
-
-            {/* Security badges */}
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-              {SECURITY_BADGES.map(({ icon: Icon, label }, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <Icon className="w-3 h-3" style={{ color: "#00ab00" }} />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" style={{ color: "#00ab00" }} />
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Bank-backed custody
+              </span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" style={{ color: "#00ab00" }} />
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Encrypted
+              </span>
+            </span>
           </div>
         </div>
       </div>
