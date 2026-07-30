@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { 
   ShieldCheck, 
@@ -37,7 +38,14 @@ export default function GroupVerificationPage() {
   const [filter, setFilter] = useState('pending_review')
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const [note, setNote] = useState('')
+  const [noteError, setNoteError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  const closeModal = () => {
+    setSelectedGroup(null)
+    setNote('')
+    setNoteError(null)
+  }
 
   const fetchGroups = async () => {
     setLoading(true)
@@ -57,19 +65,25 @@ export default function GroupVerificationPage() {
 
   const handleVerify = async (groupId: string, action: 'verify' | 'reject') => {
     if (action === 'reject' && !note.trim()) {
-      alert('Please provide a reason for rejection.')
+      setNoteError('A reason is required to reject an application.')
       return
     }
 
+    const groupName = selectedGroup?.name
     setActionLoading(true)
     try {
       await api.post(`/admin-portal/groups/${groupId}/verify/`, { action, note })
-      setSelectedGroup(null)
-      setNote('')
+      closeModal()
       fetchGroups()
+      toast.success(
+        action === 'verify'
+          ? `${groupName ?? 'Group'} authorized.`
+          : `${groupName ?? 'Application'} rejected.`
+      )
     } catch (err) {
       console.error('Action failed', err)
-      alert('Verification action failed. Please try again.')
+      const detail = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data
+      toast.error(detail?.error || detail?.message || 'That decision could not be saved. Try again.')
     } finally {
       setActionLoading(false)
     }
@@ -197,8 +211,8 @@ export default function GroupVerificationPage() {
       {selectedGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md bg-navy/20 animate-in fade-in">
           <div className="bg-white w-full max-w-2xl rounded-lg shadow-2xl relative overflow-hidden animate-in zoom-in-95">
-            <button 
-              onClick={() => setSelectedGroup(null)} 
+            <button
+              onClick={closeModal}
               className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-navy z-10"
             >
               <X className="w-5 h-5" />
@@ -228,12 +242,25 @@ export default function GroupVerificationPage() {
                   <MessageSquare className="w-4 h-4 text-primary" />
                   Administrative Review Note
                 </label>
-                <textarea 
+                <textarea
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e) => {
+                    setNote(e.target.value)
+                    if (noteError) setNoteError(null)
+                  }}
+                  aria-invalid={noteError ? true : undefined}
                   placeholder="Provide context for approval or specific reasons for rejection..."
-                  className="w-full h-40 bg-slate-50/30 border border-slate-200 rounded-lg p-5 text-sm outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all resize-none"
+                  className={`w-full h-40 bg-slate-50/30 border rounded-lg p-5 text-sm outline-none transition-all resize-none ${
+                    noteError
+                      ? 'border-red-300 focus:ring-4 focus:ring-red-100 focus:border-red-400'
+                      : 'border-slate-200 focus:ring-4 focus:ring-primary/10 focus:border-primary'
+                  }`}
                 />
+                {noteError && (
+                  <p role="alert" className="mt-2 text-sm font-medium text-red-600">
+                    {noteError}
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-4">

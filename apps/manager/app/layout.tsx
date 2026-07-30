@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
+
+import { Toaster } from "sonner";
 import { BrandingFaviconInjector } from "@/components/BrandingFaviconInjector";
 
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
@@ -20,6 +22,7 @@ export default function RootLayout({
       <body className={`${montserrat.variable} ${montserrat.className} h-full antialiased text-[#0a2540]`}>
         <BrandingFaviconInjector />
         {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

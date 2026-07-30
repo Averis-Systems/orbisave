@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import {
   AlertCircle,
@@ -187,6 +188,11 @@ function ReviewDrawer({
         rejection_reason: rejectionReason.trim(),
       })
       onReviewed()
+      toast.success(
+        action === 'approve'
+          ? `${doc.user_name || 'Applicant'} verified.`
+          : `${doc.user_name || 'Applicant'}'s submission rejected.`
+      )
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data
       // Replaces a browser alert(), which Manager used for every failure.

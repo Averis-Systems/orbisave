@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { 
   Plus, 
@@ -72,11 +73,15 @@ export default function ProviderHub() {
     setTestingId(id)
     try {
       const { data } = await api.post(`/admin-portal/superadmin/payment-providers/${id}/test/`)
-      alert(data.success ? `Success! Latency: ${data.latency_ms}ms` : `Failed: ${data.message}`)
+      if (data.success) {
+        toast.success(`Connection healthy — latency ${data.latency_ms}ms.`)
+      } else {
+        toast.error(data.message || 'Connection test failed.')
+      }
       fetchProviders()
     } catch (err) {
       console.error('Test failed', err)
-      alert('Test failed. Check console.')
+      toast.error('Connection test could not run. Please try again.')
     } finally {
       setTestingId(null)
     }
