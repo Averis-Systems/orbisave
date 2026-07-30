@@ -13,6 +13,7 @@ import { GROUP_TYPES, buildExistingAccountChairpersonPayload } from "@/lib/chair
 import { MAX_LANGUAGES, SUPPORTED_LANGUAGES } from "@/lib/languages"
 import { ShieldCheck, UserCheck, AlertCircle, Building2, MapPin, Eye, EyeOff, Check, ArrowRight, Loader2, Lock } from "lucide-react"
 import { CustomSelect } from "@/components/ui/select"
+import { Logo } from "@/components/ui/Logo"
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const STEP_META = [
@@ -721,9 +722,8 @@ export default function ChamaOnboardingPage() {
             {/* Same logo mark markup as the auth pages (AuthIllustrationPanel /
                 auth-topbar): flat green square, no shadow — one pattern to swap
                 everywhere when the real logo asset lands. */}
-            <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-foreground tracking-tight mb-16 hover:opacity-80 transition-opacity">
-              <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm font-bold text-white">O</span>
-              OrbiSave
+            <Link href="/" className="mb-16 inline-flex w-fit items-center hover:opacity-80 transition-opacity">
+              <Logo />
             </Link>
 
             <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-500" key={step}>

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useGSAP } from "@gsap/react"
 import dynamic from "next/dynamic"
 import { DotLottieReact } from "@lottiefiles/dotlottie-react"
+import { Logo } from "@/components/ui/Logo"
 import { gsap } from "@/lib/gsap-init"
 
 export default function OnboardingSelection() {
@@ -59,9 +60,8 @@ export default function OnboardingSelection() {
         {/* Same logo mark markup as the auth pages: flat green square, no
             shadow, solid navy wordmark: one pattern to swap platform-wide
             when the real logo asset lands. */}
-        <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy">
-          <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm font-bold text-white">O</span>
-          OrbiSave
+        <Link href="/" className="inline-flex w-fit items-center">
+          <Logo />
         </Link>
         <div className="text-sm font-medium text-[#717973] flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#00ab00]/20 flex items-center justify-center text-[#012d1d] font-bold text-xs">

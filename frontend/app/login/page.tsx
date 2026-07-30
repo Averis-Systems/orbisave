@@ -1,6 +1,7 @@
 import { AuthIllustrationPanel } from "@/components/auth/AuthIllustrationPanel"
 import { AuthFooter } from "@/components/auth/AuthFooter"
 import { LoginForm } from "@/components/auth/LoginForm"
+import { Logo } from "@/components/ui/Logo"
 import Link from "next/link"
 
 export const metadata = {
@@ -19,12 +20,8 @@ export default function LoginPage() {
             <div className="mb-10 text-center lg:text-left">
               {/* The logo lives on the illustration panel at lg+; keep it here
                   for small screens where that panel is hidden. */}
-              <Link
-                href="/"
-                className="mb-8 inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy lg:hidden"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm text-white">O</span>
-                OrbiSave
+              <Link href="/" className="mb-8 inline-flex w-fit items-center lg:hidden">
+                <Logo />
               </Link>
               <h1 className="mb-2 text-3xl font-bold tracking-tight text-navy">Sign in to OrbiSave</h1>
               <p className="text-sm font-medium leading-relaxed text-slate-500">

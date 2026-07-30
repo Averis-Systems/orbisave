@@ -23,6 +23,7 @@ import { AppStateNotice } from "@/components/states/AppState"
 import { ConnectionBanner } from "@/components/states/ConnectionBanner"
 import { useActiveGroup } from "@/hooks/useGroups"
 import { useNotifications } from "@/hooks/useNotifications"
+import { usePlatformBranding } from "@/lib/useBranding"
 import { getUserDashboardNavItems, type DashboardNavSection } from "@/lib/dashboard-reference"
 
 function useDashboardSidebar() {
@@ -137,6 +138,7 @@ function AppSidebar({
   activeGroupName?: string
 }) {
   const showText = isExpanded || isHovered || isMobileOpen
+  const { logoUrl } = usePlatformBranding()
 
   return (
     <aside
@@ -148,15 +150,22 @@ function AppSidebar({
     >
       <div className={`flex py-8 ${showText ? "justify-start" : "lg:justify-center"}`}>
         <Link href="/dashboard" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ab00] text-sm font-bold text-white">
-            OS
-          </span>
-          {showText && (
-            <span className="leading-none">
-              <span className="block text-xl font-semibold text-gray-900 dark:text-white">
-                Orbi<span className="text-[#00ab00]">Save</span>
+          {logoUrl && showText ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="OrbiSave" className="h-9 w-auto max-w-[180px] object-contain" />
+          ) : (
+            <>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ab00] text-sm font-bold text-white">
+                OS
               </span>
-            </span>
+              {showText && (
+                <span className="leading-none">
+                  <span className="block text-xl font-semibold text-gray-900 dark:text-white">
+                    Orbi<span className="text-[#00ab00]">Save</span>
+                  </span>
+                </span>
+              )}
+            </>
           )}
         </Link>
       </div>
@@ -230,6 +239,7 @@ function AppHeader({
   const router = useRouter()
   const profileRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const { logoUrl } = usePlatformBranding()
 
   // The Ctrl-K listener was removed with the search box it focused. Restore it
   // alongside a real command palette, not before.
@@ -265,10 +275,17 @@ function AppHeader({
           </button>
 
           <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#00ab00] text-xs font-bold text-white">
-              OS
-            </span>
-            <span className="font-semibold text-gray-900 dark:text-white">OrbiSave</span>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="OrbiSave" className="h-8 w-auto max-w-[150px] object-contain" />
+            ) : (
+              <>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#00ab00] text-xs font-bold text-white">
+                  OS
+                </span>
+                <span className="font-semibold text-gray-900 dark:text-white">OrbiSave</span>
+              </>
+            )}
           </Link>
 
           {/* The global search box was removed rather than restyled. It had no

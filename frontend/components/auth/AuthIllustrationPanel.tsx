@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Logo } from "@/components/ui/Logo"
 
 /**
  * Left panel of the split-card auth layout (login / register / forgot-password),
@@ -18,9 +19,8 @@ export function AuthIllustrationPanel({ illustration }: { illustration: string }
       <div className="absolute -bottom-28 -right-16 h-80 w-80 rounded-full bg-navy/5 blur-3xl" />
 
       <div className="relative flex w-full flex-col p-10 xl:p-12">
-        <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold tracking-tight text-navy">
-          <span className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm text-white">O</span>
-          OrbiSave
+        <Link href="/" className="inline-flex w-fit items-center">
+          <Logo />
         </Link>
 
         <h2 className="mt-8 max-w-md text-3xl font-bold leading-[1.15] tracking-tight text-navy xl:text-4xl">
