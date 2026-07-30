@@ -2,8 +2,8 @@ import { Navbar } from "@/components/landing/Navbar"
 import { Footer } from "@/components/landing/Footer"
 
 export const metadata = {
-  title: "KYC Policy — OrbiSave",
-  description: "OrbiSave's Know Your Customer (KYC) policy — how we verify identities and protect group members.",
+  title: "KYC Policy | OrbiSave",
+  description: "OrbiSave's Know Your Customer (KYC) policy: how we verify identities and protect group members.",
 }
 
 export default function KycPolicyPage() {

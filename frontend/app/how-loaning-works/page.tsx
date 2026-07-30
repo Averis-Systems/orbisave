@@ -66,9 +66,9 @@ const REQUEST_STEPS = [
 ]
 
 const CREDIT_TIMELINE = [
-  { period: "Month 1–3",   icon: Star,      color: "#4a5c6a", label: "Start Saving",           desc: "Every payment is recorded. Your good name starts growing." },
-  { period: "Month 4–6",   icon: TrendingUp, color: "#00ab00", label: "Borrow from the Group",  desc: "Your group can now lend money to members who need it." },
-  { period: "Month 7–12",  icon: FileText,   color: "#00ab00", label: "Get Your Group Report",  desc: "The treasurer creates your group's official report." },
+  { period: "Month 1-3",   icon: Star,      color: "#4a5c6a", label: "Start Saving",           desc: "Every payment is recorded. Your good name starts growing." },
+  { period: "Month 4-6",   icon: TrendingUp, color: "#00ab00", label: "Borrow from the Group",  desc: "Your group can now lend money to members who need it." },
+  { period: "Month 7-12",  icon: FileText,   color: "#00ab00", label: "Get Your Group Report",  desc: "The treasurer creates your group's official report." },
   { period: "Month 13+",   icon: Banknote,   color: "#0a2540", label: "Talk to a Bank",         desc: "Show your group's report to a bank for bigger loans." },
 ]
 
@@ -162,7 +162,7 @@ export default function HowLoaningWorks() {
               How do we start loaning?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Before anyone can borrow, the whole group must agree together. Then two different leaders unlock the money — one person cannot do it alone.
+              Before anyone can borrow, the whole group must agree together. Then two different leaders unlock the money, so one person cannot do it alone.
             </p>
           </div>
 
@@ -207,7 +207,7 @@ export default function HowLoaningWorks() {
               How do I get a loan?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Any member can request a loan. The money comes from your group&apos;s own loan pool — not from a bank. Two leaders must say yes before the money moves.
+              Any member can request a loan. The money comes from your group&apos;s own loan pool, not from a bank. Two leaders must say yes before the money moves.
             </p>
           </div>
 
@@ -233,7 +233,7 @@ export default function HowLoaningWorks() {
 
           {/* Rules box */}
           <div className="mt-8 p-6" style={{ background: "#0a2540", borderRadius: "8px" }}>
-            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>Simple Rules — Everyone Agrees to These</p>
+            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>Simple Rules Everyone Agrees to These</p>
             <div className="grid sm:grid-cols-3 gap-4">
               {[
                 { label: "Maximum you can borrow", value: "3× your total savings" },
@@ -265,7 +265,7 @@ export default function HowLoaningWorks() {
                 After saving for a few months, your treasurer creates a simple report. Everyone in the group checks it to make sure it&apos;s correct. This report becomes your group&apos;s proof of hard work. You can show it to a bank to get bigger support.
               </p>
               <p className="text-base font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
-                <span className="font-bold" style={{ color: "#0a2540" }}>The more you save, the bigger the loans you can get</span> — for your farm, your business, and your group.
+                <span className="font-bold" style={{ color: "#0a2540" }}>The more you save, the bigger the loans you can get</span> for your farm, your business, and your group.
               </p>
               <Link href="/onboarding">
                 <button className="h-11 px-6 text-sm font-bold text-white flex items-center gap-2 group transition-opacity hover:opacity-90" style={{ background: "#00ab00", borderRadius: "6px" }}>
@@ -311,7 +311,7 @@ export default function HowLoaningWorks() {
               Month by month, your record grows.
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Every contribution you make adds to your financial history. Over time, that history opens bigger doors — for your group and for you personally.
+              Every contribution you make adds to your financial history. Over time, that history opens bigger doors for your group and for you personally.
             </p>
           </div>
 

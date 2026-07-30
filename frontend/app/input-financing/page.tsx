@@ -190,7 +190,7 @@ export default function InputFinancingPage() {
                 Input Financing
               </div>
               <h1 className="if-hero-text text-4xl sm:text-5xl font-black tracking-tight leading-tight mb-5" style={{ color: "#0a2540" }}>
-                Get your seeds, feed, and tools —<br />
+                Get your seeds, feed, and tools,<br />
                 <span style={{ color: "#00ab00" }}>pay after you harvest.</span>
               </h1>
               <p className="if-hero-text text-lg font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
@@ -241,7 +241,7 @@ export default function InputFinancingPage() {
               What farm supplies can you get?
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              Whether you grow crops, raise animals, or farm fish — there are trusted suppliers on OrbiSave who can help your type of farming.
+              Whether you grow crops, raise animals, or farm fish, there are trusted suppliers on OrbiSave who can help your type of farming.
             </p>
           </div>
 
@@ -279,7 +279,7 @@ export default function InputFinancingPage() {
               Five simple steps to get started.
             </h2>
             <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              From joining a group to getting your seeds — here is how it works.
+              From joining a group to getting your seeds, here is how it works.
             </p>
           </div>
 
@@ -382,7 +382,7 @@ export default function InputFinancingPage() {
             Start your farming group today.
           </h2>
           <p className="text-lg font-medium leading-relaxed mb-8" style={{ color: "#4a5c6a" }}>
-            The sooner you begin, the sooner your record grows — and the sooner you access the inputs your farm needs.
+            The sooner you begin, the sooner your record grows, and the sooner you access the inputs your farm needs.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/onboarding">

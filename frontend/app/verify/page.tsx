@@ -174,8 +174,8 @@ function VerifyPageInner() {
             </div>
             <h1 className="auth-heading__title">Verify your phone number</h1>
             <p className="auth-heading__sub">
-              We sent a 6-digit code by SMS to {user?.phone || "your phone number"}. Enter it below —
-              this is the number your contributions and payouts will flow through.
+              We sent a 6-digit code by SMS to {user?.phone || "your phone number"}. Enter it below.
+              This is the number your contributions and payouts will flow through.
             </p>
           </div>
 

@@ -264,7 +264,7 @@ export function HowItWorks() {
             className="text-xs font-bold tracking-[0.15em] uppercase mb-6"
             style={{ color: "rgba(255,255,255,0.4)" }}
           >
-            Platform Security — Non-Negotiable
+            Platform Security, Non-Negotiable
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {TRUST_PILLARS.map((point, i) => (

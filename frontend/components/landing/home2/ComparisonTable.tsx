@@ -88,8 +88,8 @@ export function ComparisonTable() {
 
               <div className="space-y-4">
                 {[
-                  { icon: BookOpen, text: "Handwritten ledgers — lost or falsified" },
-                  { icon: AlertCircle, text: "Treasurer holds all cash — trust erodes" },
+                  { icon: BookOpen, text: "Handwritten ledgers, lost or falsified" },
+                  { icon: AlertCircle, text: "Treasurer holds all cash, trust erodes" },
                   { icon: AlertCircle, text: "No credit history for banks" },
                   { icon: AlertCircle, text: "Disputes dissolve groups" },
                 ].map((item, i) => (

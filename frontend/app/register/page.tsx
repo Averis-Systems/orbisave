@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Suspense } from "react"
 
 export const metadata = {
-  title: "Create Account — OrbiSave",
+  title: "Create Account | OrbiSave",
   description: "Join OrbiSave to save collectively and grow your community's wealth.",
 }
 

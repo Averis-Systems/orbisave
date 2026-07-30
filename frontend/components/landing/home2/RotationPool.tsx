@@ -205,7 +205,7 @@ export function RotationPool() {
           </h2>
           <p className="text-lg text-white/50 font-medium max-w-xl mx-auto">
             Every member contributes. Rotation savings grow. OrbiSave automatically
-            pays out to the next person in rotation — no manual work, no missing funds.
+            pays out to the next person in rotation, with no manual work and no missing funds.
           </p>
         </div>
 
@@ -256,7 +256,7 @@ export function RotationPool() {
                   fontWeight="700" letterSpacing="2">COLLECTIVE VAULT</text>
                 <text x={CX} y={CY + 8} textAnchor="middle"
                   fill="#ffffff" fontSize="13" fontFamily="sans-serif" fontWeight="900">
-                  {vaultTotal === 0 ? "—" : `KES ${(vaultTotal / 1000).toFixed(0)}K`}
+                  {vaultTotal === 0 ? "KES 0" : `KES ${(vaultTotal / 1000).toFixed(0)}K`}
                 </text>
                 <text x={CX} y={CY + 22} textAnchor="middle"
                   fill="rgba(0,171,0,0.8)" fontSize="7" fontFamily="sans-serif"

@@ -405,11 +405,11 @@ function StepReview() {
         <dl className="space-y-4 text-sm">
           <div className="flex justify-between border-b border-border pb-3">
             <dt className="text-muted-foreground">Chairperson</dt>
-            <dd className="font-bold text-foreground">{data.full_name || "—"}</dd>
+            <dd className="font-bold text-foreground">{data.full_name || "Not provided"}</dd>
           </div>
           <div className="flex justify-between border-b border-border pb-3">
             <dt className="text-muted-foreground">Chama Name</dt>
-            <dd className="font-bold text-primary">{data.group_name || "—"}</dd>
+            <dd className="font-bold text-primary">{data.group_name || "Not provided"}</dd>
           </div>
           <div className="flex justify-between border-b border-border pb-3">
             <dt className="text-muted-foreground">Group Type</dt>

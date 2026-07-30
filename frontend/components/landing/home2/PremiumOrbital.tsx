@@ -22,7 +22,7 @@ const PILLARS = [
   {
     icon: Zap,
     title: "Instant STK Payouts",
-    desc: "When a cycle completes, the payout hits the member's mobile money account automatically — no treasurer needed.",
+    desc: "When a cycle completes, the payout hits the member's mobile money account automatically, with no treasurer needed.",
     badge: "M-Pesa · Airtel · MTN MoMo"
   },
   {

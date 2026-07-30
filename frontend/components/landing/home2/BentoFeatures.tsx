@@ -50,7 +50,7 @@ export function BentoFeatures() {
             Every Tool Your<br />Group Needs
           </h2>
           <p className="text-lg text-[#4a5c6a] font-medium max-w-xl mx-auto">
-            Powerful tools for chairpersons, treasurers, and members — all in one platform.
+            Powerful tools for chairpersons, treasurers, and members, all in one platform.
           </p>
         </div>
 

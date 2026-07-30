@@ -105,7 +105,7 @@ export function WhyChooseUs() {
               <span style={{ color: "#00ab00" }}>Advantage.</span>
             </h2>
             <p className="text-lg sm:text-xl font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-              OrbiSave doesn&apos;t change how your group saves—it changes what your 
+              OrbiSave doesn&apos;t change how your group saves, it changes what your
               group is capable of. We turn your community trust into an 
               impenetrable financial machine.
             </p>
