@@ -33,7 +33,8 @@ api.interceptors.response.use(
       // the shell cannot keep rendering as though someone is signed in.
       useAuthStore.getState().clear()
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
+        // Carry a reason so the login page can explain the redirect.
+        window.location.href = '/login?reason=session-expired'
       }
     }
     return Promise.reject(error)

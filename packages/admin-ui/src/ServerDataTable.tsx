@@ -17,7 +17,7 @@
  */
 
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Lock, RefreshCw, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ServerTableState } from './useServerTable'
 import { EmptyState } from './primitives'
@@ -66,7 +66,7 @@ export function ServerDataTable<Row>({
   /** Page-specific toolbar content (e.g. an export button), right-aligned. */
   toolbarExtra?: ReactNode
 }) {
-  const { query, rows, count, totalPages, loading, error } = table
+  const { query, rows, count, totalPages, loading, error, forbidden } = table
 
   const sortState = (field?: string): 'asc' | 'desc' | null => {
     if (!field || !query.sort) return null
@@ -167,6 +167,20 @@ export function ServerDataTable<Row>({
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <SkeletonRows columns={columns.length} rows={Math.min(query.page_size, 8)} />
+            ) : forbidden ? (
+              <tr>
+                <td colSpan={columns.length} className="px-6 py-14">
+                  <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-center">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                      <Lock className="h-5 w-5" />
+                    </span>
+                    <p className="text-sm font-semibold text-navy">You don&apos;t have access to this</p>
+                    <p className="text-sm text-slate-500">
+                      {error || 'Your role does not permit viewing these records. Ask a super admin if you believe this is a mistake.'}
+                    </p>
+                  </div>
+                </td>
+              </tr>
             ) : error ? (
               <tr>
                 <td colSpan={columns.length} className="px-6 py-14">

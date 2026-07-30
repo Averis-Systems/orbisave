@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import { Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { Mail, ArrowRight, Loader2, Clock } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { LoginIllustrationPanel } from '@/components/auth/LoginIllustrationPanel'
@@ -16,8 +16,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSessionExpired(params.get('reason') === 'session-expired')
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,6 +71,13 @@ export default function LoginPage() {
                 Manage payment providers, platform admins, and country oversight across Kenya, Rwanda, and Ghana.
               </p>
             </div>
+
+            {sessionExpired && !success && (
+              <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Your session expired. Please sign in again to continue.</span>
+              </div>
+            )}
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">

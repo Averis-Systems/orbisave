@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import { AlertTriangle, Mail, Lock, Loader2, ArrowRight } from "lucide-react"
+import { AlertTriangle, Clock, Mail, Lock, Loader2, ArrowRight } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -35,6 +35,12 @@ export function LoginForm() {
   const setAuth = useAuthStore((state) => state.setAuth)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSessionExpired(params.get("reason") === "session-expired")
+  }, [])
 
   const {
     register,
@@ -74,6 +80,12 @@ export function LoginForm() {
   return (
     <div className="w-full">
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+        {sessionExpired && !error && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 animate-in fade-in slide-in-from-top-2">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" /> Your session expired. Please sign in again to continue.
+          </div>
+        )}
+
         {error && (
           <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-600 animate-in fade-in slide-in-from-top-2">
             <AlertTriangle className="h-4 w-4 shrink-0" /> {error}

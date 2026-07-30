@@ -76,7 +76,9 @@ api.interceptors.response.use(
         .some((page) => window.location.pathname.startsWith(page))
       if (!onAuthPage) {
         useAuthStore.getState().logout()
-        window.location.href = '/login'
+        // Carry a reason so the login page can explain the redirect instead of
+        // dropping the user there with no context.
+        window.location.href = '/login?reason=session-expired'
       }
     }
     return Promise.reject(error)

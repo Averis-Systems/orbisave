@@ -106,6 +106,10 @@ export function useServerTable<Row>(
   const [data, setData] = useState<TablePage<Row> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A 403 is a role/scope denial, not a transient failure — surfaced
+  // separately so the table can show a "no access" state without a pointless
+  // "Try again" button.
+  const [forbidden, setForbidden] = useState(false)
   // Bumping this refetches with the current query (retry after an error, or
   // refresh after a row action changed server state).
   const [refreshTick, setRefreshTick] = useState(0)
@@ -126,6 +130,7 @@ export function useServerTable<Row>(
 
     setLoading(true)
     setError(null)
+    setForbidden(false)
 
     const params: Record<string, string | number> = {
       page: query.page,
@@ -148,9 +153,14 @@ export function useServerTable<Row>(
       })
       .catch((err: unknown) => {
         if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return
-        const detail =
-          (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data
-        setError(detail?.message || detail?.error || 'This list could not be loaded.')
+        const response = (err as { response?: { status?: number; data?: { message?: string; error?: string } } })?.response
+        const detail = response?.data
+        if (response?.status === 403) {
+          setForbidden(true)
+          setError(detail?.message || detail?.error || "You don't have access to this.")
+        } else {
+          setError(detail?.message || detail?.error || 'This list could not be loaded.')
+        }
         setData(null)
       })
       .finally(() => {
@@ -206,6 +216,7 @@ export function useServerTable<Row>(
     totalPages: data?.total_pages ?? 0,
     loading,
     error,
+    forbidden,
     setPage,
     setPageSize,
     setSearch,
