@@ -24,7 +24,7 @@ const TIMEOUT_MS = 20000
 let onlineState = typeof navigator !== 'undefined' ? navigator.onLine : true
 let slowCount = 0
 
-// Cached so getSnapshot is referentially stable between real changes —
+// Cached so getSnapshot stays referentially stable between real changes;
 // useSyncExternalStore loops forever otherwise.
 let snapshot = { online: onlineState, slow: slowCount > 0 }
 const SERVER_SNAPSHOT = { online: true, slow: false }
@@ -50,8 +50,8 @@ if (typeof window !== 'undefined') {
 
 type NetMarker = { timer: ReturnType<typeof setTimeout>; counted: boolean }
 
-// Structural axios shape — admin-ui does not want a hard axios import, only
-// the interceptor surface it actually touches.
+// A structural axios shape, since admin-ui does not want a hard axios import,
+// only the interceptor surface it actually touches.
 interface AxiosLike {
   defaults: { timeout?: number }
   interceptors: {
@@ -156,7 +156,7 @@ export function ConnectionBanner() {
         className="flex items-center justify-center gap-2 bg-amber-500 px-4 py-2 text-sm font-medium text-white"
       >
         <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-        Slow connection — still loading. Hang tight.
+        Slow connection. Still loading, hang tight.
       </div>
     )
   }

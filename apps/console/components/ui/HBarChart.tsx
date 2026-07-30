@@ -3,7 +3,7 @@
 /**
  * Dependency-free horizontal bar list for ranked counts (signups per country,
  * groups per region/sub-region). A plain flex/percentage bar rather than a
- * charting lib — it reads cleaner at this small scale, stays crisp, and keeps
+ * charting lib. It reads cleaner at this small scale, stays crisp, and keeps
  * long region names readable. Brand green by default.
  */
 

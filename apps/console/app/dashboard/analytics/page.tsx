@@ -25,7 +25,7 @@ interface Demographics {
 }
 
 /**
- * Console demographics — the platform-wide view of who is signing up and
+ * Console demographics: the platform-wide view of who is signing up and
  * where, which the Manager only ever sees for its own country. Signups and
  * gender come live from the accounts table; regions/sub-regions from the
  * group records fanned across every country DB. Deeper financial trends
@@ -94,7 +94,7 @@ export default function ConsoleAnalyticsPage() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1200px] space-y-5 pb-10">
-      <PageHeader title="Analytics" description="Who is signing up across the platform, and where — live from accounts and group records." />
+      <PageHeader title="Analytics" description="Who is signing up across the platform, and where. Live from accounts and group records." />
 
       {error && (
         <div className="rounded-2xl border border-[#fecdca] bg-[#fef3f2] px-5 py-4 text-sm text-[#b42318]">{error}</div>
@@ -125,7 +125,7 @@ export default function ConsoleAnalyticsPage() {
       {/* 3. Country drill-down */}
       <SectionCard
         title="Country drill-down"
-        description="Where groups are forming inside a country — the recruitment picture behind the totals."
+        description="Where groups are forming inside a country, the recruitment picture behind the totals."
         actions={
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
             {COUNTRIES.map((c) => (
@@ -163,7 +163,7 @@ export default function ConsoleAnalyticsPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
         <p className="text-sm text-slate-500">
           On-time contribution ratios, the activation funnel, and loan-arrears trends need the nightly rollup across
-          every country database — they&apos;ll land here once that job is built, rather than be estimated live.
+          every country database, so they&apos;ll land here once that job is built rather than be estimated live.
         </p>
       </div>
     </div>

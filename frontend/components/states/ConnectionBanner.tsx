@@ -33,7 +33,7 @@ export function ConnectionBanner() {
         className="flex items-center justify-center gap-2 bg-amber-500 px-4 py-2 text-center text-xs font-semibold text-white sm:text-sm"
       >
         <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-        Slow connection — still loading. Hang tight.
+        Slow connection. Still loading, hang tight.
       </div>
     )
   }

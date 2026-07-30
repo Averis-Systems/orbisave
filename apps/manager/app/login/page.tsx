@@ -52,7 +52,7 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       // NOTE: previously rendered raw backend response JSON straight into the
-      // UI (`Raw: ${JSON.stringify(err.response?.data)}`) — fixed to match
+      // UI (`Raw: ${JSON.stringify(err.response?.data)}`), fixed to match
       // the Console app's pattern: a safe, generic fallback message only.
       setError(err.response?.data?.message || 'Authentication failed. Please verify your connection and credentials.')
     } finally {

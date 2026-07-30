@@ -28,7 +28,7 @@ import { RegionBarChart } from '@/components/ui/RegionBarChart'
 import { useAttention, type AttentionWorklistItem, type GrowthLogItem } from '@/hooks/useAttention'
 
 /**
- * Manager overview — an operations cockpit for a country admin managing
+ * Manager overview: an operations cockpit for a country admin managing
  * thousands of groups, not a ceremonial scoreboard.
  *
  * Layout rules for this page (kept tight so cards never spill the shell):
@@ -173,7 +173,7 @@ export default function DashboardOverview() {
                   formatAxis={(v) =>
                     v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : String(v)
                   }
-                  formatTooltipLabel={(label) => `${label} — contributions`}
+                  formatTooltipLabel={(label) => `${label} contributions`}
                 />
               </div>
             ) : (
@@ -187,12 +187,12 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* 3. Analytics band — the two country-shape charts, grouped together */}
+      {/* 3. Analytics band: the two country-shape charts, grouped together */}
       <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <SectionCard
             title="Groups by region"
-            description="This month vs all-time — check against marketers' reported regional recruitment."
+            description="This month vs all-time. Check against marketers' reported regional recruitment."
           >
             {loading ? (
               <div className="h-[260px] animate-pulse rounded-xl bg-slate-50" />
@@ -230,7 +230,7 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* 4. Activity feeds band — two peer feeds at equal width, newest-first slices */}
+      {/* 4. Activity feeds band: two peer feeds at equal width, newest-first slices */}
       <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
         <div className="min-w-0">
           <SectionCard

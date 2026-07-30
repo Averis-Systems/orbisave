@@ -106,8 +106,8 @@ export function useServerTable<Row>(
   const [data, setData] = useState<TablePage<Row> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // A 403 is a role/scope denial, not a transient failure — surfaced
-  // separately so the table can show a "no access" state without a pointless
+  // A 403 is a role/scope denial, not a transient failure, so it is surfaced
+  // separately and the table can show a "no access" state without a pointless
   // "Try again" button.
   const [forbidden, setForbidden] = useState(false)
   // Bumping this refetches with the current query (retry after an error, or

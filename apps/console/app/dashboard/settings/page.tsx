@@ -133,7 +133,7 @@ function BrandingCard() {
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-6 border-t border-slate-100 pt-6 sm:grid-cols-2">
-            {/* Footer logo — previewed on navy, since it sits on the dark footer */}
+            {/* Footer logo, previewed on navy since it sits on the dark footer */}
             <div className="flex items-center gap-4">
               <div
                 className="flex h-14 w-24 shrink-0 items-center justify-center rounded-xl border border-slate-200"
@@ -148,7 +148,7 @@ function BrandingCard() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-navy">Footer logo</p>
-                <p className="text-xs text-slate-500">Public footer, dark background — use a light version.</p>
+                <p className="text-xs text-slate-500">Public footer, dark background. Use a light version.</p>
               </div>
               <input
                 ref={footerRef}
@@ -217,7 +217,7 @@ const IDENTITY_FIELDS: { key: string; label: string; placeholder: string; type: 
 ]
 
 /**
- * Platform identity — name and support contacts, stored as SystemConfiguration
+ * Platform identity: name and support contacts, stored as SystemConfiguration
  * keys (category 'platform') via the real config API. Persisted on blur;
  * these feed member-facing surfaces (email footers, help links) as they get
  * wired to read them.

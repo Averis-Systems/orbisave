@@ -1,16 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { ShieldCheck, Lock, ArrowUpRight } from "lucide-react"
+import { ArrowUpRight } from "lucide-react"
 import { usePlatformBranding } from "@/lib/useBranding"
 
 /**
- * Public footer — an app footer, not a website footer. It repeats on every
- * marketing and legal page, so it stays lean: brand + one tagline, where
- * OrbiSave operates, a compact link row, and a slim legal + trust bar.
+ * Public footer. An app footer, not a website footer: it repeats on every
+ * marketing and legal page, so it stays lean. Brand and a short line, where
+ * OrbiSave operates, a compact link row, then copyright with the legal links
+ * set to the right.
  *
  * OrbiSave is the product; Averis Systems is the company behind it, credited
- * once as a link to its own site — not the subject of the footer.
+ * once as a link to its own site, not the subject of the footer.
  */
 
 const LINKS = [
@@ -18,7 +19,7 @@ const LINKS = [
   { label: "How it works", href: "/#how-it-works" },
   { label: "Security", href: "/security" },
   { label: "Fees", href: "/fees" },
-  { label: "Support", href: "/support" },
+  { label: "Contact", href: "/support" },
 ]
 
 const LEGAL = [
@@ -59,7 +60,7 @@ export function Footer() {
             </Link>
 
             <p className="mt-4 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-              Digitizing Africa&rsquo;s oldest savings tradition — secure group savings and lending, right from your phone.
+              Digitizing Africa&rsquo;s oldest savings tradition. Secure group savings and lending, right from your phone.
             </p>
 
             {/* Where OrbiSave operates */}
@@ -87,23 +88,13 @@ export function Footer() {
           </nav>
         </div>
 
-        {/* Bottom bar */}
+        {/* Bottom bar: copyright and attribution on the left, legal on the right */}
         <div
           className="mt-10 flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between"
           style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <span className="text-xs font-semibold text-white/80">© {new Date().getFullYear()} OrbiSave</span>
-            {LEGAL.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="text-xs font-medium transition-colors hover:text-white"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
-                {link.label}
-              </Link>
-            ))}
             <a
               href="https://averissystems.com"
               target="_blank"
@@ -116,19 +107,17 @@ export function Footer() {
             </a>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5" style={{ color: "#00ab00" }} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Bank-backed custody
-              </span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5" style={{ color: "#00ab00" }} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Encrypted
-              </span>
-            </span>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+            {LEGAL.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-xs font-medium transition-colors hover:text-white"
+                style={{ color: "rgba(255,255,255,0.45)" }}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
