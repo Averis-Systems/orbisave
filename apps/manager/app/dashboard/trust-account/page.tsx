@@ -6,7 +6,7 @@
  * The human half of OrbiSave's fail-closed money design: statement imports
  * and webhook mismatches open reconciliation items; this page is where a
  * country admin sees them and resolves/escalates with a mandatory note.
- * Resolution never edits the ledger — corrections are posted as compensating
+ * Resolution never edits the ledger. Corrections are posted as compensating
  * entries through the ledger service.
  */
 import { useCallback, useEffect, useState } from 'react'
@@ -159,7 +159,7 @@ export default function TrustAccountReconciliationPage() {
         ) : items.length === 0 ? (
           <div className="p-10 text-center">
             <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-3" />
-            <p className="text-sm font-bold text-navy">No open exceptions — ledger and bank agree.</p>
+            <p className="text-sm font-bold text-navy">No open exceptions. Ledger and bank agree.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -186,9 +186,9 @@ export default function TrustAccountReconciliationPage() {
                     <td className="px-6 py-4 font-bold text-navy">{item.issue_type.replace(/_/g, ' ')}</td>
                     <td className="px-6 py-4 font-mono text-xs text-slate-600">{item.reference}</td>
                     <td className="px-6 py-4 font-semibold text-slate-600">
-                      {item.expected_amount ?? '—'} / {item.observed_amount ?? '—'} {item.currency}
+                      {item.expected_amount ?? '-'} / {item.observed_amount ?? '-'} {item.currency}
                     </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium">{item.group_name ?? '—'}</td>
+                    <td className="px-6 py-4 text-slate-600 font-medium">{item.group_name ?? '-'}</td>
                     <td className="px-6 py-4 text-slate-500">{formatDateTime(item.created_at)}</td>
                     <td className="px-6 py-4 text-right">
                       <button
@@ -216,7 +216,7 @@ export default function TrustAccountReconciliationPage() {
         </div>
         {runs.length === 0 && !loading ? (
           <div className="p-10 text-center text-sm font-semibold text-slate-400">
-            No statement imports yet — the daily job populates this after the first bank pull.
+            No statement imports yet. The daily job populates this after the first bank pull.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -237,7 +237,7 @@ export default function TrustAccountReconciliationPage() {
                     <td className="px-6 py-4 font-bold text-navy">{run.business_date}</td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{run.provider_code}</td>
                     <td className="px-6 py-4 font-mono text-xs text-slate-600">{run.account_number}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-600">{run.observed_closing_balance ?? '—'}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-600">{run.observed_closing_balance ?? '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${run.status === 'matched' ? SEVERITY_STYLES.green : SEVERITY_STYLES.orange}`}>
                         {run.status.replace(/_/g, ' ')}
@@ -264,8 +264,8 @@ export default function TrustAccountReconciliationPage() {
                 </div>
                 <h3 className="text-xl font-bold text-navy">Resolve Exception</h3>
                 <p className="mt-1 text-sm text-slate-500 font-medium">
-                  Ref <span className="font-mono">{actioning.reference}</span> — expected{' '}
-                  {actioning.expected_amount ?? '—'}, observed {actioning.observed_amount ?? '—'} {actioning.currency}.
+                  Ref <span className="font-mono">{actioning.reference}</span>, expected{' '}
+                  {actioning.expected_amount ?? '-'}, observed {actioning.observed_amount ?? '-'} {actioning.currency}.
                 </p>
               </div>
               <button onClick={() => setActioning(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-navy">
@@ -275,7 +275,7 @@ export default function TrustAccountReconciliationPage() {
 
             <label className="mt-6 block">
               <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                Resolution note (mandatory — lands on the audit trail)
+                Resolution note (mandatory, lands on the audit trail)
               </span>
               <textarea
                 value={note}

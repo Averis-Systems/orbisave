@@ -15,7 +15,7 @@ import { DataTable, EmptyState, PageHeader, SectionCard, StatCard, StatusBadge }
  * formula (apps/contributions/views.py: savings_amount = min(actual_amount,
  * group.mandatory_savings_amount)). Contributions don't store the split, so
  * this reproduces it client-side from data already fetched for the overview
- * page's monthly chart — no new backend call, and it can never disagree with
+ * page's monthly chart, so there is no new backend call, and it can never disagree with
  * what the ledger actually posted since it's the same rule.
  */
 function deriveSavingsAmount(raw: number, configuredPerCycle: number) {
@@ -136,7 +136,7 @@ export default function SavingsPage() {
       <PageHeader
         eyebrow="Savings"
         title="Mandatory Savings"
-        description={`Held separately from ${activeGroup.name}'s rotation and loan pools. This is the group's pooled balance, not a personal one — every active member's deductions land in the same trust account.`}
+        description={`Held separately from ${activeGroup.name}'s rotation and loan pools. This is the group's pooled balance, not a personal one, so every active member's deductions land in the same trust account.`}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

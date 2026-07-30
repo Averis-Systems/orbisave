@@ -72,17 +72,17 @@ export default function ConsoleAuditLogsPage() {
       {
         key: 'target',
         header: 'Target',
-        render: (r) => (r.target_user ? <span className="text-slate-500">{r.target_user}</span> : <span className="text-slate-300">—</span>),
+        render: (r) => (r.target_user ? <span className="text-slate-500">{r.target_user}</span> : <span className="text-slate-300">-</span>),
       },
       {
         key: 'country',
         header: 'Country',
-        render: (r) => (r.country ? countryLabel(r.country) : <span className="text-slate-300">—</span>),
+        render: (r) => (r.country ? countryLabel(r.country) : <span className="text-slate-300">-</span>),
       },
       {
         key: 'ip',
         header: 'IP',
-        render: (r) => <span className="tabular-nums text-slate-400">{r.ip_address || '—'}</span>,
+        render: (r) => <span className="tabular-nums text-slate-400">{r.ip_address || '-'}</span>,
       },
       {
         key: 'when',

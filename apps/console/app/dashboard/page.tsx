@@ -20,7 +20,7 @@ import { TrendAreaChart } from '@/components/ui/TrendAreaChart'
 import { countryLabel, formatCount, formatMoney, formatDateTime } from '@/lib/format'
 
 /**
- * Console overview — the single-source-of-truth front door for a super admin.
+ * Console overview: the single-source-of-truth front door for a super admin.
  *
  * Structured as an operations landing (per the ui-ux-pro-max "Real-Time /
  * Operations" pattern): scale first, then what needs a decision, then the
@@ -179,7 +179,7 @@ export default function ConsoleOverview() {
       align: 'right',
       render: (c) => {
         const r = revenueFor(c.country)
-        return <span className="tabular-nums text-slate-600">{r ? formatMoney(r.mtd, c.country) : '—'}</span>
+        return <span className="tabular-nums text-slate-600">{r ? formatMoney(r.mtd, c.country) : '-'}</span>
       },
     },
     {
@@ -274,7 +274,7 @@ export default function ConsoleOverview() {
                 xKey="month"
                 yKey="signups"
                 formatValue={(v) => formatCount(v)}
-                formatTooltipLabel={(label) => `${label} — new members`}
+                formatTooltipLabel={(label) => `${label} new members`}
               />
             ) : (
               <EmptyState

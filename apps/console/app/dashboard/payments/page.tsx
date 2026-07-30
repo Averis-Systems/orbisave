@@ -74,7 +74,7 @@ export default function ProviderHub() {
     try {
       const { data } = await api.post(`/admin-portal/superadmin/payment-providers/${id}/test/`)
       if (data.success) {
-        toast.success(`Connection healthy — latency ${data.latency_ms}ms.`)
+        toast.success(`Connection healthy, latency ${data.latency_ms}ms.`)
       } else {
         toast.error(data.message || 'Connection test failed.')
       }

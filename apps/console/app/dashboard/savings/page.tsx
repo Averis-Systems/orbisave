@@ -80,7 +80,7 @@ export default function ConsoleSavingsPage() {
       {
         key: 'method',
         header: 'Method',
-        render: (c) => <span className="uppercase text-slate-500">{c.method || '—'}</span>,
+        render: (c) => <span className="uppercase text-slate-500">{c.method || '-'}</span>,
       },
       { key: 'status', header: 'Status', sortField: 'status', render: (c) => <StatusBadge status={c.status} /> },
       {

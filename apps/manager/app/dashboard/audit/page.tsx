@@ -158,7 +158,7 @@ export default function AuditTrailPage() {
                         <span className="text-xs font-bold text-slate-600">{log.target_group_name}</span>
                       </div>
                     ) : (
-                      <span className="text-xs font-medium text-slate-300">—</span>
+                      <span className="text-xs font-medium text-slate-300">-</span>
                     )}
                   </td>
                   <td className="px-8 py-6">

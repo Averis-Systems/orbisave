@@ -730,8 +730,8 @@ function SmsProvidersTab({
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-            <DetailRow label="Username" value={provider.username || '—'} />
-            <DetailRow label="Sender ID" value={provider.sender_id || '—'} />
+            <DetailRow label="Username" value={provider.username || '-'} />
+            <DetailRow label="Sender ID" value={provider.sender_id || '-'} />
             <DetailRow label="API Key" value={provider.has_api_key ? '•••••• set' : 'not set'} />
             <DetailRow label="Updated" value={new Date(provider.updated_at).toLocaleDateString()} />
           </div>

@@ -59,7 +59,7 @@ const SEVERITY_TONE: Record<string, BadgeTone> = {
 }
 
 function amount(value: string | null, currency: string) {
-  if (value === null) return <span className="text-slate-300">—</span>
+  if (value === null) return <span className="text-slate-300">-</span>
   const n = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 }).format(Number(value))
   return <span className="tabular-nums">{currency} {n}</span>
 }
