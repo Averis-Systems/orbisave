@@ -84,11 +84,22 @@ interface Overview {
 interface Demographics {
   signups_by_country: { country: string; total: number; this_month: number }[]
   gender_global: GenderSlice[]
+  regions_by_country: Record<
+    string,
+    {
+      regions: { region: string; groups: number }[]
+      sub_regions: { region: string; sub_region: string; groups: number }[]
+    }
+  >
 }
+
+const OVERVIEW_COUNTRIES = ['kenya', 'rwanda', 'ghana'] as const
+type OverviewCountry = (typeof OVERVIEW_COUNTRIES)[number]
 
 export default function ConsoleOverview() {
   const [data, setData] = useState<Overview | null>(null)
   const [demographics, setDemographics] = useState<Demographics | null>(null)
+  const [regionCountry, setRegionCountry] = useState<OverviewCountry>('kenya')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -154,6 +165,18 @@ export default function ConsoleOverview() {
       })),
     [demographics],
   )
+
+  // Where groups are forming inside the selected country. Prefer sub-counties
+  // (the granular signal the user asked for) and fall back to the county/region
+  // when no sub-region is on record yet.
+  const areaRows = useMemo(() => {
+    const region = demographics?.regions_by_country?.[regionCountry]
+    if (!region) return []
+    if (region.sub_regions.length > 0) {
+      return region.sub_regions.map((r) => ({ label: r.sub_region, sublabel: r.region, value: r.groups }))
+    }
+    return region.regions.map((r) => ({ label: r.region, value: r.groups }))
+  }, [demographics, regionCountry])
 
   const revenueFor = (country: string) => data?.revenue_by_country.find((r) => r.country === country)
 
@@ -366,40 +389,76 @@ export default function ConsoleOverview() {
         />
       </SectionCard>
 
-      {/* 4. Recent activity from the audit trail. */}
-      <SectionCard
-        title="Recent activity"
-        description="Rejections and administrative actions, newest first."
-        actions={
-          <Link href="/dashboard/logs" className="text-sm font-medium text-primary hover:underline">
-            View audit log
-          </Link>
-        }
-      >
-        {data?.recent_alerts?.length ? (
-          <ul className="divide-y divide-slate-100">
-            {data.recent_alerts.map((a, i) => (
-              <li key={`${a.action}-${a.created_at}-${i}`} className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                    <FileText className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium capitalize text-navy">{a.action.replace(/_/g, ' ')}</p>
-                    {a.country && <p className="text-xs text-slate-400">{countryLabel(a.country)}</p>}
-                  </div>
-                </div>
-                <span className="shrink-0 text-xs tabular-nums text-slate-400">{formatDateTime(a.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            title={loading ? 'Loading activity' : 'Nothing needs attention'}
-            description={loading ? undefined : 'Rejections and administrative actions will appear here as they happen.'}
-          />
-        )}
-      </SectionCard>
+      {/* 5. Where groups are forming inside a country, paired with a compact
+             activity feed so the feed is a narrow side column, not a full slab. */}
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <SectionCard
+            title="Groups by sub-county"
+            description="Which areas inside a country are creating the most groups. Check marketer coverage at a glance."
+            actions={
+              <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+                {OVERVIEW_COUNTRIES.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setRegionCountry(c)}
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      regionCountry === c ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-navy'
+                    }`}
+                  >
+                    {countryLabel(c)}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            {loading ? (
+              <div className="h-[240px] animate-pulse rounded-xl bg-slate-50" />
+            ) : (
+              <HBarChart
+                rows={areaRows}
+                color="#2e90fa"
+                emptyText={`No group locations recorded for ${countryLabel(regionCountry)} yet.`}
+              />
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="min-w-0">
+          <SectionCard
+            title="Recent activity"
+            actions={
+              <Link href="/dashboard/logs" className="text-sm font-medium text-primary hover:underline">
+                Audit log
+              </Link>
+            }
+          >
+            {data?.recent_alerts?.length ? (
+              <ul className="divide-y divide-slate-100">
+                {data.recent_alerts.slice(0, 6).map((a, i) => (
+                  <li key={`${a.action}-${a.created_at}-${i}`} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                        <FileText className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium capitalize text-navy">{a.action.replace(/_/g, ' ')}</p>
+                        {a.country && <p className="text-xs text-slate-400">{countryLabel(a.country)}</p>}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xs tabular-nums text-slate-400">{formatDateTime(a.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState
+                title={loading ? 'Loading activity' : 'Nothing yet'}
+                description={loading ? undefined : 'Admin actions will appear here as they happen.'}
+              />
+            )}
+          </SectionCard>
+        </div>
+      </div>
     </div>
   )
 }
