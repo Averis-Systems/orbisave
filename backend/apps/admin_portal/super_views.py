@@ -338,6 +338,63 @@ class SuperAdminDemographicsView(APIView):
         })
 
 
+class SuperAdminQuickSearchView(APIView):
+    """
+    GET /api/v1/superadmin/quick-search/?q=
+
+    Global header search for the Console: top groups across every country
+    shard and top members from the platform users table, each tagged with a
+    Console destination (a list page pre-filtered by the same `search` param
+    the tables already read from the URL). Cheap and capped, this backs a
+    dropdown, not a report.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    COUNTRY_LABEL = {'kenya': 'Kenya', 'rwanda': 'Rwanda', 'ghana': 'Ghana'}
+
+    def get(self, request):
+        from urllib.parse import quote
+
+        query = (request.query_params.get('q') or '').strip()
+        if len(query) < 2:
+            return Response({'groups': [], 'members': []})
+
+        groups = []
+        for c in COUNTRIES:
+            remaining = 6 - len(groups)
+            if remaining <= 0:
+                break
+            for g in (
+                Group.objects.using(get_db_for_country(c))
+                .filter(country=c, name__icontains=query)
+                .only('id', 'name', 'status', 'country')[:remaining]
+            ):
+                groups.append({
+                    'type': 'group',
+                    'id': str(g.id),
+                    'label': g.name,
+                    'detail': f'{g.get_status_display()} · {self.COUNTRY_LABEL.get(c, c.title())}',
+                    'href': f'/dashboard/groups?search={quote(g.name)}',
+                })
+
+        members = [
+            {
+                'type': 'member',
+                'id': str(u.id),
+                'label': u.full_name or u.email,
+                'detail': f'{u.email} · {self.COUNTRY_LABEL.get(u.country, (u.country or "").title())}',
+                'href': f'/dashboard/users?tab=members&search={quote(u.full_name or u.email)}',
+            }
+            for u in (
+                User.objects.exclude(role__in=['platform_admin', 'super_admin'])
+                .filter(Q(full_name__icontains=query) | Q(email__icontains=query))
+                .only('id', 'full_name', 'email', 'country')[:6]
+            )
+        ]
+
+        return Response({'groups': groups, 'members': members})
+
+
 class SuperAdminSystemHealthView(APIView):
     """GET /api/v1/superadmin/system-health/, DB, Celery, and provider connectivity."""
     permission_classes = [IsSuperAdmin]

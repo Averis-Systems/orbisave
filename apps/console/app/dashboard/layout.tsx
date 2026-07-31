@@ -7,6 +7,8 @@ import { useAuthStore } from '@/store/auth'
 import Sidebar from '@/components/Sidebar'
 import { ChevronDown, LogOut, Menu, Settings, UserCircle, X } from 'lucide-react'
 import { ConnectionBanner } from '@orbisave/admin-ui'
+import { HeaderSearch } from '@/components/HeaderSearch'
+import { AlertsPopover } from '@/components/AlertsPopover'
 
 /**
  * Console shell.
@@ -112,12 +114,16 @@ function DashboardHeader({
       {/* Section context on the left, so a super admin always knows where they
           are, plus an environment badge that makes staging impossible to
           mistake for production. */}
-      <div className="hidden flex-1 items-center gap-3 lg:flex">
+      <div className="hidden items-center gap-3 lg:flex">
         <span className="text-sm font-medium text-slate-500">{pageTitle}</span>
         <EnvironmentBadge />
       </div>
 
-      <div className="relative" ref={profileRef}>
+      <div className="flex flex-1 items-center justify-end gap-3">
+        <HeaderSearch />
+        <AlertsPopover />
+
+        <div className="relative" ref={profileRef}>
         <button
           onClick={() => setProfileOpen((open) => !open)}
           className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 text-gray-700 transition-colors hover:bg-gray-50"
@@ -160,6 +166,7 @@ function DashboardHeader({
             </button>
           </div>
         )}
+        </div>
       </div>
     </header>
   )

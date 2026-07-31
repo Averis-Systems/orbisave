@@ -15,8 +15,10 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react'
-import { PageHeader, SectionCard, StatCard, DataTable, EmptyState, type Column } from '@/components/ui'
+import { SectionCard, StatCard, DataTable, EmptyState, type Column } from '@/components/ui'
 import { TrendAreaChart } from '@/components/ui/TrendAreaChart'
+import { GenderDonut, type GenderSlice } from '@/components/ui/GenderDonut'
+import { HBarChart } from '@/components/ui/HBarChart'
 import { countryLabel, formatCount, formatMoney, formatDateTime } from '@/lib/format'
 
 /**
@@ -79,8 +81,14 @@ interface Overview {
   }>
 }
 
+interface Demographics {
+  signups_by_country: { country: string; total: number; this_month: number }[]
+  gender_global: GenderSlice[]
+}
+
 export default function ConsoleOverview() {
   const [data, setData] = useState<Overview | null>(null)
+  const [demographics, setDemographics] = useState<Demographics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,6 +105,14 @@ export default function ConsoleOverview() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
+    // Demographics is a second, cheaper call so the scale figures render even
+    // if this one is slow; a failure here just leaves the demographics band empty.
+    api
+      .get('/admin-portal/superadmin/demographics/')
+      .then(({ data }) => {
+        if (!cancelled) setDemographics(data)
+      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
@@ -128,6 +144,16 @@ export default function ConsoleOverview() {
   // work is done.
   const defaultedLoans = useMemo(() => byCountry.reduce((s, c) => s + c.defaulted_loans, 0), [byCountry])
   const pendingAdminLoans = useMemo(() => byCountry.reduce((s, c) => s + c.pending_admin_loans, 0), [byCountry])
+
+  const signupRows = useMemo(
+    () =>
+      (demographics?.signups_by_country || []).map((c) => ({
+        label: countryLabel(c.country),
+        value: c.total,
+        hint: c.this_month > 0 ? `+${formatCount(c.this_month)} this mo` : undefined,
+      })),
+    [demographics],
+  )
 
   const revenueFor = (country: string) => data?.revenue_by_country.find((r) => r.country === country)
 
@@ -199,12 +225,7 @@ export default function ConsoleOverview() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 pb-16">
-      <PageHeader
-        title="Platform overview"
-        description="Groups, members and money across Kenya, Rwanda and Ghana, live from each country database."
-      />
-
+    <div className="mx-auto max-w-[1400px] space-y-6 pb-16 pt-1">
       {error && (
         <div className="rounded-2xl border border-[#fecdca] bg-[#fef3f2] px-5 py-4 text-sm text-[#b42318]">{error}</div>
       )}
@@ -297,7 +318,35 @@ export default function ConsoleOverview() {
         />
       </div>
 
-      {/* 3. Per-country breakdown, money in local currency. */}
+      {/* 3. Who is signing up, and where. Live demographics, not the deferred
+             financial rollup. Deeper cuts live on the Analytics page. */}
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <SectionCard
+          title="Signups by country"
+          description="Members registered, with this month's gain alongside."
+          actions={
+            <Link href="/dashboard/analytics" className="text-sm font-medium text-primary hover:underline">
+              Analytics
+            </Link>
+          }
+        >
+          {loading ? (
+            <div className="h-[180px] animate-pulse rounded-xl bg-slate-50" />
+          ) : (
+            <HBarChart rows={signupRows} emptyText="No signups yet." />
+          )}
+        </SectionCard>
+
+        <SectionCard title="Gender split" description="Platform-wide, members with a gender on file.">
+          {loading ? (
+            <div className="h-[180px] animate-pulse rounded-xl bg-slate-50" />
+          ) : (
+            <GenderDonut data={demographics?.gender_global || []} />
+          )}
+        </SectionCard>
+      </div>
+
+      {/* 4. Per-country breakdown, money in local currency. */}
       <SectionCard
         title="By country"
         description="Each country runs on its own database. Money is shown in that country's currency and is not summed across borders."

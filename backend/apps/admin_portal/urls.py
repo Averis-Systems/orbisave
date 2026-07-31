@@ -42,6 +42,7 @@ from .super_views import (
     SuperAdminOverviewView,
     SuperAdminCountryView,
     SuperAdminDemographicsView,
+    SuperAdminQuickSearchView,
     SuperAdminSystemHealthView,
     SuperAdminAdminListView,
     SuperAdminAdminDetailView,
@@ -145,6 +146,7 @@ urlpatterns = [
     path('superadmin/nav-counts/',     SuperAdminNavCountsView.as_view(),   name='superadmin-nav-counts'),
     path('superadmin/country/<str:country>/', SuperAdminCountryView.as_view(), name='superadmin-country'),
     path('superadmin/demographics/',   SuperAdminDemographicsView.as_view(), name='superadmin-demographics'),
+    path('superadmin/quick-search/',   SuperAdminQuickSearchView.as_view(),  name='superadmin-quick-search'),
     path('superadmin/system-health/',  SuperAdminSystemHealthView.as_view(), name='superadmin-health'),
     path('superadmin/audit/',          SuperAdminGlobalAuditView.as_view(), name='superadmin-audit'),
 
