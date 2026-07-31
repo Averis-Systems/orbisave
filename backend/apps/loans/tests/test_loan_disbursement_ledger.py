@@ -1,5 +1,5 @@
 """
-Loan disbursement — money-movement regression suite.
+Loan disbursement, money-movement regression suite.
 
 Locks in the fix for the ledger-bypass incident: disburse_loan previously
 wrote a raw LedgerEntry (no stream lock, no overdraft check, no idempotency,
@@ -115,7 +115,7 @@ class TestLoanDisbursementLedger:
     def test_disbursement_blocked_when_loan_pool_insufficient(
         self, provider_factory, approved_loan, chairperson
     ):
-        # Pool holds less than the principal — the protected loaning stream
+        # Pool holds less than the principal, the protected loaning stream
         # must refuse to go negative, and nothing may be written.
         seed_loan_pool(approved_loan.group, amount='500.00')
         provider = MagicMock()

@@ -2,22 +2,22 @@
 Turns an AuditLog row into a real sentence.
 
 Every admin-facing activity feed used to render `log.action.replace('_', ' ')`
-capitalised — which is how the dumping-ground code `admin_action` became the
+capitalised, which is how the dumping-ground code `admin_action` became the
 meaningless "Admin Action" label repeated over and over, throwing away the
 `target_group`, `target_user` and `metadata` the row actually carries (see
 apps/audit/models.py and every log_audit() call site across the codebase).
 
 This covers every action code actually written today, keyed off the same
 `metadata` shape each call site already populates. Unmapped or future codes
-fall through to a readable default instead of crashing — this must never
+fall through to a readable default instead of crashing, this must never
 raise, an activity feed rendering a slightly worse line is fine, a 500 is not.
 
-IMPORTANT — target_group is cross-database: AuditLog lives on 'default'
+IMPORTANT, target_group is cross-database: AuditLog lives on 'default'
 (apps.audit is a PLATFORM_APPS model) but the Group it points at lives on a
 country shard (apps.groups is a FINANCIAL_APPS model, see
 config/routers.py). `log.target_group` cannot be select_related() and a bare
 lazy access re-queries on log's own DB ('default'), where no Group rows
-exist — it raises Group.DoesNotExist instead of returning None. Callers MUST
+exist, it raises Group.DoesNotExist instead of returning None. Callers MUST
 resolve the group themselves (a single filtered query against the right
 shard, batched across a page of rows) and pass it in as `target_group`.
 """
@@ -37,7 +37,7 @@ def _target_group_name(target_group):
 
 def _money(meta, target_group):
     """"{currency} {amount}" from metadata['amount'] + the target group's
-    currency — loan audit calls never put currency in metadata itself."""
+    currency, loan audit calls never put currency in metadata itself."""
     amount = meta.get('amount')
     if amount is None:
         return None
@@ -57,7 +57,7 @@ def _fallback_label(log):
 def describe_audit(log, target_group=None) -> str:
     """
     `target_group` is the resolved apps.groups.models.Group instance (or
-    None) for `log.target_group_id` — see the module docstring for why this
+    None) for `log.target_group_id`, see the module docstring for why this
     cannot simply be `log.target_group`.
     """
     action = log.action
@@ -72,10 +72,10 @@ def describe_audit(log, target_group=None) -> str:
         return f'{actor} verified group "{target_group_name}"'
     if action == 'group_rejected':
         reason = meta.get('reason')
-        return f'{actor} rejected group "{target_group_name}"' + (f' — {reason}' if reason else '')
+        return f'{actor} rejected group "{target_group_name}"' + (f': {reason}' if reason else '')
     if action == 'group_paused':
         reason = meta.get('reason')
-        return f'{actor} paused group "{target_group_name}"' + (f' — {reason}' if reason else '')
+        return f'{actor} paused group "{target_group_name}"' + (f': {reason}' if reason else '')
     if action == 'group_closed':
         return f'{actor} closed group "{target_group_name}"'
     if action == 'group_activated':
@@ -83,7 +83,7 @@ def describe_audit(log, target_group=None) -> str:
 
     if action == 'member_suspended':
         reason = meta.get('reason')
-        return f'{actor} suspended {target_user} from "{target_group_name}"' + (f' — {reason}' if reason else '')
+        return f'{actor} suspended {target_user} from "{target_group_name}"' + (f': {reason}' if reason else '')
     if action == 'member_reinstated':
         return f'{actor} reinstated {target_user} in "{target_group_name}"'
     if action == 'member_exited':
@@ -95,7 +95,7 @@ def describe_audit(log, target_group=None) -> str:
         return f"{actor} approved {target_user}'s KYC"
     if action in ('kyc_rejected', 'kyc_reject'):
         reason = meta.get('reason')
-        return f"{actor} rejected {target_user}'s KYC" + (f' — {reason}' if reason else '')
+        return f"{actor} rejected {target_user}'s KYC" + (f': {reason}' if reason else '')
     if action == 'kyc_submitted':
         return f'{target_user} submitted a KYC document'
 
@@ -103,7 +103,7 @@ def describe_audit(log, target_group=None) -> str:
         return f'{actor} approved a loan request for {target_user}'
     if action in ('loan_rejected', 'loan_chair_rejected', 'loan_treasurer_rejected'):
         reason = meta.get('reason')
-        return f'{actor} rejected a loan request for {target_user}' + (f' — {reason}' if reason else '')
+        return f'{actor} rejected a loan request for {target_user}' + (f': {reason}' if reason else '')
     if action == 'loan_requested':
         return f'{target_user} requested a loan from "{target_group_name}"'
     if action == 'loan_admin_approved':
@@ -111,7 +111,7 @@ def describe_audit(log, target_group=None) -> str:
         return f'{actor} approved a {money} loan for {target_user}' if money else f'{actor} approved a loan for {target_user}'
     if action == 'loan_admin_rejected':
         reason = meta.get('reason')
-        return f'{actor} rejected the loan for {target_user}' + (f' — {reason}' if reason else '')
+        return f'{actor} rejected the loan for {target_user}' + (f': {reason}' if reason else '')
     if action == 'loan_disbursed':
         money = _money(meta, target_group)
         return f'{actor} disbursed a {money} loan to {target_user}' if money else f'{actor} disbursed a loan to {target_user}'
@@ -146,12 +146,12 @@ def describe_audit(log, target_group=None) -> str:
             return f'{actor} advanced "{target_group_name}" to cycle {cycle}' if cycle else f'{actor} advanced "{target_group_name}" to the next cycle'
         if verb in ('suspend_user', 'suspend'):
             reason = meta.get('reason')
-            return f'{actor} suspended {target_user}' + (f' — {reason}' if reason else '')
+            return f'{actor} suspended {target_user}' + (f': {reason}' if reason else '')
         if verb in ('reinstate_user', 'reinstate'):
             return f'{actor} reinstated {target_user}'
         if verb == 'kyc_reset':
             reason = meta.get('reason')
-            return f"{actor} reset {target_user}'s KYC status" + (f' — {reason}' if reason else '')
+            return f"{actor} reset {target_user}'s KYC status" + (f': {reason}' if reason else '')
         if verb:
             fields = meta.get('fields')
             suffix = f' ({", ".join(fields)})' if fields else ''
@@ -177,5 +177,5 @@ def describe_audit(log, target_group=None) -> str:
     if action == '2fa_disabled':
         return f'{actor} disabled two-factor authentication'
 
-    # Never seen in practice today, but declared — better than a raw code.
-    return f'{actor} — {_fallback_label(log)}'
+    # Never seen in practice today, but declared, better than a raw code.
+    return f'{actor}: {_fallback_label(log)}'

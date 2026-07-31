@@ -190,7 +190,7 @@ urlpatterns = [
     path('superadmin/admins/<uuid:admin_id>/',           SuperAdminAdminDetailView.as_view(), name='superadmin-admin-detail'),
     path('superadmin/admins/<uuid:admin_id>/toggle-status/', SuperAdminAdminSuspendView.as_view(), name='superadmin-admin-toggle'),
 
-    # Platform Branding (logo/favicon) — public read lives at the top-level
+    # Platform Branding (logo/favicon), public read lives at the top-level
     # /api/v1/platform-branding/, this is the super_admin-only write side.
     path('platform-branding/', UpdatePlatformBrandingView.as_view(), name='platform-branding-update'),
 ]

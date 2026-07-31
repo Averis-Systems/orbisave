@@ -1,5 +1,5 @@
 """
-Loan repayment collection — the money-in half of the loan lifecycle.
+Loan repayment collection, the money-in half of the loan lifecycle.
 
 Covers: borrower-only initiation with server-computed amounts, duplicate
 guards, webhook settlement with a BALANCED ledger event group (debit

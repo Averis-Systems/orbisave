@@ -4,7 +4,7 @@ from .base import *
 # We define all country aliases to point to the same in-memory DB for simplicity in tests
 # since cross-db joins aren't used here anyway. Django's test runner dedupes
 # the identical configs into one physical test database shared by all aliases.
-# NOTE: do not replace this with TEST MIRROR — pytest-django's
+# NOTE: do not replace this with TEST MIRROR, pytest-django's
 # databases=[...] markers reject mirrored aliases (breaks ~28 tests).
 DATABASES = {
     'default': {

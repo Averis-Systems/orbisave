@@ -14,7 +14,7 @@ class PenaltyService:
         Satisfies Financial Engine Checklist Items 52, 167, 168.
 
         BUG FIX: Previously the guard `if contribution.status == 'confirmed': return None`
-        caused the method to always exit early — it is always called post-confirmation.
+        caused the method to always exit early, it is always called post-confirmation.
         Fixed to check confirmed_at vs scheduled_date to determine actual lateness.
         """
         # Only evaluate confirmed contributions (all other states are not eligible).
@@ -29,7 +29,7 @@ class PenaltyService:
             return None
 
         due_date = contribution.scheduled_date
-        # Use confirmed_at.date() — when they actually paid — vs scheduled due_date.
+        # Use confirmed_at.date(), when they actually paid, vs scheduled due_date.
         confirmed_date = (
             contribution.confirmed_at.date()
             if contribution.confirmed_at
@@ -38,7 +38,7 @@ class PenaltyService:
 
         days_late = (confirmed_date - due_date).days
         if days_late <= rule.grace_period_days:
-            return None  # Paid on time — no penalty
+            return None  # Paid on time, no penalty
 
         # Calculate penalty amount
         if rule.penalty_type == 'fixed':

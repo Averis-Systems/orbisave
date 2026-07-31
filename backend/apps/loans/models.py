@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from common.models import BaseModel
 
-# Maximum allowable monthly interest rate — anti-exploitation cap.
+# Maximum allowable monthly interest rate, anti-exploitation cap.
 # Group treasurers cannot set rates above this, protecting borrowers.
 MAX_LOAN_INTEREST_RATE_MONTHLY = 30
 
@@ -93,7 +93,7 @@ class LoanRepayment(BaseModel):
 
 class LoanRepaymentPayment(BaseModel):
     """
-    Payment intent for one loan-repayment collection (STK push) — the loans
+    Payment intent for one loan-repayment collection (STK push), the loans
     counterpart of Contribution in the money-in flow. The webhook confirms it,
     posts the balanced ledger event group (debit provider_settlement / credit
     loaning), rolls the amount into LoanRepayment.amount_paid, and transitions
@@ -103,7 +103,7 @@ class LoanRepaymentPayment(BaseModel):
         ('initiated', 'Initiated'),
         ('confirmed', 'Confirmed'),
         ('failed', 'Failed'),
-        ('disputed', 'Disputed'),  # amount mismatch — isolated to suspense
+        ('disputed', 'Disputed'),  # amount mismatch, isolated to suspense
     ]
 
     repayment          = models.ForeignKey(LoanRepayment, on_delete=models.PROTECT, related_name='payments')

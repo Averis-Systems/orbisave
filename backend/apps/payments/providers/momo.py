@@ -1,5 +1,5 @@
 """
-MTN MoMo Open API provider — the Rwanda & Ghana mobile-money rail.
+MTN MoMo Open API provider, the Rwanda & Ghana mobile-money rail.
 
 Verified against the public sandbox (sandbox.momodeveloper.mtn.com, July 2026):
   * Auth:        POST /{product}/token/           Basic(apiUser:apiKey) + Ocp-Apim-Subscription-Key
@@ -19,7 +19,7 @@ BankProvider field mapping (configured in Console → Provider Hub):
                     'currency': 'EUR' | 'RWF' | 'GHS',
                     'callback_host': 'https://api.orbisave.com' }
 
-MoMo callbacks (PUT to providerCallbackHost) carry no HMAC — webhook security is
+MoMo callbacks (PUT to providerCallbackHost) carry no HMAC, webhook security is
 callback-host allow-listing plus optional Basic auth. verify_webhook_signature
 therefore requires a configured webhook_secret Basic pair and FAILS CLOSED
 without one; until then the stuck-transaction poller settles transactions via
@@ -157,7 +157,7 @@ class MTNMoMoProvider(PaymentProvider):
 
     def initiate_disbursement(self, phone: str, amount: Decimal, reference: str, remarks: str) -> Dict[str, Any]:
         """
-        B2C transfer. MoMo answers 202 then settles asynchronously — we poll the
+        B2C transfer. MoMo answers 202 then settles asynchronously, we poll the
         status endpoint immediately (sandbox settles instantly; live usually
         within seconds). A still-PENDING transfer is reported as failed to the
         caller so the payout can be retried once the poller confirms state;
@@ -204,7 +204,7 @@ class MTNMoMoProvider(PaymentProvider):
             return {
                 "status": "failed",
                 "provider_reference": tx_reference,
-                "error": "MoMo transfer still pending settlement — retry after the poller confirms.",
+                "error": "MoMo transfer still pending settlement, retry after the poller confirms.",
             }
         return {
             "status": "failed",
@@ -235,7 +235,7 @@ class MTNMoMoProvider(PaymentProvider):
         return {"data": data}
 
     def get_full_statement(self, **kwargs) -> Dict[str, Any]:
-        # MoMo has no statement API — reconciliation for RW/GH runs against the
+        # MoMo has no statement API, reconciliation for RW/GH runs against the
         # BANK trust account (BK Open API / Ecobank), not the wallet.
         return {"data": {"transactions": []}}
 
@@ -256,7 +256,7 @@ class MTNMoMoProvider(PaymentProvider):
         }.get(momo_status, "manual_review" if momo_status else "pending")
         return {
             "status": normalized,
-            # Ledger flows key on OUR UUIDv4 (X-Reference-Id) — the callback
+            # Ledger flows key on OUR UUIDv4 (X-Reference-Id), the callback
             # echoes it as referenceId; externalId carries our business ref.
             "transaction_id": raw.get("referenceId") or raw.get("externalId") or "",
             "amount": str(raw.get("amount", "0.00")),
@@ -293,7 +293,7 @@ class MTNMoMoProvider(PaymentProvider):
             return {
                 "success": True,
                 "latency_ms": int((time.time() - start) * 1000),
-                "message": "MoMo collection token issued — credentials are valid.",
+                "message": "MoMo collection token issued, credentials are valid.",
             }
         except Exception as exc:
             return {

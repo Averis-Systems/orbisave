@@ -1,13 +1,13 @@
 """
-Provider operations tasks — the two jobs that keep OrbiSave's ledger and the
+Provider operations tasks, the two jobs that keep OrbiSave's ledger and the
 bank provably in agreement:
 
-  1. poll_stuck_provider_transactions — webhooks get lost; every 15 minutes
+  1. poll_stuck_provider_transactions, webhooks get lost; every 15 minutes
      any ProviderTransaction still in a non-final state is re-queried against
      the provider's transaction API and advanced. Transactions stuck past 24h
      escalate to 'manual_review' so a human sees them.
 
-  2. import_daily_statements — daily bank-statement pull per active provider
+  2. import_daily_statements, daily bank-statement pull per active provider
      into ProviderStatementLine rows, auto-matched against our provider-side
      transactions. Orphan bank movements (money the bank saw that we didn't)
      open red reconciliation items; the run header records the closing
@@ -139,7 +139,7 @@ def import_daily_statements(self, business_date=None):
 
     for record in BankProvider.objects.filter(status='active'):
         # Pin every row this import writes (run, lines, items) to the same
-        # database the provider record lives on — one alias end to end.
+        # database the provider record lives on, one alias end to end.
         db_alias = record._state.db or 'default'
         recon_account = record.accounts.filter(is_default_for_reconciliation=True).first() \
             or record.accounts.first()

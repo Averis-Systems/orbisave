@@ -487,7 +487,7 @@ class JengaProvider(PaymentProvider):
             callback.save(update_fields=["is_duplicate", "updated_at"])
 
         # Advance the provider-side transaction state machine from the fresh
-        # callback — this is what makes the lifecycle end-to-end instead of
+        # callback, this is what makes the lifecycle end-to-end instead of
         # freezing transactions at 'submitted' forever.
         if created and tx is not None:
             new_status = CALLBACK_STATUS_TO_TX.get(parsed.get("status", ""))

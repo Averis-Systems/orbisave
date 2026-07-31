@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
                 ('supports_collections', models.BooleanField(default=True)),
                 ('supports_disbursements', models.BooleanField(default=True)),
                 ('supports_mobile_money', models.BooleanField(default=True, help_text='Provider natively bridges to mobile money (e.g. Jenga → M-Pesa)')),
-                ('supported_mobile_methods', models.JSONField(blank=True, default=list, help_text="e.g. ['mpesa', 'airtel'] — methods bridged via this bank")),
+                ('supported_mobile_methods', models.JSONField(blank=True, default=list, help_text="e.g. ['mpesa', 'airtel'], methods bridged via this bank")),
                 ('last_tested_at', models.DateTimeField(blank=True, null=True)),
                 ('last_test_status', models.CharField(blank=True, max_length=20)),
                 ('last_test_message', models.TextField(blank=True)),

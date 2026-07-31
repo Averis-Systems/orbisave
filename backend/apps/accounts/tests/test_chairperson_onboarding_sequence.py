@@ -29,7 +29,7 @@ def test_chairperson_registers_authenticates_creates_pending_group_and_sets_pin(
         )
     assert register_response.status_code == status.HTTP_201_CREATED
 
-    # Login is gated on email verification — confirm the code (which logs
+    # Login is gated on email verification, confirm the code (which logs
     # the user in) before it's usable, same as the real signup sequence.
     email_message = email_sender.call_args.kwargs["message"]
     email_code = next(
@@ -47,7 +47,7 @@ def test_chairperson_registers_authenticates_creates_pending_group_and_sets_pin(
     authed = APIClient()
     authed.credentials(HTTP_AUTHORIZATION=f"Bearer {access}", HTTP_X_COUNTRY="kenya")
 
-    # Phone verification is mandatory before any group/money action — this is
+    # Phone verification is mandatory before any group/money action, this is
     # the real production sequence: register → login → verify phone → create.
     with patch("apps.accounts.otp_views.send_sms", return_value={"channel": "logged"}) as sender:
         otp_request = authed.post("/api/v1/auth/otp/request/")

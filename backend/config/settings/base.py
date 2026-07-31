@@ -230,14 +230,14 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3001',
-    'http://localhost:3002',        # Console (super_admin) — dev
+    'http://localhost:3002',        # Console (super_admin), dev
     'http://127.0.0.1:3002',
-    'http://localhost:3003',        # Manager (platform_admin) — dev
+    'http://localhost:3003',        # Manager (platform_admin), dev
     'http://127.0.0.1:3003',
     'http://localhost:3010',        # Web dashboard fallback dev port
     'http://127.0.0.1:3010',
-    'https://console.orbisave.com', # Console — production
-    'https://manager.orbisave.com', # Manager — production
+    'https://console.orbisave.com', # Console, production
+    'https://manager.orbisave.com', # Manager, production
 ]
 CORS_ALLOW_CREDENTIALS = True
 from corsheaders.defaults import default_headers
@@ -279,7 +279,7 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': timedelta(hours=6),
         'options': {'expires': 1800},
     },
-    # Checks if all rotation cycle slots are paid out — closes cycle + starts next
+    # Checks if all rotation cycle slots are paid out, closes cycle + starts next
     'check-cycle-completion': {
         'task': 'apps.groups.tasks.check_cycle_completion',
         'schedule': timedelta(hours=24),
@@ -326,7 +326,7 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': timedelta(hours=24),
         'options': {'expires': 7200},
     },
-    # Full hash-chain/sequence/balance sweep — any violation is a P0 incident
+    # Full hash-chain/sequence/balance sweep, any violation is a P0 incident
     'verify-ledger-integrity': {
         'task': 'apps.ledger.tasks.verify_all_ledger_streams',
         'schedule': timedelta(hours=6),
@@ -356,16 +356,16 @@ CACHES = {
 }
 
 # ─── Email ────────────────────────────────────────────────────────────────────
-# Resend via SMTP relay (https://resend.com/docs/send-with-smtp) — no extra
+# Resend via SMTP relay (https://resend.com/docs/send-with-smtp), no extra
 # package needed, Django's built-in SMTP backend + send_mail() is enough.
 # Set RESEND_API_KEY and this auto-switches from the dev-safe console
 # backend (prints instead of sending) to real delivery. Nothing else to
-# configure — Resend's SMTP host/port/user are fixed values, not per-account.
+# configure, Resend's SMTP host/port/user are fixed values, not per-account.
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-# Public URL of the member web app — used for links inside emails (activation
+# Public URL of the member web app, used for links inside emails (activation
 # nudges, invites). Point at the deployed domain in production.
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
-# Public URL of THIS backend — used to build absolute media URLs (e.g. the
+# Public URL of THIS backend, used to build absolute media URLs (e.g. the
 # uploaded platform logo) inside emails, which have no request to resolve
 # them against. Point at the deployed backend/CDN origin in production.
 BACKEND_PUBLIC_URL = os.environ.get('BACKEND_PUBLIC_URL', 'http://localhost:8000')
@@ -414,7 +414,7 @@ AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
 
 # Phone verification is fully built (apps/accounts/otp_views.py) but sending
 # real SMS costs money via Africa's Talking. Off by default until that's
-# funded — flip PHONE_VERIFICATION_ENFORCED=True in the environment (no code
+# funded, flip PHONE_VERIFICATION_ENFORCED=True in the environment (no code
 # change needed) once it's paid for. The four call sites this gates are
 # tagged with 'phone_unverified' in their response code.
 PHONE_VERIFICATION_ENFORCED = os.environ.get('PHONE_VERIFICATION_ENFORCED', 'False') == 'True'

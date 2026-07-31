@@ -1,7 +1,7 @@
 """
 Email verification is a new gate on login. Without this, every account
 created before this feature shipped would default to email_verified=False
-and be locked out — nobody who already has an account ever went through a
+and be locked out, nobody who already has an account ever went through a
 flow that could have verified it. Grandfather everyone who existed before
 this migration runs; only accounts created after this ships go through the
 new email OTP flow.
@@ -15,7 +15,7 @@ def grandfather_existing_users(apps, schema_editor):
 
 
 def noop_reverse(apps, schema_editor):
-    # Not reversible by design — we can't know which users were
+    # Not reversible by design, we can't know which users were
     # grandfathered vs. genuinely unverified after the fact.
     pass
 

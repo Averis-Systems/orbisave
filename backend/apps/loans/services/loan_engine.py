@@ -108,14 +108,14 @@ class LoanEngine:
         borrower's mobile money), then a balanced ledger event group records:
             debit  loaning              (principal leaves the loan pool)
             credit provider_settlement  (cash owed out through the provider)
-        — the same stream convention as rotation payouts, so daily bank
+, the same stream convention as rotation payouts, so daily bank
         reconciliation sees every outbound movement on provider_settlement.
         The loaning debit is overdraft-protected: a loan can never draw the
         pool below zero.
 
         Passing an explicit disbursement_reference records a MANUAL (offline)
-        disbursement — e.g. a bank transfer executed outside the rails by an
-        admin — and skips the provider call. Ledger entries are identical;
+        disbursement, e.g. a bank transfer executed outside the rails by an
+        admin, and skips the provider call. Ledger entries are identical;
         reconciliation matches the manual reference against the statement.
 
         On provider failure nothing is written and the loan stays 'approved',
@@ -143,7 +143,7 @@ class LoanEngine:
                     phone=payout_phone,
                     amount=loan.amount,
                     reference=f"LOAN-{loan.id}",
-                    remarks=f"Loan disbursement — {group.name}",
+                    remarks=f"Loan disbursement, {group.name}",
                 )
                 if res.get('status') != 'success':
                     logger.warning(

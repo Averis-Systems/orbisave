@@ -29,7 +29,7 @@ class SystemConfigurationSerializer(serializers.ModelSerializer):
         value = attrs.get('value')
         if flag and value and not value_is_encrypted(value):
             attrs['value'] = encrypt_value(value)
-        # An edit form round-trips the mask — treat it as "unchanged".
+        # An edit form round-trips the mask, treat it as "unchanged".
         if self.instance is not None and value == '********':
             attrs.pop('value', None)
         return attrs

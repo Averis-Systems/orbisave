@@ -83,7 +83,7 @@ def enforce_contribution_deadlines(self):
 
         except Exception as exc:
             logger.error('deadline_enforcement_error', group_id=group.id, error=str(exc))
-            # Don't retry per-group failures — continue to next group.
+            # Don't retry per-group failures, continue to next group.
 
     logger.info('deadline_enforcement_complete', processed=processed, penalised=penalised)
     return {'processed': processed, 'penalised': penalised}
@@ -99,7 +99,7 @@ def apply_pending_penalties(self):
     owed is an obligation, not a money movement. The previous implementation
     wrote a direct LedgerEntry here (bypassing append_ledger_entry) with an
     invalid entry_type and a rotation-stream debit for money that never moved
-    — corrupting both the stream lock and the pool balance. Ledger entries
+, corrupting both the stream lock and the pool balance. Ledger entries
     for penalties are written only when the fine is actually collected,
     through the payment/webhook flow like any other confirmed money-in.
 

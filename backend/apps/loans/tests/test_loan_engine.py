@@ -100,7 +100,7 @@ class TestLoanEngine:
         result = LoanEngine.disburse_loan(
             loan=approved_loan,
             actor=chairperson,
-            disbursement_reference='MANUAL-DISB-001',  # manual/offline path — no provider call
+            disbursement_reference='MANUAL-DISB-001',  # manual/offline path, no provider call
         )
 
         assert result.status == 'disbursed'
@@ -125,7 +125,7 @@ class TestLoanEngine:
         assert result.repayments.count() > 0
 
     def test_wrong_pin_raises_permission_error(self, loan_pending_chair, chairperson):
-        """Providing a wrong PIN must raise PermissionError — no state change."""
+        """Providing a wrong PIN must raise PermissionError, no state change."""
         from apps.loans.services.loan_engine import LoanEngine
 
         with pytest.raises(PermissionError, match="PIN verification failed"):

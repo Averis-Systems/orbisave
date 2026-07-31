@@ -4,7 +4,7 @@ from common.models import BaseModel
 class AuditLog(BaseModel):
     # NOTE: Django does not validate CharField choices on .save(), so drift
     # between this list and log_audit() call sites is SILENT. Keep them in
-    # sync — the admin audit UI filters by these labels. (2026-07-04: nine
+    # sync, the admin audit UI filters by these labels. (2026-07-04: nine
     # in-use actions were missing and have been added below.)
     ACTION_TYPES = [
         ('user_login','User Login'), ('user_logout','User Logout'),

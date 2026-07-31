@@ -69,7 +69,7 @@ REST_FRAMEWORK = {
     },
 }
 
-# Dev-safe console email backend (prints codes to the terminal) — UNLESS a
+# Dev-safe console email backend (prints codes to the terminal), UNLESS a
 # Resend key is configured, in which case base.py's real SMTP delivery stands.
 # This lets you rehearse actual verification-email delivery locally before deploy.
 if not os.environ.get('RESEND_API_KEY'):

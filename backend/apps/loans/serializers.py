@@ -53,7 +53,7 @@ class LoanRequestSerializer(serializers.Serializer):
         # duplicating it here used to crash the endpoint with a TypeError.
         validated_data.setdefault('borrower', self.context['request'].user)
         group = validated_data['group']
-        # Currency and interest rate are GROUP policy — never client-supplied.
+        # Currency and interest rate are GROUP policy, never client-supplied.
         validated_data.setdefault('currency', group.currency)
         validated_data.setdefault('interest_rate_monthly', group.loan_interest_rate_monthly)
         return Loan.objects.create(**validated_data)

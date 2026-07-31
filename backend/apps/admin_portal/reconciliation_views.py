@@ -1,5 +1,5 @@
 """
-Reconciliation queue — the human half of the fail-closed design.
+Reconciliation queue, the human half of the fail-closed design.
 
 The statement import and webhook flows open ReconciliationRun/Item rows for
 anything the bank and the ledger disagree on; these endpoints are how country
@@ -187,7 +187,7 @@ class ReconciliationItemActionView(APIView):
     """
     POST /api/v1/admin-portal/reconciliation/items/<item_id>/action/
     Body: {action: 'investigating'|'resolved'|'escalated', note: '...'}
-    Resolution here NEVER edits the ledger — money corrections are posted as
+    Resolution here NEVER edits the ledger, money corrections are posted as
     compensating reconciliation_adjustment entries through the ledger service.
     """
     permission_classes = [IsPlatformAdmin]
@@ -218,7 +218,7 @@ class ReconciliationItemActionView(APIView):
 
         scope = _country_scope(request)
         if scope and item.run_id and item.run.country != scope:
-            return Response({'error': 'Forbidden — different country.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Forbidden: different country.'}, status=status.HTTP_403_FORBIDDEN)
 
         item.status = action
         details = dict(item.details or {})

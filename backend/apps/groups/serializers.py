@@ -24,7 +24,7 @@ class WalletCalculations:
         if cached_data:
             return cached_data
 
-        # Cache miss — compute dynamically and save.
+        # Cache miss, compute dynamically and save.
         # Invalidated by the transaction.on_commit hook inside
         # apps.ledger.services.append_ledger_entry (the sole ledger write path).
         db_alias = group._state.db or get_db_for_group(group)

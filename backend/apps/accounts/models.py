@@ -70,7 +70,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     onboarding_popup_seen  = models.BooleanField(default=False)
     languages              = models.JSONField(default=list, blank=True, help_text="List of preferred languages (max 2)")
 
-    # Argon2id-hashed 4-digit PIN — SOLE transaction PIN field (transaction_pin_hash removed).
+    # Argon2id-hashed 4-digit PIN, SOLE transaction PIN field (transaction_pin_hash removed).
     transaction_pin        = models.CharField(max_length=255, blank=True, help_text="Argon2id hashed 4-digit transaction verification code")
     transaction_pin_failed_attempts = models.PositiveSmallIntegerField(default=0)
     transaction_pin_locked_at = models.DateTimeField(null=True, blank=True)
@@ -132,7 +132,7 @@ class PhoneOTP(BaseModel):
     ]
 
     user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='phone_otps')
-    code           = models.CharField(max_length=128, help_text="Hashed OTP — never stored in plaintext")
+    code           = models.CharField(max_length=128, help_text="Hashed OTP, never stored in plaintext")
     purpose        = models.CharField(max_length=20, choices=PURPOSES, default='phone_verify')
     expires_at     = models.DateTimeField()
     used           = models.BooleanField(default=False)
@@ -153,7 +153,7 @@ class PhoneOTP(BaseModel):
 class EmailOTP(BaseModel):
     """
     One-time codes for email verification. Same shape as PhoneOTP (hashed,
-    purpose-scoped, expiring, attempt-limited) — kept as a separate model
+    purpose-scoped, expiring, attempt-limited), kept as a separate model
     rather than unifying the two, since email and phone delivery/throttling
     are wired to different provider code (apps.notifications.sms vs.
     django.core.mail) and the only two OTP use cases don't yet justify a
@@ -164,7 +164,7 @@ class EmailOTP(BaseModel):
     ]
 
     user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_otps')
-    code           = models.CharField(max_length=128, help_text="Hashed OTP — never stored in plaintext")
+    code           = models.CharField(max_length=128, help_text="Hashed OTP, never stored in plaintext")
     purpose        = models.CharField(max_length=20, choices=PURPOSES, default='email_verify')
     expires_at     = models.DateTimeField()
     used           = models.BooleanField(default=False)

@@ -166,7 +166,7 @@ class PayoutService:
           - failure_reason is stored on provider failure.
         """
         if group.status != 'active':
-            raise ValueError("Group is inactive — no payouts authorised.")
+            raise ValueError("Group is inactive, no payouts authorised.")
 
         wallet = WalletCalculations.get_cached_group_wallet(group)
         available_rotation_funds = Decimal(str(wallet['rotation_pool']))
@@ -174,12 +174,12 @@ class PayoutService:
         if available_rotation_funds <= Decimal('0.00'):
             raise ValueError("No capital available in the rotation pool.")
 
-        # Dynamically fetch fee — never hardcoded.
+        # Dynamically fetch fee, never hardcoded.
         fee_pct = SystemConfiguration.get_withdrawal_fee_pct()
         raw_fee_value = (available_rotation_funds * fee_pct) / Decimal('100.0')
         net_disbursement = available_rotation_funds - raw_fee_value
 
-        # Route provider by country — not hardcoded to mpesa.
+        # Route provider by country, not hardcoded to mpesa.
         payment_method = COUNTRY_DEFAULT_METHOD.get(group.country, 'mpesa')
         # Use member's preferred mobile money number, fall back to main phone.
         payout_phone = target_member.mobile_money_number or target_member.phone
@@ -191,7 +191,7 @@ class PayoutService:
             # ── Idempotency Guard ────────────────────────────────────────────
             # Prevent double-payout from a double-click or a retry storm.
             # If a payout already exists for this cycle+recipient in a
-            # non-failed state, return it — do not create a duplicate.
+            # non-failed state, return it, do not create a duplicate.
             if cycle:
                 existing = Payout.objects.using(db_alias).filter(
                     group=group,
@@ -229,7 +229,7 @@ class PayoutService:
                 phone=payout_phone,
                 amount=net_disbursement,
                 reference=f"PAY-{payout.id}",
-                remarks=f"Rotation payout — {group.name}",
+                remarks=f"Rotation payout, {group.name}",
             )
 
             payout.provider_reference = res.get('provider_reference')

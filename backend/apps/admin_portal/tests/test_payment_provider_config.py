@@ -35,7 +35,7 @@ def test_bank_provider_serializer_masks_secrets_and_returns_accounts(jenga_bank_
 
     data = BankProviderSerializer(jenga_bank_provider).data
 
-    # ALL credential material is write-only — reads only expose has_* flags
+    # ALL credential material is write-only, reads only expose has_* flags
     # and extra_config key names. extra_config can hold the Jenga RSA private
     # key, so it must never round-trip out of the API.
     assert "api_key" not in data

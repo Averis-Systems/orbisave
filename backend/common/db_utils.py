@@ -60,7 +60,7 @@ def financial_db_aliases():
     """
     Every configured alias that can hold financial rows ('default' first).
     Cross-country admin views use this to locate a row whose country is not
-    known up front — CountryMiddleware runs before DRF's JWT auth, so
+    known up front, CountryMiddleware runs before DRF's JWT auth, so
     thread-local routing cannot be relied on for authenticated admin traffic.
     """
     aliases = ['default']

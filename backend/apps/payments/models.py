@@ -2,7 +2,7 @@
 Payment Provider / Bank Configuration Model
 ============================================
 Enables plug-and-play bank/payment API management entirely from the
-Super Admin Console — zero hardcoding. Credentials are stored encrypted.
+Super Admin Console, zero hardcoding. Credentials are stored encrypted.
 Each provider record maps one bank (e.g. Equity Bank Kenya) to one country
 and can be toggled sandbox ↔ live and enabled/disabled without a deployment.
 """
@@ -38,7 +38,7 @@ class BankProvider(BaseModel):
     """
     One row = one bank integration for one country.
     Credentials and provider extras (which can hold RSA private keys) are
-    Fernet-encrypted at rest via common.fields — the database only ever sees
+    Fernet-encrypted at rest via common.fields, the database only ever sees
     opaque enc$v1$ tokens. Key management: FIELD_ENCRYPTION_KEY env var.
     """
 
@@ -66,7 +66,7 @@ class BankProvider(BaseModel):
     supports_mobile_money   = models.BooleanField(default=True,
                                                    help_text="Provider natively bridges to mobile money (e.g. Jenga → M-Pesa)")
     supported_mobile_methods = models.JSONField(default=list, blank=True,
-                                                 help_text="e.g. ['mpesa', 'airtel'] — methods bridged via this bank")
+                                                 help_text="e.g. ['mpesa', 'airtel'], methods bridged via this bank")
 
     # ── Management metadata ───────────────────────────────────────────────────
     configured_by     = models.ForeignKey(

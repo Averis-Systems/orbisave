@@ -1,7 +1,7 @@
 """
 Provider operations: stuck-transaction polling and daily statement import.
 
-These two jobs are the reconciliation backbone — they run against mocked
+These two jobs are the reconciliation backbone, they run against mocked
 provider APIs here and against the Jenga sandbox in staging.
 """
 from datetime import timedelta

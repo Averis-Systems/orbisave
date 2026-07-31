@@ -10,7 +10,7 @@ def notify_user(user, title, body, notification_type='admin_alert', related_obje
     their preferred language (translation degrades gracefully to English).
 
     NOTE: field names must match the Notification model (recipient/type/
-    metadata) — a silent kwargs mismatch here previously meant NO in-app
+    metadata), a silent kwargs mismatch here previously meant NO in-app
     notification was ever created platform-wide.
     """
     valid_types = {choice for choice, _ in Notification.TYPE_CHOICES}

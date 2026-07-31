@@ -4,10 +4,10 @@ secrets, bank credentials). Fernet (AES-128-CBC + HMAC-SHA256) with a
 versioned prefix so future key/algorithm rotations can coexist with old rows.
 
 Key source, in order:
-  1. FIELD_ENCRYPTION_KEY env var — a 32-byte urlsafe-base64 Fernet key.
+  1. FIELD_ENCRYPTION_KEY env var, a 32-byte urlsafe-base64 Fernet key.
      REQUIRED in production; generate with:
          python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-  2. Derived from settings.SECRET_KEY (dev/test convenience only — rotating
+  2. Derived from settings.SECRET_KEY (dev/test convenience only, rotating
      SECRET_KEY would orphan encrypted values, so never rely on this in prod).
 
 Values that don't carry the prefix are returned unchanged: legacy plaintext
@@ -37,7 +37,7 @@ def encrypt_value(plaintext: str) -> str:
     if plaintext is None:
         return plaintext
     if not plaintext:
-        return plaintext  # keep '' as '' — blank means "not configured"
+        return plaintext  # keep '' as '', blank means "not configured"
     if plaintext.startswith(ENCRYPTED_PREFIX):
         return plaintext  # already encrypted; never double-wrap
     token = _fernet().encrypt(plaintext.encode()).decode()
@@ -48,7 +48,7 @@ def decrypt_value(stored: str) -> str:
     if not stored or not isinstance(stored, str):
         return stored
     if not stored.startswith(ENCRYPTED_PREFIX):
-        return stored  # legacy plaintext row — pass through
+        return stored  # legacy plaintext row, pass through
     token = stored[len(ENCRYPTED_PREFIX):]
     try:
         return _fernet().decrypt(token.encode()).decode()

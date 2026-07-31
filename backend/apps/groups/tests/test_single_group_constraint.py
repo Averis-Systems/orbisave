@@ -2,8 +2,8 @@
 Single-active-group policy tests (production-beta scope, 2026-07-03).
 
 One occupied group slot per user, enforced twice:
-  * service layer — friendly 409 with the occupying group named,
-  * database   — one_active_group_per_member partial unique constraint,
+  * service layer, friendly 409 with the occupying group named,
+  * database, one_active_group_per_member partial unique constraint,
     the hard floor for any code path that forgets to check.
 Exiting frees the slot; suspension does not.
 """

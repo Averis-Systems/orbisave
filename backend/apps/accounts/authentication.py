@@ -18,7 +18,7 @@ class RS256JWTAuthentication(BaseAuthentication):
         # Without this, DRF downgrades every authentication failure to 403
         # (NotAuthenticated and expired tokens alike). The Next.js proxies
         # key their transparent token refresh on 401, and the frontends key
-        # session-expiry logout on 401 — so the missing header made expired
+        # session-expiry logout on 401, so the missing header made expired
         # sessions die silently instead of refreshing.
         return 'Bearer realm="api"'
 

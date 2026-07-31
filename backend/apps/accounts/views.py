@@ -28,7 +28,7 @@ class RegisterView(APIView):
                 raw_code = issue_email_otp(user)
                 send_email_otp(user, raw_code)
             except Exception as exc:
-                # Registration already succeeded — the account exists and
+                # Registration already succeeded, the account exists and
                 # can request a fresh code via /auth/email/resend/. Don't
                 # fail signup over a transient email-provider hiccup.
                 logger.error('registration_email_send_failed', user_id=str(user.id), error=str(exc))

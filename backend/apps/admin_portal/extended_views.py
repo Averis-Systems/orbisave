@@ -1,4 +1,4 @@
-"""Admin Portal — Extended views for groups, loans, contributions, audit, analytics."""
+"""Admin Portal, Extended views for groups, loans, contributions, audit, analytics."""
 from django.utils import timezone
 from django.db.models import Sum, Count, Q, F, Value, DecimalField
 from django.db.models.functions import Coalesce
@@ -347,7 +347,7 @@ class AdminLoanApproveView(APIView):
 
     def post(self, request, loan_id):
         # Admin traffic cannot rely on thread-local country routing (the
-        # middleware runs before JWT auth) — locate the loan wherever it lives.
+        # middleware runs before JWT auth), locate the loan wherever it lives.
         from common.db_utils import find_across_financial_dbs
         loan = find_across_financial_dbs(Loan, id=loan_id)
         if loan is None:
@@ -498,7 +498,7 @@ class AdminAuditView(APIView):
             # Every log_audit() call site now stamps `country` explicitly
             # (see apps/groups, apps/loans, apps/admin_portal call sites),
             # so an exact match is the primary, reliable filter. target_user
-            # is kept as a fallback for any historical/未-stamped rows —
+            # is kept as a fallback for any historical/未-stamped rows, 
             # target_user is a User (always on 'default', a real
             # cross-table filter). actor__country is deliberately NOT used:
             # it matches the actor's own home country, not the country the
@@ -506,7 +506,7 @@ class AdminAuditView(APIView):
             # actions (their own login, password reset...) used to leak
             # into a country manager's feed just because their seed account
             # happens to carry country='kenya'. target_group is deliberately
-            # not joined here — Group lives on a country shard and this
+            # not joined here, Group lives on a country shard and this
             # queryset always runs on 'default', so that join would just
             # match nothing (see the target_group resolution below instead).
             qs = qs.filter(
@@ -536,7 +536,7 @@ class AdminAuditView(APIView):
         # target_group is a cross-database FK: Group lives on a country
         # shard, this queryset always runs on 'default'. Resolve the small
         # set of ids this page actually needs with one extra query (scoped
-        # to the admin's single country when known — the normal case —
+        # to the admin's single country when known, the normal case, 
         # else checked across every shard for a platform-wide super_admin
         # view), instead of touching log.target_group directly (which
         # either silently returns None via select_related's empty LEFT JOIN,
@@ -664,11 +664,11 @@ class AdminAttentionView(APIView):
     GET /api/v1/admin-portal/attention/
 
     One read model for the Manager overview's exception strip + priority
-    worklist, and the header's alerts popover — all three consume this so
+    worklist, and the header's alerts popover, all three consume this so
     they can never drift from each other. Country-scoped like
     AdminAnalyticsView, but explicit about which database every query hits:
     admin JWT traffic cannot rely on thread-local routing (CountryMiddleware
-    runs before DRF resolves the authenticated user — see
+    runs before DRF resolves the authenticated user, see
     common/db_utils.financial_db_aliases and AdminLoanApproveView above),
     so every FINANCIAL_APPS model (Group, Loan, LoanRepayment,
     ReconciliationItem) is read with an explicit `.using(db_alias)`.
@@ -810,7 +810,7 @@ class AdminAttentionView(APIView):
             amount = item.observed_amount if item.observed_amount is not None else item.expected_amount
             issue_label = item.get_issue_type_display()
             if amount is not None:
-                label = f"{item.currency} {float(amount):,.0f} — {issue_label}"
+                label = f"{item.currency} {float(amount):,.0f}, {issue_label}"
             else:
                 label = issue_label
             worklist.append({
@@ -828,14 +828,14 @@ class AdminAttentionView(APIView):
         # ── Recent activity (humanized, curated) ──────────────────────────
         # Scoped by `country` / `target_user__country` only (see
         # AdminAuditView's comment above for why actor__country was
-        # dropped: a super_admin's OWN actions — their login, their
-        # password reset — used to leak into every country's feed just
+        # dropped: a super_admin's OWN actions, their login, their
+        # password reset, used to leak into every country's feed just
         # because their seed account carries country='kenya'). Also
         # restricted to a whitelist of actually operational action codes:
         # this widget is "what happened in your country that matters for
         # running it", not a personal-account-hygiene log (logins,
         # password/PIN/2FA changes belong in the full audit trail, not
-        # here — that noise is exactly what made the old feed unreadable).
+        # here, that noise is exactly what made the old feed unreadable).
         OPERATIONAL_ACTIONS = {
             'group_created', 'group_verified', 'group_rejected', 'group_paused',
             'group_closed', 'group_activated',
@@ -930,7 +930,7 @@ class AdminAttentionView(APIView):
 
         # ── Regional distribution (groups by region, this country) ────────
         # `region` is the county/province the chairperson already picks at
-        # group creation (see Group.region) — the closest thing this system
+        # group creation (see Group.region), the closest thing this system
         # has to "where a marketer recruited". Both this-month and all-time
         # counts are surfaced so the manager can check a marketer's monthly
         # claim ("I signed up 6 groups in Kiambu this month") against the
@@ -1003,7 +1003,7 @@ class AdminQuickSearchView(APIView):
                 'id': str(u.id),
                 'label': u.full_name,
                 # No member-detail page exists yet (Members is still an
-                # OperationsPlaceholder) — the KYC queue is the closest real
+                # OperationsPlaceholder), the KYC queue is the closest real
                 # per-member destination this portal has today.
                 'detail': u.email,
                 'href': '/dashboard/kyc' if u.kyc_status == 'submitted' else '/dashboard/members',

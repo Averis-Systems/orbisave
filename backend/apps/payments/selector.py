@@ -2,7 +2,7 @@
 Dynamic Payment Provider Selector
 ===================================
 Loads the active BankProvider configuration from the database at runtime.
-No hardcoded credentials or provider mappings — everything is managed via
+No hardcoded credentials or provider mappings, everything is managed via
 the Super Admin Console's Provider Hub.
 
 Resolution order:
@@ -72,7 +72,7 @@ def get_payment_provider(country: str, method: str = None) -> PaymentProvider:
 
 
 def get_provider_by_id(provider_id: str) -> PaymentProvider:
-    """Load a specific provider by its DB UUID — used for test connection calls."""
+    """Load a specific provider by its DB UUID, used for test connection calls."""
     from apps.payments.models import BankProvider
     record = BankProvider.objects.get(id=provider_id)
     return _instantiate_provider(record)
@@ -89,8 +89,8 @@ def _instantiate_provider(record) -> PaymentProvider:
         'jenga_rw': JengaProvider,
         'mtn_momo': MTNMoMoProvider,   # Rwanda + Ghana mobile-money rail
         'mock': MockProvider,
-        # 'bk_rw': BankOfKigaliProvider,   # trust-account rail — see docs/rwanda_ghana_rails_onboarding.md
-        # 'ecobank_gh': EcobankProvider,   # trust-account rail — see docs/rwanda_ghana_rails_onboarding.md
+        # 'bk_rw': BankOfKigaliProvider,   # trust-account rail, see docs/rwanda_ghana_rails_onboarding.md
+        # 'ecobank_gh': EcobankProvider,   # trust-account rail, see docs/rwanda_ghana_rails_onboarding.md
     }
 
     # The instant-success mock can never run against real money: it is only

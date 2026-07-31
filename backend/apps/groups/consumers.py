@@ -1,22 +1,22 @@
 """
 Django Channels WebSocket consumer for real-time group events.
 Satisfies:
-  - System Design Checklist §2 (Architecture — real-time layer)
-  - Frontend System Design Checklist §13 (API Integration — WebSocket events)
+  - System Design Checklist §2 (Architecture, real-time layer)
+  - Frontend System Design Checklist §13 (API Integration, WebSocket events)
 
 Connection: ws(s)://api/ws/group/{group_id}/?token=<access_token>
 
 Events emitted to group room:
-  contribution.confirmed    — after webhook confirms payment
-  contribution.failed       — after webhook flags payment failure
-  contribution.overdue      — after deadline enforcement task runs
-  payout.completed          — after payout service completes disbursement
-  loan.status_changed       — after any loan state transition
-  loan.repayment_overdue    — after repayment flagged overdue
-  loan.defaulted            — after loan escalated to default
-  kyc.verified              — after admin marks KYC as verified
-  member.joined             — after invite accepted
-  cycle.completed           — after rotation cycle completes
+  contribution.confirmed, after webhook confirms payment
+  contribution.failed, after webhook flags payment failure
+  contribution.overdue, after deadline enforcement task runs
+  payout.completed, after payout service completes disbursement
+  loan.status_changed, after any loan state transition
+  loan.repayment_overdue, after repayment flagged overdue
+  loan.defaulted, after loan escalated to default
+  kyc.verified, after admin marks KYC as verified
+  member.joined, after invite accepted
+  cycle.completed, after rotation cycle completes
 """
 import json
 import structlog

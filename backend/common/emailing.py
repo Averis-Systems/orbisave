@@ -1,8 +1,8 @@
 """
 Branded transactional email helper.
 
-One entry point (`send_branded_notice`) renders templates/emails/notice.html —
-the same flat OrbiSave design as the verification email — with an optional
+One entry point (`send_branded_notice`) renders templates/emails/notice.html, 
+the same flat OrbiSave design as the verification email, with an optional
 numbered-steps panel and CTA button. Every user-facing string is translated
 through the user's preferred language before interpolation, and a plain-text
 fallback is always included.

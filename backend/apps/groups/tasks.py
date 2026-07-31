@@ -1,7 +1,7 @@
 """
 Groups Celery tasks.
 Satisfies:
-  - Financial Engine Checklist §3 (Rotation Engine — cycle tracking)
+  - Financial Engine Checklist §3 (Rotation Engine, cycle tracking)
   - System Design Checklist §9 (Background Job Processing)
 """
 import structlog
@@ -46,7 +46,7 @@ def check_cycle_completion(self):
             ).count()
 
             if total_slots > 0 and paid_slots == total_slots:
-                # All members have received their payout — close cycle and start new one.
+                # All members have received their payout, close cycle and start new one.
                 RotationService.start_next_cycle(group)
                 completed += 1
                 logger.info('cycle_completed', group_id=group.id, cycle=current_cycle.cycle_number)

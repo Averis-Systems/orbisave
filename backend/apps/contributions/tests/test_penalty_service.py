@@ -101,12 +101,12 @@ class TestPenaltyService:
         PenaltyService.apply_late_penalty(contribution_confirmed)  # Called twice
 
         count = Penalty.objects.filter(contribution=contribution_confirmed).count()
-        assert count == 1  # Strictly one — idempotent
+        assert count == 1  # Strictly one, idempotent
 
     def test_no_rule_no_penalty(self, group, contribution_confirmed):
         """
         When no PenaltyRule exists for the group, no penalty is applied.
-        Graceful no-op — not an error.
+        Graceful no-op, not an error.
         """
         from apps.contributions.services.penalty_service import PenaltyService
 

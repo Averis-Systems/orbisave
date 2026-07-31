@@ -1,5 +1,5 @@
 """
-Loan repayment collection — completes the loan lifecycle
+Loan repayment collection, completes the loan lifecycle
 (request → approve → disburse → REPAY → repaid).
 
 Mirrors the proven contribution money-in flow:
@@ -41,7 +41,7 @@ class InitiateRepaymentView(views.APIView):
     POST /api/v1/loans/<loan_pk>/repayments/<repayment_pk>/pay/
 
     The amount is ALWAYS the outstanding remainder of the installment,
-    computed server-side — the client cannot choose what to pay.
+    computed server-side, the client cannot choose what to pay.
     """
     permission_classes = [IsAuthenticated]
 
@@ -54,7 +54,7 @@ class InitiateRepaymentView(views.APIView):
             )
 
         # Production rows live on the user's country DB; dev/test rows land on
-        # default — same two-alias convention as membership_policy.
+        # default, same two-alias convention as membership_policy.
         repayment = None
         db_alias = 'default'
         for candidate in {get_db_for_country(getattr(request.user, 'country', None)), 'default'}:
@@ -78,7 +78,7 @@ class InitiateRepaymentView(views.APIView):
             )
         if loan.status not in ('disbursed', 'active'):
             return Response(
-                {'error': f"Loan is '{loan.status}' — repayments apply to disbursed loans only."},
+                {'error': f"Loan is '{loan.status}', repayments apply to disbursed loans only."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if repayment.status in ('paid', 'waived'):
@@ -112,7 +112,7 @@ class InitiateRepaymentView(views.APIView):
                 phone=phone,
                 amount=outstanding,
                 reference=f"LNR-{repayment.id}",
-                description=f"Loan repayment — {loan.group.name}",
+                description=f"Loan repayment, {loan.group.name}",
             )
             if res.get('status') == 'failed':
                 return Response(
@@ -150,7 +150,7 @@ class InitiateRepaymentView(views.APIView):
 class RepaymentWebhookView(views.APIView):
     """
     POST /api/v1/loans/webhook/<country>/<provider_id>/
-    Provider settlement callback for loan repayments — idempotent, fail-closed.
+    Provider settlement callback for loan repayments, idempotent, fail-closed.
     """
     permission_classes = [AllowAny]
 
@@ -173,7 +173,7 @@ class RepaymentWebhookView(views.APIView):
         cb_status = parsed.get('status')
 
         # Locate the payment intent (country DB in production, default in
-        # dev/tests — same two-alias convention as membership_policy).
+        # dev/tests, same two-alias convention as membership_policy).
         db_alias = 'default'
         for candidate in {get_db_for_country(country), 'default'}:
             if LoanRepaymentPayment.objects.using(candidate).filter(provider_reference=prov_ref).exists():
@@ -205,7 +205,7 @@ class RepaymentWebhookView(views.APIView):
                 Decimal('0.01'), rounding=ROUND_HALF_UP
             )
             if observed != payment.amount:
-                # Fail closed: money observed but not what we asked for —
+                # Fail closed: money observed but not what we asked for, 
                 # isolate to suspense; a human resolves via reconciliation.
                 payment.status = 'disputed'
                 payment.actual_amount = observed

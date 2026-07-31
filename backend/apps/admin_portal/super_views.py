@@ -1,4 +1,4 @@
-"""Super Admin only views — global oversight, country drilldown, system health, admin management."""
+"""Super Admin only views, global oversight, country drilldown, system health, admin management."""
 from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
@@ -177,7 +177,7 @@ class SuperAdminNavCountsView(APIView):
 
 
 class SuperAdminOverviewView(APIView):
-    """GET /api/v1/superadmin/overview/ — global KPI summary across all countries."""
+    """GET /api/v1/superadmin/overview/, global KPI summary across all countries."""
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):
@@ -209,7 +209,7 @@ class SuperAdminOverviewView(APIView):
 
 
 class SuperAdminCountryView(APIView):
-    """GET /api/v1/superadmin/country/<country>/ — full drilldown for one country."""
+    """GET /api/v1/superadmin/country/<country>/, full drilldown for one country."""
     permission_classes = [IsSuperAdmin]
 
     def get(self, request, country):
@@ -260,7 +260,7 @@ class SuperAdminCountryView(APIView):
 
 class SuperAdminDemographicsView(APIView):
     """
-    GET /api/v1/superadmin/demographics/ — cross-country member and group
+    GET /api/v1/superadmin/demographics/, cross-country member and group
     demographics: signups per country, gender split (global and per country),
     and the top regions / sub-regions per country.
 
@@ -268,7 +268,7 @@ class SuperAdminDemographicsView(APIView):
     rollup: signups and gender come from `accounts` (default DB, globally
     queryable by the country column); regions come from Group.region /
     sub_region, which live on the sharded country DBs, so that part fans out
-    one query per country. Counts aggregate freely — people are not currency.
+    one query per country. Counts aggregate freely, people are not currency.
     """
     permission_classes = [IsSuperAdmin]
 
@@ -302,7 +302,7 @@ class SuperAdminDemographicsView(APIView):
         gender_global = gender_dist(member_qs)
         gender_by_country = {c: gender_dist(member_qs.filter(country=c)) for c in COUNTRIES}
 
-        # ── Top regions / sub-regions per country (sharded — fan out) ─────
+        # ── Top regions / sub-regions per country (sharded, fan out) ─────
         regions_by_country = {}
         for c in COUNTRIES:
             gq = Group.objects.using(get_db_for_country(c)).filter(country=c)
@@ -339,7 +339,7 @@ class SuperAdminDemographicsView(APIView):
 
 
 class SuperAdminSystemHealthView(APIView):
-    """GET /api/v1/superadmin/system-health/ — DB, Celery, and provider connectivity."""
+    """GET /api/v1/superadmin/system-health/, DB, Celery, and provider connectivity."""
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):
@@ -390,7 +390,7 @@ class SuperAdminSystemHealthView(APIView):
 
 
 class SuperAdminAdminListView(APIView):
-    """GET /api/v1/superadmin/admins/ — all platform_admins across countries."""
+    """GET /api/v1/superadmin/admins/, all platform_admins across countries."""
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):
@@ -416,7 +416,7 @@ class SuperAdminAdminListView(APIView):
 
 
 class SuperAdminAdminDetailView(APIView):
-    """GET/PATCH /api/v1/superadmin/admins/<id>/ — detail + edit."""
+    """GET/PATCH /api/v1/superadmin/admins/<id>/, detail + edit."""
     permission_classes = [IsSuperAdmin]
 
     def get(self, request, admin_id):
@@ -488,7 +488,7 @@ class SuperAdminAdminSuspendView(APIView):
 
 
 class SuperAdminGlobalAuditView(APIView):
-    """GET /api/v1/superadmin/audit/ — cross-country audit trail."""
+    """GET /api/v1/superadmin/audit/, cross-country audit trail."""
     permission_classes = [IsSuperAdmin]
 
     def get(self, request):

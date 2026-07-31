@@ -9,7 +9,7 @@ from django.db import connections
 from apps.payments.models import BankProvider
 from common.encryption import ENCRYPTED_PREFIX, decrypt_value, encrypt_value
 
-# Plain django_db (default alias only) — matches the passing provider-config
+# Plain django_db (default alias only), matches the passing provider-config
 # suite. The test settings dedupe all country aliases into one physical DB;
 # declaring extra aliases here trips connection-routing quirks (see test.py).
 pytestmark = pytest.mark.django_db
@@ -21,14 +21,14 @@ def _db_alias(instance):
 
 def _raw_column(provider, column):
     # Raw SQL must hit the same database the router sent the ORM write to.
-    # SQLite stores UUID PKs as undashed 32-char hex — use .hex, not str().
+    # SQLite stores UUID PKs as undashed 32-char hex, use .hex, not str().
     with connections[_db_alias(provider)].cursor() as cursor:
         cursor.execute(
-            f"SELECT {column} FROM payment_bank_provider WHERE id = %s",  # noqa: S608 — column name is test-controlled
+            f"SELECT {column} FROM payment_bank_provider WHERE id = %s",  # noqa: S608, column name is test-controlled
             [provider.id.hex],
         )
         row = cursor.fetchone()
-    assert row is not None, 'raw lookup found no row — UUID param format mismatch?'
+    assert row is not None, 'raw lookup found no row, UUID param format mismatch?'
     return row[0]
 
 

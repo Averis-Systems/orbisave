@@ -10,7 +10,7 @@ Security properties mirror apps/accounts/otp_views.py (phone OTP):
     email exists or is already verified.
 
 Unlike phone verification, email verification blocks login entirely
-(TokenObtainPairView checks user.email_verified) — so confirm/resend can't
+(TokenObtainPairView checks user.email_verified), so confirm/resend can't
 require IsAuthenticated the way the phone endpoints do; both look the user
 up by email instead.
 """
@@ -145,7 +145,7 @@ def _verify_otp(user, raw_code: str):
 
 class ResendEmailOTPView(views.APIView):
     """
-    POST /auth/email/resend/ — body {email}.
+    POST /auth/email/resend/, body {email}.
     Always returns 200 with the same generic message: the response must not
     reveal whether an account exists for the email, or whether it's already
     verified.
@@ -166,7 +166,7 @@ class ResendEmailOTPView(views.APIView):
                 raw_code = issue_email_otp(user)
                 send_email_otp(user, raw_code)
             except ValueError as exc:
-                # Still return the generic message — throttling state must
+                # Still return the generic message, throttling state must
                 # not become an account-existence oracle.
                 logger.warning('email_otp_resend_suppressed', email=email, reason=str(exc))
 
@@ -175,7 +175,7 @@ class ResendEmailOTPView(views.APIView):
 
 class ConfirmEmailOTPView(views.APIView):
     """
-    POST /auth/email/confirm/ — body {email, code}.
+    POST /auth/email/confirm/, body {email, code}.
     On success, marks the email verified and logs the user straight in
     (mirrors AdminVerifyEmailView) so the frontend can go from "enter code"
     to authenticated in one call.

@@ -9,7 +9,7 @@ def _resolve_group(obj):
     """
     Group-scoped permissions receive different object types depending on the
     route: the Group itself, or a group-linked row (GroupMember, RotationCycle,
-    Loan, ...). Resolve to the governing Group — permissions must never crash
+    Loan, ...). Resolve to the governing Group, permissions must never crash
     with AttributeError on a financial endpoint (a 500 here previously broke
     member remove/suspend/reinstate and rotation-schedule routes).
     """

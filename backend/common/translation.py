@@ -1,9 +1,9 @@
 """
-Translation service — Google Cloud Translation v2 behind the Console config.
+Translation service, Google Cloud Translation v2 behind the Console config.
 
 Why Google (researched 2026-07): it is the only major translation API covering
-ALL of OrbiSave's launch languages — Kiswahili (sw), Kinyarwanda (rw), Twi (tw),
-French (fr) — at ~249 supported languages. DeepL (~33 languages) has none of
+ALL of OrbiSave's launch languages, Kiswahili (sw), Kinyarwanda (rw), Twi (tw),
+French (fr), at ~249 supported languages. DeepL (~33 languages) has none of
 the African trio; Azure covers ~100 with weaker African coverage. Pricing:
 $20/M characters with a 500K-character free monthly tier; the cache below keeps
 recurring system strings effectively free.
@@ -11,7 +11,7 @@ recurring system strings effectively free.
 Design rules:
   * The API key lives ENCRYPTED in SystemConfiguration under
     'google_translate_api_key' (Console → Settings → Platform APIs).
-  * Translations are cached (30 days) — system messages repeat constantly.
+  * Translations are cached (30 days), system messages repeat constantly.
   * FAILURE NEVER BLOCKS DELIVERY: if translation errors or no key is
     configured, the English original is sent. An OTP in English beats no OTP.
   * resolve_user_language honors the user's chosen languages (first supported
@@ -26,7 +26,7 @@ from django.core.cache import cache
 logger = structlog.get_logger(__name__)
 
 GOOGLE_TRANSLATE_ENDPOINT = 'https://translation.googleapis.com/language/translate/v2'
-CACHE_TTL_SECONDS = 60 * 60 * 24 * 30  # 30 days — system strings are highly repetitive
+CACHE_TTL_SECONDS = 60 * 60 * 24 * 30  # 30 days, system strings are highly repetitive
 CONFIG_KEY = 'google_translate_api_key'
 
 # Launch language set. Keys are Google/ISO codes; extend as markets open.
@@ -39,7 +39,7 @@ SUPPORTED_LANGUAGES = {
 }
 
 # Sensible per-country defaults applied ONLY when a user somehow registered
-# without choosing (API clients, legacy rows) — the UI requires an explicit
+# without choosing (API clients, legacy rows), the UI requires an explicit
 # choice of at least two.
 COUNTRY_DEFAULT_LANGUAGES = {
     'kenya': ['en', 'sw'],
@@ -75,7 +75,7 @@ def _api_key():
 def translate(text: str, target: str, source: str = 'en') -> str:
     """
     Translate `text` into `target`. Returns the ORIGINAL text on any problem
-    (unsupported target, missing key, API failure) — delivery never blocks.
+    (unsupported target, missing key, API failure), delivery never blocks.
     """
     if not text or target == source or target not in SUPPORTED_LANGUAGES:
         return text

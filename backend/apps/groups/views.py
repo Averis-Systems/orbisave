@@ -98,7 +98,7 @@ class RotationViewSet(viewsets.ReadOnlyModelViewSet):
 
     # NOTE: the old `trigger_payout` action that lived here was removed
     # deliberately: it fabricated a Payout(status='completed') with a
-    # hardcoded fee, no payment-provider call, and no ledger entries —
+    # hardcoded fee, no payment-provider call, and no ledger entries, 
     # permanently desyncing Payout state from the ledger and the bank.
     # The one sanctioned payout path is POST /api/v1/payouts/<group>/execute/
     # (PIN-gated, idempotent, schedule-derived recipient, balanced ledger
@@ -365,7 +365,7 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        membership.status = 'exited'  # 'removed' was invalid — 'exited' is the correct state
+        membership.status = 'exited'  # 'removed' was invalid, 'exited' is the correct state
         membership.exited_at = timezone.now()  # field renamed from left_at
         membership.save(update_fields=['status', 'exited_at'])
 
@@ -403,7 +403,7 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         membership = self.get_object()
 
         # A member who exited and joined a different group cannot be
-        # reinstated here — their single group slot is already occupied.
+        # reinstated here, their single group slot is already occupied.
         from .services.membership_policy import get_blocking_membership, SingleGroupLimitError
         blocking = get_blocking_membership(membership.member, exclude_group=membership.group)
         if blocking is not None:
@@ -435,8 +435,8 @@ class GroupMemberActionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         """
         membership = self.get_object()
 
-        # Only the member themselves — or the chairperson processing an exit
-        # request — may exit a membership.
+        # Only the member themselves, or the chairperson processing an exit
+        # request, may exit a membership.
         is_self = membership.member_id == request.user.id
         is_chair = membership.group.chairperson_id == request.user.id
         if not (is_self or is_chair):

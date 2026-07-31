@@ -1,8 +1,8 @@
 """
 Loans Celery tasks.
 Satisfies:
-  - Financial Engine Checklist §7 (Loan Engine — repayment logic, defaults)
-  - Financial Engine Checklist §9 (Defaults & Penalties — escalation logic)
+  - Financial Engine Checklist §7 (Loan Engine, repayment logic, defaults)
+  - Financial Engine Checklist §9 (Defaults & Penalties, escalation logic)
   - System Design Checklist §9 (Background Job Processing)
 """
 import structlog
@@ -65,7 +65,7 @@ def check_loan_defaults(self):
     transitions borrower's GroupMember status to 'suspended'.
 
     Satisfies Financial Engine Checklist §7: Loan default handling defined.
-    Satisfies Financial Engine Checklist §9: Escalation logic — Restriction.
+    Satisfies Financial Engine Checklist §9: Escalation logic, Restriction.
     """
     from apps.loans.models import Loan, LoanRepayment
     from apps.groups.models import GroupMember, PenaltyRule
@@ -105,7 +105,7 @@ def check_loan_defaults(self):
                     else:
                         penalty_amount = (loan.amount * rule.value) / Decimal('100.0')
 
-                    # Idempotent — one default penalty per loan
+                    # Idempotent, one default penalty per loan
                     from apps.contributions.models import Penalty
                     Penalty.objects.using(db_alias).get_or_create(
                         loan=loan,
@@ -122,7 +122,7 @@ def check_loan_defaults(self):
                     group=group, member=loan.borrower, status='active'
                 ).update(
                     status='suspended',
-                    suspension_reason=f"Loan #{loan.id} defaulted — {overdue_count} missed repayments.",
+                    suspension_reason=f"Loan #{loan.id} defaulted, {overdue_count} missed repayments.",
                 )
 
                 logger.warning(

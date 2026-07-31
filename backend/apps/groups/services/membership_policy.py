@@ -1,7 +1,7 @@
 """
 Single-active-group policy (production-beta scope, 2026-07-03).
 
-A user occupies at most one group slot at a time — across creation, invites,
+A user occupies at most one group slot at a time, across creation, invites,
 admin adds, and reinstatement. The DB-level backstop is the
 one_active_group_per_member partial unique constraint; this module is the
 service layer that turns it into a clear, actionable message before users
@@ -21,7 +21,7 @@ class SingleGroupLimitError(Exception):
         super().__init__(
             f"You already belong to '{group.name}' "
             f"(membership status: {membership.get_status_display().lower()}). "
-            "Leave that group before joining or creating another — "
+            "Leave that group before joining or creating another, "
             "multi-group membership is coming in a future update."
         )
 
@@ -42,7 +42,7 @@ def get_blocking_membership(user, exclude_group=None):
     A user's country pins their financial records to one country DB, which is
     where production membership rows live. 'default' is also checked because
     dev/test environments (and any row written before country routing was
-    hardened) store memberships there — a duplicate-alias query is cheap and
+    hardened) store memberships there, a duplicate-alias query is cheap and
     this check guards money-adjacent membership state.
     """
     aliases = {get_db_for_country(getattr(user, 'country', None)), 'default'}

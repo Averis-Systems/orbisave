@@ -2,7 +2,7 @@
 Email OTP flow: signup email verification (apps/accounts/email_views.py).
 
 Mirrors test_otp_flows.py's coverage of the phone flow: hashed storage,
-attempt exhaustion, expiry, send throttling, enumeration-safety — plus the
+attempt exhaustion, expiry, send throttling, enumeration-safety, plus the
 one behavior that's unique to email verification: it blocks login entirely
 (phone verification doesn't).
 """
@@ -89,7 +89,7 @@ class TestConfirmEmailOTP:
         assert resend.status_code == 200
         raw_code = extract_code(sender)
 
-        # Stored hashed — the raw code must never be in the database.
+        # Stored hashed, the raw code must never be in the database.
         otp = EmailOTP.objects.get(user=unverified_user, purpose='email_verify', used=False)
         assert otp.code != raw_code
         assert raw_code not in otp.code
@@ -160,7 +160,7 @@ class TestResendEmailOTP:
                 resp = client.post('/api/v1/auth/email/resend/', {'email': unverified_user.email}, format='json')
                 assert resp.status_code == 200
             # Fourth request within the hour is silently suppressed, not an
-            # error — the endpoint is enumeration-safe, so it still returns 200.
+            # error, the endpoint is enumeration-safe, so it still returns 200.
             fourth = client.post('/api/v1/auth/email/resend/', {'email': unverified_user.email}, format='json')
         assert fourth.status_code == 200
         assert EmailOTP.objects.filter(user=unverified_user).count() == 3

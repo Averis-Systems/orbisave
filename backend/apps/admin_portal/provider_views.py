@@ -1,8 +1,8 @@
 """
-Admin Portal — Provider Hub Views (Super Admin only)
+Admin Portal, Provider Hub Views (Super Admin only)
 ======================================================
 Full CRUD + test-connection + toggle for bank/payment provider records.
-All credential management happens here — no env files needed.
+All credential management happens here, no env files needed.
 """
 from django.utils import timezone
 from rest_framework import status
@@ -60,7 +60,7 @@ class BankProviderSerializer(serializers.ModelSerializer):
                             'configured_by_name']
         # ALL credential material is write-only: the console submits secrets
         # but read responses only carry has_* booleans / key names. extra_config
-        # can hold the Jenga RSA private key — it must never travel back out.
+        # can hold the Jenga RSA private key, it must never travel back out.
         extra_kwargs = {
             'api_key':        {'write_only': True},
             'api_secret':     {'write_only': True},
@@ -88,7 +88,7 @@ class BankProviderSerializer(serializers.ModelSerializer):
 
         # Credentials are write-only, so edit forms round-trip them as empty.
         # On update, an empty submission means "leave the stored secret
-        # unchanged" — clearing a credential is an explicit re-configuration,
+        # unchanged", clearing a credential is an explicit re-configuration,
         # not a side effect of saving an unrelated field.
         if self.instance is not None:
             for secret_field in ('api_key', 'api_secret', 'webhook_secret'):

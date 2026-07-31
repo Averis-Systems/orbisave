@@ -9,7 +9,7 @@ from common.models import BaseModel
 # 'suspended' still occupies the slot (it is disciplinary, not an exit), so
 # reinstatement can never collide with a membership acquired elsewhere.
 # Only 'exited' and 'deceased' free the slot. Multi-group membership is a
-# documented future feature — re-enabling it means dropping the
+# documented future feature, re-enabling it means dropping the
 # one_active_group_per_member constraint and rebuilding the UI, nothing more.
 BLOCKING_MEMBERSHIP_STATUSES = (
     'active',
@@ -40,7 +40,7 @@ class Group(BaseModel):
     COUNTRIES = [('kenya','Kenya'), ('rwanda','Rwanda'), ('ghana','Ghana')]
     VERIFICATION_STATUS = [
         ('pending_review', 'Pending Review'),  # Awaiting country admin approval
-        ('verified',       'Verified'),          # Approved — group can go live
+        ('verified',       'Verified'),          # Approved, group can go live
         ('rejected',       'Rejected'),          # Rejected with reason
     ]
 
@@ -48,13 +48,13 @@ class Group(BaseModel):
     description               = models.TextField(blank=True)
     country                   = models.CharField(max_length=10, choices=COUNTRIES)
     # Sub-country location the chairperson already picks in the group-creation
-    # form (County/Province/Region + Sub-county/District — see
+    # form (County/Province/Region + Sub-county/District, see
     # frontend/lib/location-data.ts). Until 2026-07 this was only ever baked
-    # into the free-text `description` above and never queryable — a country
+    # into the free-text `description` above and never queryable, a country
     # manager could not chart "new groups by region" at all. `region` is the
     # level1 pick (e.g. a Kenyan county); `sub_region` is level2. Both are
     # blank for groups created before this field existed and for any group
-    # created without picking a location — that's real "not specified" data,
+    # created without picking a location, that's real "not specified" data,
     # not backfilled from the free-text description (too unreliable to trust
     # for a KPI the manager verifies against marketers' own reporting).
     region                    = models.CharField(max_length=100, blank=True)
@@ -198,11 +198,11 @@ class RotationSchedule(BaseModel):
 
     class Meta:
         db_table = 'groups_rotation_schedule'
-        # One slot per member per group cycle — each member receives exactly once per cycle.
+        # One slot per member per group cycle, each member receives exactly once per cycle.
         unique_together = [('group', 'cycle_number', 'member')]
 
     def __str__(self):
-        return f"Member {self.member_id} — Cycle {self.cycle_number} ({self.group.name})"
+        return f"Member {self.member_id}, Cycle {self.cycle_number} ({self.group.name})"
 
 class PenaltyRule(BaseModel):
     RULE_TYPES = [('late_contribution', 'Late Contribution'), ('missed_meeting', 'Missed Meeting'), ('loan_default', 'Loan Default')]

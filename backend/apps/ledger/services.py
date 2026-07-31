@@ -316,7 +316,7 @@ def record_reconciliation_exception(
     represented in the suspense stream. We never force it into rotation/savings/
     loaning until a human or a trusted reconciliation rule resolves the mismatch.
 
-    db_alias overrides the country-derived database — callers that already
+    db_alias overrides the country-derived database, callers that already
     resolved where the related rows live (e.g. webhook handlers) pass it so
     the exception lands beside them.
     """

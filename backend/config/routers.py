@@ -14,7 +14,7 @@ class OrbiSaveRouter:
         Canonical multi-DB idiom: an instance loaded from a database must be
         read/written on THAT database. Without this, `instance.save()` under a
         different thread-local country targets the wrong DB and 'affects 0
-        rows' — silently for updates, catastrophically for financial state.
+        rows', silently for updates, catastrophically for financial state.
         """
         instance = hints.get('instance')
         if instance is not None and getattr(instance, '_state', None) is not None:

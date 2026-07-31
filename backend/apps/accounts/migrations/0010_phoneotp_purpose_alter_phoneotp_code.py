@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='phoneotp',
             name='code',
-            field=models.CharField(help_text='Hashed OTP — never stored in plaintext', max_length=128),
+            field=models.CharField(help_text='Hashed OTP, never stored in plaintext', max_length=128),
         ),
     ]

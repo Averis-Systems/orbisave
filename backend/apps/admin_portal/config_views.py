@@ -361,7 +361,7 @@ class MeetingProviderTestView(APIView):
 class NotificationProviderListView(APIView):
     """
     GET/POST /api/v1/admin-portal/superadmin/notification-providers/
-    SMS/OTP delivery rail (Africa's Talking first) — console-managed.
+    SMS/OTP delivery rail (Africa's Talking first), console-managed.
     """
     permission_classes = [IsSuperAdmin]
 
@@ -476,7 +476,7 @@ class NotificationProviderTestView(APIView):
             try:
                 result = send_via_config(
                     provider, test_phone,
-                    'OrbiSave test message — your SMS provider configuration works.',
+                    'OrbiSave test message, your SMS provider configuration works.',
                 )
                 message = f"Test SMS dispatched via {result['channel']} to {test_phone}."
             except SmsDeliveryError as exc:

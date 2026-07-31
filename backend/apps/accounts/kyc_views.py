@@ -3,9 +3,9 @@ KYC (Know Your Customer) views for OrbiSave.
 Satisfies Frontend System Design Checklist Section 4 (KYC Flow).
 
 Flow:
-    1. POST /api/v1/kyc/submit/      — member submits identity documents
-    2. GET  /api/v1/kyc/status/      — member checks their verification status
-    3. POST /api/v1/kyc/pin/set/     — member sets transaction PIN post-KYC
+    1. POST /api/v1/kyc/submit/, member submits identity documents
+    2. GET  /api/v1/kyc/status/, member checks their verification status
+    3. POST /api/v1/kyc/pin/set/, member sets transaction PIN post-KYC
 """
 import structlog
 from rest_framework import status

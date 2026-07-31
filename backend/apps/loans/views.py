@@ -84,7 +84,7 @@ class LoanViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-# NOTE: the legacy LoanApprovalView shim was removed — it shadowed the
+# NOTE: the legacy LoanApprovalView shim was removed, it shadowed the
 # router-generated /loans/{pk}/approve/ action with a half-initialized
 # viewset instance (no .action/.format_kwarg), crashing on get_object().
 # The LoanViewSet.approve action serves the same URL correctly.

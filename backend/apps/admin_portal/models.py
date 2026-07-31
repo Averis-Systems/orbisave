@@ -36,7 +36,7 @@ class SystemConfiguration(BaseModel):
     @classmethod
     def get_value(cls, key, default=None):
         """
-        Resolve a config value, transparently decrypting encrypted entries —
+        Resolve a config value, transparently decrypting encrypted entries, 
         the read API for service code (e.g. the translation client).
         """
         from common.encryption import decrypt_value
@@ -202,7 +202,7 @@ class PlatformBranding(BaseModel):
     login. Falls back to each app's built-in static branding (Logo.tsx,
     favicon.ico) when a slot is unset.
 
-    Each dashboard carries its OWN logo (they are named products — "OrbiSave",
+    Each dashboard carries its OWN logo (they are named products, "OrbiSave",
     "OrbiSave Console", "OrbiSave Manager"), shown both in that app's shell and
     on its login/signup screens. The member logo also drives the public
     surfaces that live in the member app (landing, onboarding). The favicon is
@@ -212,7 +212,7 @@ class PlatformBranding(BaseModel):
     console_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     manager_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     # Shown on the public site's dark footer, which repeats on every marketing
-    # and legal page — kept a separate slot from member_logo because it sits on
+    # and legal page, kept a separate slot from member_logo because it sits on
     # a navy background and usually needs a light/white treatment.
     footer_logo = models.ImageField(upload_to='branding/', null=True, blank=True)
     favicon = models.ImageField(upload_to='branding/', null=True, blank=True)

@@ -1,5 +1,5 @@
 """
-GOLDEN PATH — the executable definition of "the money flows right".
+GOLDEN PATH, the executable definition of "the money flows right".
 
 One test walks the entire Kenya production journey through the public API:
 
@@ -9,7 +9,7 @@ One test walks the entire Kenya production journey through the public API:
   verifies, joins → member contributes → rotation initializes → payout
   executes (PIN-gated, schedule-derived) → member borrows → 3-stage
   approval → disbursement (provider B2C) → repays every installment →
-  loan 'repaid' — and at the end EVERY ledger stream must verify:
+  loan 'repaid', and at the end EVERY ledger stream must verify:
   unbroken hash chains, exact sequence numbers, and running balances that
   equal credits minus debits. All event groups must be closed (balanced).
 
@@ -117,7 +117,7 @@ def register_and_verify(email, phone, full_name, role='member'):
     user = User.objects.get(email=email)
     assert user.phone_verified is True
 
-    # Next-of-kin is mandatory before joining/contributing (product rule —
+    # Next-of-kin is mandatory before joining/contributing (product rule, 
     # normally captured during profile onboarding).
     profile = authed.patch('/api/v1/auth/profile/update/', {
         'next_of_kin_name': f'{full_name} Kin',
@@ -174,7 +174,7 @@ def test_golden_path_full_money_lifecycle():
 
     blocked = admin_client.post(f'/api/v1/admin-portal/groups/{group.id}/verify/',
                                 {'action': 'verify'}, format='json')
-    assert blocked.status_code == 400  # chair has no KYC yet — gate holds
+    assert blocked.status_code == 400  # chair has no KYC yet, gate holds
 
     chair.kyc_status = 'verified'  # KYC review flow is covered by its own suite
     chair.save(update_fields=['kyc_status'])
@@ -186,7 +186,7 @@ def test_golden_path_full_money_lifecycle():
 
     contribute(chair_client, provider, group.id, CONTRIBUTION, chair.phone)
 
-    # Session refresh transition is exercised in the auth suite — settle it here.
+    # Session refresh transition is exercised in the auth suite, settle it here.
     GroupMember.objects.using('kenya').filter(group=group, member=chair).update(status='active')
 
     # The mandatory first deposit may auto-activate the group; the explicit
@@ -270,6 +270,6 @@ def test_golden_path_full_money_lifecycle():
         'unbalanced/open ledger event groups left behind'
 
     # Loan pool conservation: contributions in, principal out and back in
-    # with interest — the pool must exceed its pre-loan level.
+    # with interest, the pool must exceed its pre-loan level.
     loaning = verify_ledger_stream(group=group, account_stream='loaning', currency='KES')
     assert Decimal(loaning['final_balance']) > Decimal('0.00')

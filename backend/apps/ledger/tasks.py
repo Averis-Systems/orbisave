@@ -3,12 +3,12 @@ Ledger operations tasks.
 
 Two standing jobs keep the ledger provably intact:
 
-  1. generate_daily_checkpoints — freezes each group's previous business day
+  1. generate_daily_checkpoints, freezes each group's previous business day
      into an immutable DailyLedgerCheckpoint holding the Merkle root of that
      day's entry hashes. Checkpoints are the tamper-evidence anchor: once a
      day is sealed, rewriting history would change the root.
 
-  2. verify_all_ledger_streams — sweeps every (group, stream, currency)
+  2. verify_all_ledger_streams, sweeps every (group, stream, currency)
      chain with verify_ledger_stream and logs any sequence gap, hash break,
      or running-balance drift. A non-empty result is a P0 incident.
 
@@ -130,7 +130,7 @@ def generate_daily_checkpoints(self, business_date=None):
 def verify_all_ledger_streams(self):
     """
     Full-chain integrity sweep. Any error entry means the append-only
-    invariant was violated somewhere — page a human, freeze writes for the
+    invariant was violated somewhere, page a human, freeze writes for the
     affected group, and investigate before further money moves.
     """
     from apps.groups.models import Group

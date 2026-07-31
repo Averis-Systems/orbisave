@@ -71,7 +71,7 @@ class TestTranslateService:
             status=200,
         )
         first = translate('Welcome to OrbiSave', 'sw')
-        second = translate('Welcome to OrbiSave', 'sw')  # cache hit — no 2nd call
+        second = translate('Welcome to OrbiSave', 'sw')  # cache hit, no 2nd call
 
         assert first == 'Karibu OrbiSave'
         assert second == 'Karibu OrbiSave'

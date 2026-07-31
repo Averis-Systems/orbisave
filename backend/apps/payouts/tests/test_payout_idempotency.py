@@ -2,7 +2,7 @@
 Payout idempotency test suite.
 Validates that duplicate payout requests for the same cycle+recipient
 are safely blocked without creating duplicate records or ledger entries.
-Satisfies Financial Engine Checklist §14 (Failure Handling — retry safely).
+Satisfies Financial Engine Checklist §14 (Failure Handling, retry safely).
 """
 import pytest
 from decimal import Decimal
@@ -86,7 +86,7 @@ class TestPayoutIdempotency:
     ):
         """
         Calling execute_rotation_payout twice for the same cycle+recipient
-        must return the same Payout object — no duplicate records created.
+        must return the same Payout object, no duplicate records created.
         Satisfies Financial Engine Checklist §14: Retry payout safely without duplication.
         """
         from apps.payouts.services import PayoutService
@@ -102,14 +102,14 @@ class TestPayoutIdempotency:
         mock_provider_factory.return_value = mock_provider
         _fund_rotation_pool(group, user, "PAYOUT-IDEM-FUND-001")
 
-        # First call — should create payout
+        # First call, should create payout
         payout1 = PayoutService.execute_rotation_payout(
             group=group,
             target_member=user,
             cycle=rotation_cycle,
         )
 
-        # Second call — must return the SAME payout, not create a new one
+        # Second call, must return the SAME payout, not create a new one
         payout2 = PayoutService.execute_rotation_payout(
             group=group,
             target_member=user,
@@ -148,7 +148,7 @@ class TestPayoutIdempotency:
         from apps.payouts.services import PayoutService
         from apps.payouts.models import Payout
 
-        # First call — provider reports failure
+        # First call, provider reports failure
         mock_provider = MagicMock()
         mock_provider.initiate_disbursement.return_value = {
             'status': 'failure',
@@ -164,7 +164,7 @@ class TestPayoutIdempotency:
         )
         assert payout1.status == 'failed'
 
-        # Second call with a good provider — should try again (new payout)
+        # Second call with a good provider, should try again (new payout)
         mock_provider.initiate_disbursement.return_value = {
             'status': 'success',
             'provider_reference': 'MOCK-RETRY-001',
@@ -176,5 +176,5 @@ class TestPayoutIdempotency:
             cycle=rotation_cycle,
         )
         assert payout2.status == 'completed'
-        # These are DIFFERENT records — retry creates a new payout
+        # These are DIFFERENT records, retry creates a new payout
         assert payout1.id != payout2.id

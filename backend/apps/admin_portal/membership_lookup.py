@@ -4,7 +4,7 @@ Resolve which group a member belongs to, from admin views.
 Membership is the awkward cross-shard case. A User lives on 'default', but the
 GroupMember row that ties them to a group lives in that member's country
 database. So `GroupMember.objects.filter(member=user)` from an admin request
-reads whatever thread-local routing picked — 'default' for a super_admin — and
+reads whatever thread-local routing picked, 'default' for a super_admin, and
 finds nothing. Every admin surface that wants to show a member's group has to
 read the country shard explicitly.
 

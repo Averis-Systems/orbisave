@@ -1,5 +1,5 @@
 """
-Seed one working account per portal for local UI review — not a production
+Seed one working account per portal for local UI review, not a production
 bootstrap tool. Creates/resets a super_admin (Console), a platform_admin
 (Manager), and a member (frontend), all pre-verified (email_verified,
 phone_verified, is_active=True) so login works immediately with no OTP

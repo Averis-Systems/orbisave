@@ -43,7 +43,7 @@ def test_admin_loan_approval_is_separate_from_disbursement(approved_loan, countr
     assert LedgerEntry.objects.filter(related_loan=approved_loan).count() == 0
     assert approved_loan.repayments.count() == 0
 
-    # Disbursement is overdraft-protected — the loaning stream must hold the principal.
+    # Disbursement is overdraft-protected, the loaning stream must hold the principal.
     append_ledger_entry(
         group=approved_loan.group,
         account_stream="loaning",

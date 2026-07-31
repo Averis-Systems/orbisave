@@ -5,7 +5,7 @@ class Migration(migrations.Migration):
     """
     Split the single platform logo into three per-dashboard logos (member,
     console, manager); the favicon stays a single global asset. The old `logo`
-    column is dropped rather than renamed — no environment has branding
+    column is dropped rather than renamed, no environment has branding
     uploaded yet, so there is nothing to preserve.
     """
 

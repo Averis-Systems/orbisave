@@ -1,5 +1,5 @@
 """
-MTN MoMo provider — verified against the public sandbox contract
+MTN MoMo provider, verified against the public sandbox contract
 (sandbox.momodeveloper.mtn.com): Basic-auth token per product,
 UUIDv4 X-Reference-Id per transaction, 202-then-poll async settlement,
 EUR-only sandbox currency, fail-closed callbacks.

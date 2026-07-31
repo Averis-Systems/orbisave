@@ -1,5 +1,5 @@
 """
-Admin Portal — Group Management Views
+Admin Portal, Group Management Views
 =======================================
 Country-scoped group listing, verification, and stats for the Manager portal.
 Super admin can see and manage all countries.
@@ -128,8 +128,8 @@ class AdminGroupVerifyView(APIView):
     POST /api/v1/admin-portal/groups/<group_id>/verify/
 
     Body:
-        action  – 'verify' or 'reject'
-        note    – optional for verify, required for reject
+        action, 'verify' or 'reject'
+        note, optional for verify, required for reject
 
     Enforces country scope: platform_admin can only act on their own country's groups.
     """
@@ -159,14 +159,14 @@ class AdminGroupVerifyView(APIView):
         # Enforce country scope
         if request.user.role != 'super_admin':
             if group.country != request.user.country:
-                return Response({'error': 'Forbidden — this group belongs to a different country.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'error': 'Forbidden: this group belongs to a different country.'}, status=status.HTTP_403_FORBIDDEN)
 
         now = timezone.now()
 
         if action == 'verify':
             # Governance gate: a group cannot be verified until its chairperson
             # has completed KYC. Chairpersons control invites, payouts, and loan
-            # approvals — verifying a group under an unverified identity would
+            # approvals, verifying a group under an unverified identity would
             # let real money move under an unknown person.
             from apps.accounts.models import User
             chairperson = User.objects.filter(id=group.chairperson_id).first()

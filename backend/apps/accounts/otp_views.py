@@ -5,7 +5,7 @@ Security properties:
   * codes are 6 digits from `secrets`, stored hashed, 10-minute expiry,
     5 verification attempts, single-use, purpose-scoped;
   * requesting a new code invalidates prior unused codes for that purpose;
-  * DB-backed send throttle (3/hour per user+purpose) — deterministic across
+  * DB-backed send throttle (3/hour per user+purpose), deterministic across
     processes, no cache dependency;
   * password-reset request is enumeration-safe: the response never reveals
     whether the phone exists;
@@ -90,7 +90,7 @@ def _verify_otp(user, purpose: str, raw_code: str):
 
 
 class RequestPhoneOTPView(views.APIView):
-    """POST /auth/otp/request/ — send a verification code to the logged-in user's phone."""
+    """POST /auth/otp/request/, send a verification code to the logged-in user's phone."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -126,7 +126,7 @@ class RequestPhoneOTPView(views.APIView):
 
 
 class ConfirmPhoneOTPView(views.APIView):
-    """POST /auth/otp/confirm/ — body {code}; marks the user's phone verified."""
+    """POST /auth/otp/confirm/, body {code}; marks the user's phone verified."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -151,7 +151,7 @@ class ConfirmPhoneOTPView(views.APIView):
 
 class PasswordResetRequestView(views.APIView):
     """
-    POST /auth/password-reset/request/ — body {phone}.
+    POST /auth/password-reset/request/, body {phone}.
     Always returns 200 with the same message: responses must not reveal
     whether an account exists for the phone number.
     """
@@ -179,7 +179,7 @@ class PasswordResetRequestView(views.APIView):
                     ),
                 )
             except (ValueError, SmsDeliveryError) as exc:
-                # Still return the generic message — throttling/delivery state
+                # Still return the generic message, throttling/delivery state
                 # must not become an account-existence oracle.
                 logger.warning('password_reset_send_suppressed', phone=phone, reason=str(exc))
 
@@ -187,7 +187,7 @@ class PasswordResetRequestView(views.APIView):
 
 
 class PasswordResetConfirmView(views.APIView):
-    """POST /auth/password-reset/confirm/ — body {phone, code, new_password}."""
+    """POST /auth/password-reset/confirm/, body {phone, code, new_password}."""
     permission_classes = [AllowAny]
 
     def post(self, request):

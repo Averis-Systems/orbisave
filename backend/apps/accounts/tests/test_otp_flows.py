@@ -57,7 +57,7 @@ class TestPhoneVerification:
         assert response.status_code == 200, response.data
         raw_code = extract_raw_code(sender)
 
-        # Stored hashed — the raw code must never be in the database.
+        # Stored hashed, the raw code must never be in the database.
         otp = PhoneOTP.objects.get(user=unverified_user, purpose='phone_verify', used=False)
         assert otp.code != raw_code
         assert raw_code not in otp.code
@@ -75,7 +75,7 @@ class TestPhoneVerification:
 
         otp = PhoneOTP.objects.get(user=unverified_user, purpose='phone_verify', used=False)
         assert otp.attempt_count == 5
-        # Even the right structure now fails — code is exhausted.
+        # Even the right structure now fails, code is exhausted.
         response = client.post('/api/v1/auth/otp/confirm/', {'code': '123456'}, format='json')
         assert response.status_code == 400
         assert 'attempts' in response.data['error'].lower()
@@ -170,7 +170,7 @@ class TestPhoneVerifiedGates:
 
     def test_unverified_phone_cannot_create_group(self, unverified_user, settings):
         # Phone verification enforcement is off by default (no Africa's
-        # Talking budget yet) — this test targets the gate logic itself, so
+        # Talking budget yet), this test targets the gate logic itself, so
         # it turns enforcement on for its own scope.
         settings.PHONE_VERIFICATION_ENFORCED = True
         client = APIClient()

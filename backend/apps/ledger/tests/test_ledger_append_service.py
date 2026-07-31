@@ -46,7 +46,7 @@ def test_append_ledger_entry_sets_stream_and_chains_hash_per_account_stream(grou
 def test_stream_drained_to_exactly_zero_keeps_true_balance(group, user):
     """
     Regression for the drain-to-zero corruption: a debit that lands a stream
-    on exactly 0.00 must store 0.00 (not 0 − amount) — the model save()
+    on exactly 0.00 must store 0.00 (not 0 − amount), the model save()
     previously treated a legitimate zero as "unset" and recomputed it with no
     chain context, corrupting the entry and the stream lock while the
     already-computed hash still proved the original value.

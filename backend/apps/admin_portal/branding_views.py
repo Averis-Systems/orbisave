@@ -40,7 +40,7 @@ def _branding_payload(request, branding):
 
 class PlatformBrandingView(views.APIView):
     """
-    GET /api/v1/platform-branding/ — public, unauthenticated.
+    GET /api/v1/platform-branding/, public, unauthenticated.
     All three frontends read this (including pre-login pages), so it can't
     require a JWT the way admin-portal endpoints do.
     """
@@ -52,7 +52,7 @@ class PlatformBrandingView(views.APIView):
 
 class UpdatePlatformBrandingView(views.APIView):
     """
-    PATCH /api/v1/admin-portal/platform-branding/ — super_admin only.
+    PATCH /api/v1/admin-portal/platform-branding/, super_admin only.
     Body: multipart/form-data with any of member_logo / console_logo /
     manager_logo / favicon. Slots not included are left untouched.
     """

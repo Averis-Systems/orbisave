@@ -2,7 +2,7 @@
 Model fields that transparently encrypt at rest via common.encryption.
 
 Storage types are unchanged (TextField stays text, JSONField stays json), so
-existing migrations, DRF serializers, and admin forms keep working — only the
+existing migrations, DRF serializers, and admin forms keep working, only the
 value that reaches the database is wrapped.
 """
 import json

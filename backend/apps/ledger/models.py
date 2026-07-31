@@ -82,7 +82,7 @@ class LedgerEntry(BaseModel):
     direction           = models.CharField(max_length=10, choices=DIRECTIONS)
     amount              = models.DecimalField(max_digits=14, decimal_places=2)
     currency            = models.CharField(max_length=5)
-    # default=None: "not provided" — save() derives it from the chain. A real
+    # default=None: "not provided", save() derives it from the chain. A real
     # zero balance must survive as zero (see the drain-to-zero note in save()).
     running_balance     = models.DecimalField(max_digits=14, decimal_places=2, default=None)
     description         = models.TextField()
@@ -134,12 +134,12 @@ class LedgerEntry(BaseModel):
 
     def save(self, *args, **kwargs):
         if self.pk and not self._state.adding:
-            raise PermissionError("Ledger entries are immutable — no updates permitted.")
+            raise PermissionError("Ledger entries are immutable, no updates permitted.")
 
         db_alias = kwargs.get('using') or self._state.db or 'default'
         # Fetch chain context whenever any auto-derived field is missing.
         # CRITICAL: only running_balance=None means "unset". Zero is a REAL
-        # balance — a payout that drains a stream to exactly 0.00 previously
+        # balance, a payout that drains a stream to exactly 0.00 previously
         # tripped this fallback with previous=None (sequence was already set,
         # so no previous row was fetched) and overwrote the correct 0 with
         # 0 − amount, corrupting the entry AND the stream lock while the
