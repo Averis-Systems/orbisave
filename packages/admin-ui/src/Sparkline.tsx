@@ -3,8 +3,8 @@
  *
  * A KPI tile should show its recent shape, not just a single number, so the
  * eye reads "growing / flat / falling" before it reads the value. This is a
- * plain SVG polyline with a faint area fill — no chart library, no axes, no
- * interactivity — so it stays cheap enough to sit inside every stat card.
+ * plain SVG polyline with a faint area fill, no chart library, no axes, no
+ * interactivity, so it stays cheap enough to sit inside every stat card.
  *
  * It is decoration ONLY in the sense that the real value is always shown as
  * text beside it (per the accessibility rule that data must never live in

@@ -9,7 +9,7 @@ export const formatCurrency = (amount: number | string, currency: string = "KES"
 };
 
 export const formatDate = (dateStr: string) => {
-  if (!dateStr) return "—";
+  if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -18,7 +18,7 @@ export const formatDate = (dateStr: string) => {
 };
 
 export const formatPhone = (phone: string) => {
-  if (!phone) return "—";
+  if (!phone) return "-";
   // Simple Kenyan format normalization for display
   return phone.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3");
 };

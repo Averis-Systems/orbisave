@@ -75,7 +75,7 @@ export function useTriggerPayout() {
   const queryClient = useQueryClient()
   return useMutation({
     // Calls the real payout engine: PIN-gated, idempotent, and the recipient
-    // is derived server-side from the rotation schedule — never client-chosen.
+    // is derived server-side from the rotation schedule, never client-chosen.
     mutationFn: async ({ groupId, pin }: { groupId: string, pin: string }) => {
       const { data } = await api.post(`/payouts/${groupId}/execute/`, { pin })
       return data

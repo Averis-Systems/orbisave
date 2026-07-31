@@ -7,7 +7,7 @@ interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputElement>
   label?: string
   error?: string
   showStrength?: boolean
-  /** Set on dark backgrounds (e.g. register's navy card) — mirrors Logo's `light` prop. */
+  /** Set on dark backgrounds (e.g. register's navy card), mirrors Logo's `light` prop. */
   light?: boolean
 }
 

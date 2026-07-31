@@ -7,7 +7,7 @@ import { Loader2, Search } from 'lucide-react'
 import { api } from '@/lib/api'
 
 /**
- * Header search — was a decorative input with a Ctrl K shortcut that focused
+ * Header search, was a decorative input with a Ctrl K shortcut that focused
  * an empty box and did nothing else. Now debounces into
  * /admin-portal/quick-search/ and renders a real dropdown of groups and
  * members, each linking to a page that actually exists.

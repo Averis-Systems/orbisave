@@ -22,7 +22,7 @@ const config = {
           mid: "#1c3a5f",
           light: "#1e3a5c",
         },
-        // NOTE: never add a flat `slate: "<hex>"` override here — it replaces
+        // NOTE: never add a flat `slate: "<hex>"` override here, it replaces
         // Tailwind's entire slate-50…950 scale and silently breaks every
         // slate-### class on the functional pages (login, KYC, groups, audit).
         // Console had the identical bug; both are now fixed.

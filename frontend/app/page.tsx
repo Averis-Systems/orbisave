@@ -28,7 +28,7 @@ export default function Home() {
       opacity: 0, scale: 0.88, duration: 1.3, ease: "power3.out", delay: 0.2,
     })
 
-    // Contribution dashed lines — animate stroke-dashoffset
+    // Contribution dashed lines, animate stroke-dashoffset
     gsap.to(".contribution-line", {
       strokeDashoffset: -18, duration: 1.8, repeat: -1, ease: "none",
     })
@@ -101,7 +101,7 @@ export default function Home() {
         {/* Hero content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 lg:pb-28 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-4rem)]">
 
-          {/* Left — Copy */}
+          {/* Left, Copy */}
           <div className="flex flex-col gap-6 invisible-until-hydrated">
 
             {/* Market badge */}
@@ -169,7 +169,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right — Animated Orbital SVG */}
+          {/* Right, Animated Orbital SVG */}
           <div className="flex items-center justify-center hero-orbital invisible-until-hydrated relative">
 
             {/* Live status badge */}
@@ -204,7 +204,7 @@ export default function Home() {
                 />
               ))}
 
-              {/* Payout line — green */}
+              {/* Payout line, green */}
               <line
                 id="payout-line"
                 x1="240" y1="240" x2="240" y2="65"
@@ -215,7 +215,7 @@ export default function Home() {
               {/* Vault ambient glow */}
               <circle id="vault-glow" cx="240" cy="240" r="60" fill="rgba(10,37,64,0.08)" opacity="0.1" />
 
-              {/* Central vault — navy */}
+              {/* Central vault, navy */}
               <circle cx="240" cy="240" r="52" fill="#0a2540" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
               <text x="240" y="227" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="sans-serif" fontWeight="700" letterSpacing="1.5">GROUP WALLET</text>
               <text x="240" y="249" textAnchor="middle" fill="#ffffff" fontSize="15" fontFamily="sans-serif" fontWeight="900">LIVE LEDGER</text>
@@ -267,8 +267,8 @@ export default function Home() {
       {/* ── CONTENT SECTIONS (story order) ────────────────────────────── */}
       {/* S2: Trust Belt */}
       <TrustBelt />
-      {/* S3: Narrative Hook — emotional story */}
-      {/* S4: Why Choose Us — Authority Pillars & Comparison */}
+      {/* S3: Narrative Hook, emotional story */}
+      {/* S4: Why Choose Us, Authority Pillars & Comparison */}
       {/* S5: Who Can Join */}
       {/* S6: How It Works */}
       <HowItWorks />

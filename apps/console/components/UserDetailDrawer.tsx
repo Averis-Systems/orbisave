@@ -412,7 +412,7 @@ export function UserDetailDrawer({
           )}
         </div>
 
-        {/* Footer — account actions */}
+        {/* Footer, account actions */}
         {detail && (
           <div className="border-t border-slate-100 p-4">
             {actionError && (

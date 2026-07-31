@@ -6,7 +6,7 @@ import { Bell, CheckCircle2, Landmark, ShieldCheck, UserCheck } from 'lucide-rea
 import { useAttention } from '@/hooks/useAttention'
 
 /**
- * Notification bell — was a decorative icon with no popover at all. Now a
+ * Notification bell, was a decorative icon with no popover at all. Now a
  * second view onto the same attention data the overview page renders, so the
  * badge count and the overview's exception strip can never disagree.
  */

@@ -8,7 +8,7 @@ const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws'
  * Custom hook to connect to the Django Channels WebSocket for real-time events.
  * Listens to group-specific events and automatically invalidates React Query caches.
  *
- * DEFERRED FEATURE — not invoked by any page yet. JWTs now live in httpOnly
+ * DEFERRED FEATURE, not invoked by any page yet. JWTs now live in httpOnly
  * cookies (see /api/backend proxy), so the old ?token= query auth cannot
  * work from browser JS. When real-time updates are wired, add a short-lived
  * WS ticket endpoint on the backend and exchange it here.

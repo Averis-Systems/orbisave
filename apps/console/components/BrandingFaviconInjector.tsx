@@ -5,7 +5,7 @@ import { usePlatformBranding } from '@/lib/useBranding'
 
 /**
  * Next.js's static favicon.ico/icon.png convention resolves at build time,
- * so a super-admin-uploaded favicon needs a runtime swap instead — this
+ * so a super-admin-uploaded favicon needs a runtime swap instead, this
  * renders nothing, just points the <link rel="icon"> at the uploaded file
  * once it's fetched. No-op (keeps the static favicon) when unset.
  */

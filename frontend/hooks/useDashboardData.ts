@@ -1,7 +1,7 @@
 /**
  * useDashboardData.ts
  *
- * ⚠️  LEGACY SHIM — do not add new hooks here.
+ * ⚠️  LEGACY SHIM, do not add new hooks here.
  *
  * All hooks have been migrated to their canonical files:
  *   - useGroups, useGroupDetail  →  @/hooks/useGroups

@@ -21,7 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       {/* Components fire toast.success/error throughout the app (onboarding
-          modal, profile save, …) but no Toaster was ever mounted — every
+          modal, profile save, …) but no Toaster was ever mounted, every
           notification, including failure feedback, was silently dropped. */}
       <Toaster position="top-center" richColors closeButton />
     </QueryClientProvider>

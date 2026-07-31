@@ -1,5 +1,5 @@
 /**
- * Launch language set — mirrors backend common/translation.py.
+ * Launch language set, mirrors backend common/translation.py.
  * Users choose AT LEAST TWO at signup; the system always serves them in one
  * of their selected languages (SMS, notifications; UI chrome i18n follows).
  */

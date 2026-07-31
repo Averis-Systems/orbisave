@@ -50,7 +50,7 @@ export function buildDashboardMetrics(input: MetricInput): DashboardMetric[] {
   const memberCount = input.memberCount ?? 0
   const maxMembers = input.maxMembers ?? 0
   // maxMembers is a required group field, so it is only undefined when the
-  // member has no active group yet — the cards then read as a true zero
+  // member has no active group yet, the cards then read as a true zero
   // state instead of claiming a cadence/capacity that doesn't exist.
   const hasGroup = input.maxMembers != null
   const capacity = maxMembers > 0 ? Math.round((memberCount / maxMembers) * 100) : 0

@@ -3,7 +3,7 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 /**
- * Groups per region — horizontal bars so long county names stay readable
+ * Groups per region, horizontal bars so long county names stay readable
  * without blowing the card width. Labels truncate past ~14 chars.
  */
 

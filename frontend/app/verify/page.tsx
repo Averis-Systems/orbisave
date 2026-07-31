@@ -88,7 +88,7 @@ function VerifyPageInner() {
     try {
       await api.post("/auth/otp/confirm/", { code })
 
-      // Invited members accept their invite once the phone is verified —
+      // Invited members accept their invite once the phone is verified, 
       // joining a group requires a verified number.
       if (inviteToken) {
         try {

@@ -34,7 +34,7 @@ const accountSchema = z.object({
   phone: z.string().min(1, "Phone is required"),
   password: z.string().min(8, "Minimum 8 characters"),
   confirmPassword: z.string(),
-  // At least two preferred languages — OrbiSave always serves the user in
+  // At least two preferred languages, OrbiSave always serves the user in
   // one of their selected languages (SMS, notifications, and UI to follow).
   languages: z.array(z.string()).min(2, "Choose at least 2 languages").max(3, "Choose at most 3 languages"),
 }).superRefine((data, ctx) => {
@@ -548,14 +548,14 @@ export default function ChamaOnboardingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // JWTs live in httpOnly cookies set by the /api/backend proxy — requests
+  // JWTs live in httpOnly cookies set by the /api/backend proxy, requests
   // after login are authenticated automatically; only X-Country is explicit.
   const countryHeaders = (country: string) => ({
     headers: { 'X-Country': country },
   })
 
   // Stage A: create the account. Registration emails a 6-digit verification
-  // code, and login stays blocked until it is confirmed — so the wizard hands
+  // code, and login stays blocked until it is confirmed, so the wizard hands
   // over to the email-code stage, and the group is created in Stage B.
   const onSubmit = async (data: WizardData) => {
     setApiError(null)
@@ -589,7 +589,7 @@ export default function ChamaOnboardingPage() {
       // 2. Try to authenticate. A fresh account cannot log in yet (email
       // verification blocks the token endpoint), so a 403 here routes to the
       // email-code stage. Success means this is a retry with an
-      // already-verified email — continue straight to group creation.
+      // already-verified email, continue straight to group creation.
       try {
         await api.post("/auth/token/", {
           email: allData.email,
@@ -602,7 +602,7 @@ export default function ChamaOnboardingPage() {
         await createGroupAndPin(allData)
       } catch (loginErr: any) {
         if (loginErr?.response?.status === 403 && loginErr?.response?.data?.code === "email_unverified") {
-          // Registration already sent the code — just show the entry stage.
+          // Registration already sent the code, just show the entry stage.
           setVerifyStage(true)
         } else {
           throw loginErr
@@ -720,7 +720,7 @@ export default function ChamaOnboardingPage() {
         <div className="md:w-[40%] lg:w-[35%] bg-muted/30 border-b md:border-b-0 md:border-r border-border p-8 lg:p-12 flex flex-col justify-between">
           <div>
             {/* Same logo mark markup as the auth pages (AuthIllustrationPanel /
-                auth-topbar): flat green square, no shadow — one pattern to swap
+                auth-topbar): flat green square, no shadow, one pattern to swap
                 everywhere when the real logo asset lands. */}
             <Link href="/" className="mb-16 inline-flex w-fit items-center hover:opacity-80 transition-opacity">
               <Logo />

@@ -5,7 +5,7 @@ import { attachNetworkMonitor } from '@/lib/network'
 /**
  * All requests go through the same-origin proxy (/api/backend/*), which
  * holds the JWTs in httpOnly cookies, attaches them server-side, and
- * refreshes them transparently. Browser JavaScript never sees a token —
+ * refreshes them transparently. Browser JavaScript never sees a token, 
  * there is nothing here for an XSS payload to steal.
  */
 export const api = axios.create({

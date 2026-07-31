@@ -1,14 +1,14 @@
 /**
  * Left panel of the split-screen auth layout (login/register/forgot-password).
  *
- * Real photography instead of abstract shapes + copy — the same treatment
+ * Real photography instead of abstract shapes + copy, the same treatment
  * given to Manager's login. corporates-bg.jpg is an existing curated shot
  * (frontend/public/images/categories/), not a new stock pick. A navy/green
  * gradient overlay ties it to the brand palette. No text on this side by
- * design — the form panel carries all the messaging.
+ * design, the form panel carries all the messaging.
  *
  * Follow-up: swap for a Magnific-generated image once OAuth is set up
- * (registered as the `magnific` MCP server — needs a sign-in step this
+ * (registered as the `magnific` MCP server, needs a sign-in step this
  * session can't complete non-interactively).
  */
 export function LoginIllustrationPanel() {

@@ -67,7 +67,7 @@ const config = {
         },
         // Full slate scale restored: the previous flat override
         // (slate: "#4a5c6a") silently killed every text-slate-500 /
-        // border-slate-200 / bg-slate-50 utility in the app — they didn't
+        // border-slate-200 / bg-slate-50 utility in the app, they didn't
         // compile at all and elements fell back to inherited colors.
         slate: {
           DEFAULT: "#4a5c6a",
@@ -85,7 +85,7 @@ const config = {
         },
         ink: "#0f1924",
       },
-      // Design rule: corner radius never exceeds 5px — flat, professional
+      // Design rule: corner radius never exceeds 5px, flat, professional
       // banking look. Every rounded-md/lg/xl/2xl/3xl in the codebase (cards,
       // buttons, inputs, dashboards) collapses to the 5px cap here instead
       // of being chased through hundreds of class strings. rounded-full is

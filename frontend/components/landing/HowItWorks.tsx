@@ -251,7 +251,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        {/* Trust screenshot panel — additional info from platform */}
+        {/* Trust screenshot panel, additional info from platform */}
         <div
           className="hiw-trust-panel mt-16 p-8 lg:p-10"
           style={{

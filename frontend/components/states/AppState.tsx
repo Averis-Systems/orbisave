@@ -130,7 +130,7 @@ function StateIcon({
   )
 }
 
-// Professional vector illustrations (unDraw, open license — free commercial
+// Professional vector illustrations (unDraw, open license, free commercial
 // use, no attribution) downloaded to /public/illustrations and recolored to
 // the brand green. See public/illustrations/README.md. Mapped per state icon
 // so every empty/error/outcome panel gets purpose-drawn artwork instead of

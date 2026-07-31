@@ -1,5 +1,5 @@
 /**
- * Same-origin API proxy — the token-security boundary for the Console.
+ * Same-origin API proxy, the token-security boundary for the Console.
  *
  * Before this existed the Console put its JWT in a js-cookie readable cookie
  * and mirrored it into zustand state, so any script running on the page could
@@ -176,7 +176,7 @@ async function handler(req: NextRequest, context: { params: { path: string[] } }
   const search = req.nextUrl.search || ''
   const pending: PendingCookies = {}
 
-  // Synthetic logout: no backend round-trip needed — killing the cookies kills
+  // Synthetic logout: no backend round-trip needed, killing the cookies kills
   // the session (refresh rotation blacklists on next use).
   if (path === 'auth/logout/') {
     return applyCookies(NextResponse.json({ success: true }), { clear: true })

@@ -56,7 +56,7 @@ export function buildExistingAccountChairpersonPayload(values: ExistingAccountCh
     loan_pool_pct: 30,
     mandatory_savings_amount: values.mandatory_savings_amount || 0,
     // Persisted as real fields (not just baked into the description below)
-    // so a country manager can chart "new groups by region" — see
+    // so a country manager can chart "new groups by region", see
     // backend/apps/groups/models.py Group.region/sub_region.
     region: values.level1,
     sub_region: values.level2,

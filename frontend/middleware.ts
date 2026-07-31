@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * Server-side route protection — possible now that the session lives in an
+ * Server-side route protection, possible now that the session lives in an
  * httpOnly cookie set by the /api/backend proxy. Client-side guards in the
  * dashboard layout remain as UX (instant redirects, role-aware nav); this is
  * the enforcement layer that doesn't depend on JavaScript.

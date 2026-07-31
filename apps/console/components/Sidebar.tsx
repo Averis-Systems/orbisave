@@ -189,7 +189,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
 /**
  * One leaf nav row. Active state is a faint green tint plus a rounded left
- * accent bar — depth from structure, not shadow. An amber count badge rides
+ * accent bar, depth from structure, not shadow. An amber count badge rides
  * on the right when work is waiting.
  */
 function NavLink({

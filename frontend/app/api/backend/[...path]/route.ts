@@ -1,5 +1,5 @@
 /**
- * Same-origin API proxy — the token-security boundary for the member app.
+ * Same-origin API proxy, the token-security boundary for the member app.
  *
  * JWTs never reach browser JavaScript: Django's token responses are
  * intercepted here, the access/refresh pair is stored in httpOnly cookies,
@@ -136,7 +136,7 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
   const search = req.nextUrl.search || ''
   const pending: PendingCookies = {}
 
-  // Synthetic logout: no backend round-trip needed — killing the cookies
+  // Synthetic logout: no backend round-trip needed, killing the cookies
   // kills the session (refresh rotation blacklists on next use).
   if (path === 'auth/logout/') {
     return applyCookies(NextResponse.json({ success: true }), { clear: true })
@@ -149,12 +149,12 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value
 
   // Buffer the body once so a refresh-retry can resend it (streams are
-  // single-use). KYC uploads are a few MB — well within buffering range.
+  // single-use). KYC uploads are a few MB, well within buffering range.
   const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.arrayBuffer()
 
   // The access cookie expires out of the browser (20 min) long before the
   // 7-day refresh cookie. Without pre-minting, every request after that
-  // window went upstream unauthenticated and hard-failed — sessions died
+  // window went upstream unauthenticated and hard-failed, sessions died
   // silently mid-use (e.g. the onboarding FINISH doing nothing). Mint a
   // fresh access token first, then call upstream once, authenticated.
   let effectiveAccess = accessToken
@@ -166,7 +166,7 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
       pending.access = minted.access
       if (minted.refresh) pending.refresh = minted.refresh
     } else {
-      // Dead refresh chain: drop the cookies and forward unauthenticated —
+      // Dead refresh chain: drop the cookies and forward unauthenticated, 
       // public endpoints still work, protected ones return the 401 the
       // client interceptors log out on.
       pending.clear = true
@@ -177,7 +177,7 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
   let upstream = await backendFetch(req, path, search, body, isTokenPath || isRefreshPath ? undefined : effectiveAccess)
 
   // Mid-window expiry (token present but rejected upstream): refresh once
-  // and retry. 403 counts too — auth failures surfaced as 403 before the
+  // and retry. 403 counts too, auth failures surfaced as 403 before the
   // backend's authenticate_header fix, and the belt-and-braces retry costs
   // at most one extra round-trip on genuine permission denials.
   if (
@@ -194,14 +194,14 @@ async function handler(req: NextRequest, context: { params: Promise<{ path: stri
       // Unauthenticated upstream + dead refresh: the session is over.
       return sessionExpired()
     } else {
-      // Genuine 403 (e.g. role denial) alongside a dead refresh chain —
+      // Genuine 403 (e.g. role denial) alongside a dead refresh chain, 
       // pass the denial through but drop the dead cookies.
       pending.clear = true
     }
   }
 
   // Token endpoints: capture the pair into httpOnly cookies and strip it
-  // from the body — browser JavaScript never sees a JWT.
+  // from the body, browser JavaScript never sees a JWT.
   if ((isTokenPath || isRefreshPath) && upstream.ok) {
     const data = await upstream.json()
     const { access, refresh, access_token, refresh_token, ...rest } = data

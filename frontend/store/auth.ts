@@ -27,7 +27,7 @@ interface AuthState {
   isAuthenticated: boolean
   /**
    * Tokens live exclusively in httpOnly cookies managed by the /api/backend
-   * proxy — the store only holds the user profile. The optional second
+   * proxy, the store only holds the user profile. The optional second
    * argument is accepted (and ignored) for backwards compatibility.
    */
   setAuth: (user: User, _token?: string, _refreshToken?: string) => void
@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'orbisave-auth-storage',
-      // Only the user profile is persisted — never any credential material.
+      // Only the user profile is persisted, never any credential material.
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )

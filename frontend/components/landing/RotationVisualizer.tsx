@@ -130,7 +130,7 @@ export function RotationVisualizer() {
                   />
                 ))}
 
-                {/* Payout line — green */}
+                {/* Payout line, green */}
                 {POOL_MEMBERS.filter(m => m.isPayout).map(m => (
                   <line
                     key="rv-payout-l"
@@ -140,17 +140,17 @@ export function RotationVisualizer() {
                   />
                 ))}
 
-                {/* Vault glow — navy */}
+                {/* Vault glow, navy */}
                 <circle id="rv-vault-glow" cx={SVG_CX} cy={SVG_CY} r="46" fill="rgba(10,37,64,0.15)" opacity="0.2" />
 
-                {/* Vault — navy */}
+                {/* Vault, navy */}
                 <circle cx={SVG_CX} cy={SVG_CY} r="44" fill="#0a2540" />
                 <circle cx={SVG_CX} cy={SVG_CY} r="44" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
                 <text x={SVG_CX} y={SVG_CY - 9} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="7" fontWeight="600" letterSpacing="1.5">VAULT</text>
                 <text x={SVG_CX} y={SVG_CY + 10} textAnchor="middle" fill="white" fontSize="15" fontWeight="700">1.2M</text>
                 <text x={SVG_CX} y={SVG_CY + 22} textAnchor="middle" fill="rgba(0,171,0,0.9)" fontSize="7" fontWeight="600">KES</text>
 
-                {/* Payout ring — green pulse */}
+                {/* Payout ring, green pulse */}
                 <circle id="rv-payout-pulse" cx={POOL_MEMBERS[0].x} cy={POOL_MEMBERS[0].y} r="27" fill="none" stroke="rgba(0,171,0,0.45)" strokeWidth="1.5" />
 
                 {/* Member nodes */}
@@ -173,7 +173,7 @@ export function RotationVisualizer() {
                   </g>
                 ))}
 
-                {/* Payout badge — green */}
+                {/* Payout badge, green */}
                 <rect x={POOL_MEMBERS[0].x - 36} y={POOL_MEMBERS[0].y - 50} width="72" height="16" rx="4" fill="#00ab00" />
                 <text x={POOL_MEMBERS[0].x} y={POOL_MEMBERS[0].y - 39} textAnchor="middle" fill="#ffffff" fontSize="7.5" fontWeight="800" letterSpacing="0.8">RECEIVES PAYOUT</text>
 

@@ -2,7 +2,7 @@
  * Static administrative boundary data for OrbiSave's three operating countries.
  * Source: Kenya KNBS, Rwanda NISR, Ghana GSS.
  * Boundaries are stable government divisions that change every 5-10 years.
- * Update manually if boundaries change — no API dependency needed.
+ * Update manually if boundaries change, no API dependency needed.
  */
 
 export type CountryCode = 'kenya' | 'rwanda' | 'ghana'

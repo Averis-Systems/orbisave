@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 /**
  * One shared read of GET /admin-portal/attention/, polled every 60s and
  * exposed via context so the overview page's exception strip/worklist and
- * the header's alerts popover always show the same numbers — they used to
+ * the header's alerts popover always show the same numbers, they used to
  * each need their own fetch, which is how they could silently drift apart.
  */
 

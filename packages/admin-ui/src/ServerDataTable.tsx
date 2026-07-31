@@ -232,7 +232,7 @@ export function ServerDataTable<Row>({
       {/* Pagination footer: always rendered so the layout never jumps. */}
       <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-xs text-slate-500 tabular-nums" aria-live="polite">
-          {loading ? 'Loading…' : count === 0 ? 'No records' : `Showing ${from}–${to} of ${count}`}
+          {loading ? 'Loading…' : count === 0 ? 'No records' : `Showing ${from} to ${to} of ${count}`}
         </p>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-xs text-slate-500">

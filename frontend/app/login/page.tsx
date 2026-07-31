@@ -5,7 +5,7 @@ import { Logo } from "@/components/ui/Logo"
 import Link from "next/link"
 
 export const metadata = {
-  title: "Login — OrbiSave",
+  title: "Login | OrbiSave",
   description: "Sign in to manage your savings and group collectives.",
 }
 

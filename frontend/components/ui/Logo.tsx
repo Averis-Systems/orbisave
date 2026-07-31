@@ -5,11 +5,11 @@ import { usePlatformBranding } from "@/lib/useBranding"
 /**
  * Member-app logo. Renders the super-admin-uploaded member logo when one is
  * set (Console → Platform settings → Member app), and otherwise the built-in
- * "O OrbiSave" wordmark. Used across the member surfaces — auth screens,
- * dashboard shell, onboarding — so a single upload reflects everywhere.
+ * "O OrbiSave" wordmark. Used across the member surfaces, auth screens,
+ * dashboard shell, onboarding, so a single upload reflects everywhere.
  *
- *   light    — white wordmark, for dark/tinted backgrounds
- *   iconOnly — just the "O" mark (collapsed sidebar, tight spots)
+ *   light, white wordmark, for dark/tinted backgrounds
+ *   iconOnly, just the "O" mark (collapsed sidebar, tight spots)
  */
 export function Logo({
   light = false,
