@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { AuthIllustrationPanel } from "@/components/auth/AuthIllustrationPanel"
 import { AuthFooter } from "@/components/auth/AuthFooter"
 import { LoginForm } from "@/components/auth/LoginForm"
@@ -29,7 +30,9 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <LoginForm />
+            <Suspense fallback={null}>
+              <LoginForm />
+            </Suspense>
 
             <div className="mt-8 border-t border-slate-100 pt-8 text-center">
               <p className="text-sm font-medium text-slate-500">

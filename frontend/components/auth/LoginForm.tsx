@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
@@ -32,15 +32,11 @@ function EyeIcon({ open }: { open: boolean }) {
 
 export function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const setAuth = useAuthStore((state) => state.setAuth)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
-  const [sessionExpired, setSessionExpired] = useState(false)
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    setSessionExpired(params.get("reason") === "session-expired")
-  }, [])
+  const sessionExpired = searchParams.get("reason") === "session-expired"
 
   const {
     register,
