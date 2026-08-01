@@ -2,7 +2,7 @@
 from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncDate, TruncMonth
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.groups.models import Group
@@ -63,6 +63,55 @@ def _signups_trend(months=6):
     by_month = {r['m'].strftime('%Y-%m'): r['n'] for r in rows if r['m'] is not None}
     return [
         {'month': s.strftime('%b'), 'key': s.strftime('%Y-%m'), 'signups': by_month.get(s.strftime('%Y-%m'), 0)}
+        for s in starts
+    ]
+
+
+SIGNUP_TREND_PERIODS = ('this_month', '3m', '6m', 'this_year')
+
+
+def _signups_trend_window(period):
+    """
+    New-member counts for a selectable window. 'this_month' buckets by day;
+    the rest bucket by month (3 / 6 months back, or January-to-date for the
+    year). Same source and rules as _signups_trend: accounts on `default`,
+    member-facing roles only. Points carry a pre-formatted `month` label so the
+    chart never has to know the granularity.
+    """
+    now = timezone.now()
+    member_qs = User.objects.filter(role__in=MEMBER_ROLES)
+
+    if period == 'this_month':
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        rows = (
+            member_qs.filter(created_at__gte=start)
+            .annotate(d=TruncDate('created_at'))
+            .values('d')
+            .annotate(n=Count('id'))
+        )
+        by_day = {r['d'].isoformat(): r['n'] for r in rows if r['d'] is not None}
+        points = []
+        day = start
+        while day.date() <= now.date():
+            points.append({
+                'month': f"{day.strftime('%b')} {day.day}",
+                'signups': by_day.get(day.date().isoformat(), 0),
+            })
+            day = day + timedelta(days=1)
+        return points
+
+    months = {'3m': 3, '6m': 6, 'this_year': now.month}.get(period, 6)
+    starts = _month_starts(months)
+    window_start = starts[0]
+    rows = (
+        member_qs.filter(created_at__gte=window_start)
+        .annotate(m=TruncMonth('created_at'))
+        .values('m')
+        .annotate(n=Count('id'))
+    )
+    by_month = {r['m'].strftime('%Y-%m'): r['n'] for r in rows if r['m'] is not None}
+    return [
+        {'month': s.strftime('%b'), 'signups': by_month.get(s.strftime('%Y-%m'), 0)}
         for s in starts
     ]
 
@@ -344,6 +393,23 @@ class SuperAdminDemographicsView(APIView):
             'gender_by_country': gender_by_country,
             'regions_by_country': regions_by_country,
         })
+
+
+class SuperAdminSignupsTrendView(APIView):
+    """
+    GET /api/v1/superadmin/signups-trend/?period=this_month|3m|6m|this_year
+
+    New-member growth for a selectable window, so the overview chart is not
+    locked to a vague six months. Cheap: one grouped query on the global
+    accounts table.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        period = request.query_params.get('period', '6m')
+        if period not in SIGNUP_TREND_PERIODS:
+            period = '6m'
+        return Response({'period': period, 'points': _signups_trend_window(period)})
 
 
 class SuperAdminQuickSearchView(APIView):

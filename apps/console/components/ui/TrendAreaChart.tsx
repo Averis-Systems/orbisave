@@ -52,6 +52,8 @@ export function TrendAreaChart({
           axisLine={false}
           tick={{ fill: '#94a3b8', fontSize: 12 }}
           dy={8}
+          interval="preserveStartEnd"
+          minTickGap={24}
         />
         <YAxis
           allowDecimals={false}

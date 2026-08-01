@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import {
   ArrowRight,
   ArrowUpRight,
   Banknote,
+  Check,
   CheckCircle2,
+  ChevronDown,
   FileText,
   Globe,
   Landmark,
@@ -150,8 +152,6 @@ export default function ConsoleOverview() {
 
   const signups = useMemo(() => data?.signups_trend || [], [data])
   const signupSeries = useMemo(() => signups.map((p) => p.signups), [signups])
-  const totalSignups = useMemo(() => signupSeries.reduce((a, b) => a + b, 0), [signupSeries])
-  const hasSignups = totalSignups > 0
 
   // Month-over-month change in signups, shown on the Members card. Direction,
   // not raw sign, drives the colour.
@@ -325,33 +325,7 @@ export default function ConsoleOverview() {
       {/* 2. Growth, and the queue of decisions waiting on the super admin. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <SectionCard
-            title="New members"
-            description="Registrations across all three countries, last six months."
-            actions={
-              !loading ? (
-                <span className="text-sm font-medium tabular-nums text-slate-500">{formatCount(totalSignups)} in 6 months</span>
-              ) : undefined
-            }
-          >
-            {loading ? (
-              <div className="h-[240px] animate-pulse rounded-xl bg-slate-50" />
-            ) : hasSignups ? (
-              <TrendAreaChart
-                data={signups}
-                xKey="month"
-                yKey="signups"
-                formatValue={(v) => formatCount(v)}
-                formatTooltipLabel={(label) => `${label} new members`}
-              />
-            ) : (
-              <EmptyState
-                icon={Users}
-                title="No signups in this window"
-                description="New member registrations across all three countries will chart here."
-              />
-            )}
-          </SectionCard>
+          <SignupsTrendCard />
         </div>
 
         <ActionQueue
@@ -484,6 +458,129 @@ export default function ConsoleOverview() {
         </div>
       </div>
     </div>
+  )
+}
+
+type TrendPeriod = 'this_month' | '3m' | '6m' | 'this_year'
+const TREND_PERIODS: { key: TrendPeriod; label: string }[] = [
+  { key: 'this_month', label: 'This month' },
+  { key: '3m', label: 'Last 3 months' },
+  { key: '6m', label: 'Last 6 months' },
+  { key: 'this_year', label: 'This year' },
+]
+
+/** Small brand-consistent dropdown for the trend window. */
+function PeriodDropdown({ value, onChange }: { value: TrendPeriod; onChange: (p: TrendPeriod) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  const current = TREND_PERIODS.find((p) => p.key === value)
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-navy transition-colors hover:border-primary/40 hover:bg-primary/5"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {current?.label}
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-[calc(100%+6px)] z-20 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-[0_20px_40px_rgba(16,24,40,0.12)]"
+        >
+          {TREND_PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => {
+                onChange(p.key)
+                setOpen(false)
+              }}
+              className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                p.key === value ? 'bg-[#e9f3ed] font-semibold text-primary' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+              role="menuitem"
+            >
+              {p.label}
+              {p.key === value && <Check className="h-4 w-4" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * New-member growth with a selectable window. Self-fetching so the dropdown
+ * can switch today/3m/6m/year without reloading the whole overview. The
+ * chart's Y axis auto-scales, so the curve grows with the numbers.
+ */
+function SignupsTrendCard() {
+  const [period, setPeriod] = useState<TrendPeriod>('6m')
+  const [points, setPoints] = useState<{ month: string; signups: number }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    api
+      .get('/admin-portal/superadmin/signups-trend/', { params: { period } })
+      .then(({ data }) => {
+        if (!cancelled) setPoints(data.points || [])
+      })
+      .catch(() => {
+        if (!cancelled) setPoints([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [period])
+
+  const total = points.reduce((sum, p) => sum + p.signups, 0)
+  const hasData = points.some((p) => p.signups > 0)
+
+  return (
+    <SectionCard
+      title="New members"
+      description="New registrations across all three countries."
+      actions={<PeriodDropdown value={period} onChange={setPeriod} />}
+    >
+      <p className="mb-3 text-sm font-medium tabular-nums text-slate-500">
+        {formatCount(total)} new {total === 1 ? 'member' : 'members'} in this window
+      </p>
+      {loading ? (
+        <div className="h-[240px] animate-pulse rounded-xl bg-slate-50" />
+      ) : hasData ? (
+        <TrendAreaChart
+          data={points}
+          xKey="month"
+          yKey="signups"
+          formatValue={(v) => formatCount(v)}
+          formatTooltipLabel={(label) => `${label} new members`}
+        />
+      ) : (
+        <EmptyState
+          icon={Users}
+          title="No signups in this window"
+          description="New member registrations across all three countries will chart here."
+        />
+      )}
+    </SectionCard>
   )
 }
 
