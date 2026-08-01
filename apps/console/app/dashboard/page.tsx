@@ -96,6 +96,19 @@ interface Demographics {
 const OVERVIEW_COUNTRIES = ['kenya', 'rwanda', 'ghana'] as const
 type OverviewCountry = (typeof OVERVIEW_COUNTRIES)[number]
 
+// Administrative divisions are named differently per country (they are not all
+// "sub-counties"), so the region card labels itself to the selected country.
+// Mirrors frontend/lib/location-data.ts level1Label/level2Label.
+const AREA_LABELS: Record<OverviewCountry, { level1: string; level2: string }> = {
+  kenya: { level1: 'County', level2: 'Sub-county' },
+  rwanda: { level1: 'Province', level2: 'District' },
+  ghana: { level1: 'Region', level2: 'District' },
+}
+
+// Keep every overview card scannable: never render more than this many ranked
+// rows, so a busy country cannot bloat the page.
+const AREA_ROW_CAP = 5
+
 export default function ConsoleOverview() {
   const [data, setData] = useState<Overview | null>(null)
   const [demographics, setDemographics] = useState<Demographics | null>(null)
@@ -169,13 +182,28 @@ export default function ConsoleOverview() {
   // Where groups are forming inside the selected country. Prefer sub-counties
   // (the granular signal the user asked for) and fall back to the county/region
   // when no sub-region is on record yet.
-  const areaRows = useMemo(() => {
+  const { areaRows, areaLevelLabel } = useMemo(() => {
     const region = demographics?.regions_by_country?.[regionCountry]
-    if (!region) return []
-    if (region.sub_regions.length > 0) {
-      return region.sub_regions.map((r) => ({ label: r.sub_region, sublabel: r.region, value: r.groups }))
+    const labels = AREA_LABELS[regionCountry]
+    // Prefer the granular unit (sub-county / district). Fall back to the top
+    // level only when that is the only thing recorded. An empty country still
+    // shows the granular label, so the heading always reads correctly for
+    // that country ("district" for Rwanda and Ghana, "sub-county" for Kenya).
+    if (region && region.sub_regions.length > 0) {
+      return {
+        areaRows: region.sub_regions
+          .slice(0, AREA_ROW_CAP)
+          .map((r) => ({ label: r.sub_region, sublabel: r.region, value: r.groups })),
+        areaLevelLabel: labels.level2,
+      }
     }
-    return region.regions.map((r) => ({ label: r.region, value: r.groups }))
+    if (region && region.regions.length > 0) {
+      return {
+        areaRows: region.regions.slice(0, AREA_ROW_CAP).map((r) => ({ label: r.region, value: r.groups })),
+        areaLevelLabel: labels.level1,
+      }
+    }
+    return { areaRows: [], areaLevelLabel: labels.level2 }
   }, [demographics, regionCountry])
 
   const revenueFor = (country: string) => data?.revenue_by_country.find((r) => r.country === country)
@@ -394,7 +422,7 @@ export default function ConsoleOverview() {
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <SectionCard
-            title="Groups by sub-county"
+            title={`Groups by ${areaLevelLabel.toLowerCase()}`}
             description="Which areas inside a country are creating the most groups. Check marketer coverage at a glance."
             actions={
               <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
