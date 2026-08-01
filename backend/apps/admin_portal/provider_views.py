@@ -45,7 +45,7 @@ class BankProviderSerializer(serializers.ModelSerializer):
     class Meta:
         model = BankProvider
         fields = [
-            'id', 'name', 'provider_code', 'country', 'environment', 'status',
+            'id', 'name', 'provider_code', 'country', 'region', 'environment', 'status',
             'api_key', 'api_secret', 'merchant_code', 'extra_config',
             'base_url', 'webhook_url', 'webhook_secret',
             'supports_collections', 'supports_disbursements', 'supports_mobile_money',
@@ -208,7 +208,29 @@ class ProviderHubDetailView(APIView):
         if not obj:
             return Response({'error': 'Provider not found.'}, status=404)
         name = obj.name
-        obj.delete()
+
+        # A bank that has processed anything must never be hard-deleted, its
+        # transaction, callback and statement history has to stay auditable and
+        # reconcilable. Disabling (the kill switch) is the correct action there.
+        history = (
+            obj.api_logs.exists()
+            or obj.transactions.exists()
+            or obj.callbacks.exists()
+            or obj.statement_lines.exists()
+        )
+        if history:
+            return Response(
+                {'error': f'"{name}" has transaction history and cannot be deleted. '
+                          'Disable it instead to take it off the rails.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Config-only bank: remove its accounts (PROTECT-guarded) then the bank,
+        # atomically so a partial failure never leaves orphaned accounts.
+        from django.db import transaction
+        with transaction.atomic():
+            obj.accounts.all().delete()
+            obj.delete()
         logger.info('provider_deleted', provider_name=name,
                     admin=str(request.user.id))
         return Response({'message': f'Provider "{name}" deleted.'})

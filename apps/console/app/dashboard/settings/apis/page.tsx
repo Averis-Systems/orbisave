@@ -4,23 +4,29 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Banknote,
+  Building2,
+  Check,
   CheckCircle,
-  ChevronDown,
   Clock,
-  CreditCard,
+  Coins,
   Database,
-  ExternalLink,
   Fingerprint,
-  Globe,
+  Info,
   Key,
+  Landmark,
   Loader2,
-  Lock,
+  MapPin,
   MessageSquare,
+  PiggyBank,
   Plus,
   RefreshCcw,
   ShieldCheck,
   SlidersHorizontal,
   Terminal,
+  Trash2,
   Video,
   X,
   Zap,
@@ -42,18 +48,157 @@ interface Config {
   updated_at: string
 }
 
+interface BankAccount {
+  id?: string
+  label: string
+  account_type: string
+  account_number: string
+  account_name: string
+  currency: string
+  bank_code?: string
+  branch_code?: string
+  is_active?: boolean
+  is_default_for_collections?: boolean
+  is_default_for_disbursements?: boolean
+  is_default_for_reconciliation?: boolean
+}
+
 interface Provider {
   id: string
   name: string
   provider_code: string
   country: string
+  region?: string
   environment: string
   status: string
   base_url: string
+  merchant_code?: string
+  webhook_url?: string
+  supports_collections?: boolean
+  supports_disbursements?: boolean
+  supports_mobile_money?: boolean
+  has_api_key?: boolean
+  has_api_secret?: boolean
+  has_webhook_secret?: boolean
+  accounts?: BankAccount[]
   last_tested_at?: string | null
   last_test_status?: string
   last_test_message?: string
 }
+
+/** The four accounts every partner bank holds for OrbiSave, in wizard order. */
+const CORE_ACCOUNTS = [
+  {
+    key: 'trust',
+    label: 'Main Trust / Custody',
+    icon: ShieldCheck,
+    hint: 'Holds members’ pooled savings in custody. The regulated trust account the bank ring-fences from OrbiSave’s own funds.',
+    defaultFlag: 'is_default_for_reconciliation' as const,
+  },
+  {
+    key: 'savings',
+    label: 'Group Savings',
+    icon: PiggyBank,
+    hint: 'Where member contributions are collected before they settle into the trust. Default account for collections.',
+    defaultFlag: 'is_default_for_collections' as const,
+  },
+  {
+    key: 'loan',
+    label: 'Loan Disbursement',
+    icon: Coins,
+    hint: 'Funds loans are paid out from and repayments return to. Default account for disbursements.',
+    defaultFlag: 'is_default_for_disbursements' as const,
+  },
+  {
+    key: 'fee',
+    label: 'Company / Charges',
+    icon: Building2,
+    hint: 'OrbiSave’s own account. Collects the transactional charges we earn on each successful transaction.',
+    defaultFlag: null,
+  },
+] as const
+
+type CoreAccountKey = (typeof CORE_ACCOUNTS)[number]['key']
+
+interface BankAccountDraft {
+  id?: string
+  account_number: string
+  account_name: string
+  currency: string
+  bank_code: string
+  branch_code: string
+}
+
+interface BankWizardForm {
+  id?: string
+  provider_code: string
+  name: string
+  country: string
+  region: string
+  environment: 'sandbox' | 'live'
+  status: string
+  base_url: string
+  api_key: string
+  api_secret: string
+  merchant_code: string
+  webhook_url: string
+  webhook_secret: string
+  supports_collections: boolean
+  supports_disbursements: boolean
+  supports_mobile_money: boolean
+  accounts: Record<CoreAccountKey, BankAccountDraft>
+}
+
+/** Partner banks we can plug in. Selecting one prefills name, country, base URL. */
+const BANK_PARTNERS: { code: string; label: string; country: string; base_url: string }[] = [
+  { code: 'jenga_ke', label: 'Equity Bank Kenya (Jenga)', country: 'kenya', base_url: 'https://api.finserve.africa' },
+  { code: 'absa_ke', label: 'Absa Bank Kenya', country: 'kenya', base_url: '' },
+  { code: 'coop_ke', label: 'Co-operative Bank Kenya', country: 'kenya', base_url: '' },
+  { code: 'jenga_rw', label: 'Equity Bank Rwanda (Jenga)', country: 'rwanda', base_url: 'https://api.finserve.africa' },
+  { code: 'ecobank_gh', label: 'Ecobank Ghana', country: 'ghana', base_url: '' },
+  { code: 'mpesa', label: 'M-Pesa (Daraja)', country: 'kenya', base_url: 'https://sandbox.safaricom.co.ke' },
+  { code: 'mtn_momo', label: 'MTN MoMo', country: 'ghana', base_url: '' },
+  { code: 'airtel', label: 'Airtel Money', country: 'kenya', base_url: '' },
+  { code: 'custom', label: 'Custom / Other', country: 'kenya', base_url: '' },
+]
+
+const COUNTRY_META: Record<string, { label: string; currency: string; code: string }> = {
+  kenya: { label: 'Kenya', currency: 'KES', code: 'KE' },
+  rwanda: { label: 'Rwanda', currency: 'RWF', code: 'RW' },
+  ghana: { label: 'Ghana', currency: 'GHS', code: 'GH' },
+}
+
+const emptyAccountDraft = (currency: string): BankAccountDraft => ({
+  account_number: '',
+  account_name: '',
+  currency,
+  bank_code: '',
+  branch_code: '',
+})
+
+const buildEmptyBankForm = (): BankWizardForm => ({
+  provider_code: 'jenga_ke',
+  name: 'Equity Bank Kenya',
+  country: 'kenya',
+  region: '',
+  environment: 'sandbox',
+  status: 'inactive',
+  base_url: 'https://api.finserve.africa',
+  api_key: '',
+  api_secret: '',
+  merchant_code: '',
+  webhook_url: '',
+  webhook_secret: '',
+  supports_collections: true,
+  supports_disbursements: true,
+  supports_mobile_money: true,
+  accounts: {
+    trust: emptyAccountDraft('KES'),
+    savings: emptyAccountDraft('KES'),
+    loan: emptyAccountDraft('KES'),
+    fee: emptyAccountDraft('KES'),
+  },
+})
 
 interface KycProvider {
   id: string
@@ -203,7 +348,7 @@ const emptySmsForm: SmsProviderForm = {
 }
 
 export default function ApiOperationsPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>('kyc')
+  const [activeTab, setActiveTab] = useState<TabKey>('payments')
   const [configs, setConfigs] = useState<Config[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
   const [kycProviders, setKycProviders] = useState<KycProvider[]>([])
@@ -219,6 +364,9 @@ export default function ApiOperationsPage() {
   const [showKycDialog, setShowKycDialog] = useState(false)
   const [showMeetingDialog, setShowMeetingDialog] = useState(false)
   const [showSmsDialog, setShowSmsDialog] = useState(false)
+  const [showBankWizard, setShowBankWizard] = useState(false)
+  const [savingBank, setSavingBank] = useState(false)
+  const [bankForm, setBankForm] = useState<BankWizardForm>(buildEmptyBankForm)
   const [kycForm, setKycForm] = useState<KycProviderForm>(emptyKycForm)
   const [meetingForm, setMeetingForm] = useState<MeetingProviderForm>(emptyMeetingForm)
   const [smsForm, setSmsForm] = useState<SmsProviderForm>(emptySmsForm)
@@ -262,10 +410,10 @@ export default function ApiOperationsPage() {
 
   const tabs = useMemo(
     () => [
+      { key: 'payments' as const, label: 'Banks & Payments', count: providers.length },
       { key: 'kyc' as const, label: 'KYC Identity', count: kycProviders.length },
-      { key: 'payments' as const, label: 'Payment Providers', count: providers.length },
       { key: 'sms' as const, label: 'SMS / OTP', count: smsProviders.length },
-      { key: 'meetings' as const, label: 'Meeting Providers', count: meetingProvidersConfigured },
+      { key: 'meetings' as const, label: 'Meetings', count: meetingProvidersConfigured },
       { key: 'platform' as const, label: 'Platform APIs', count: configs.length },
       { key: 'logs' as const, label: 'Audit Logs', count: logs.length },
     ],
@@ -336,6 +484,147 @@ export default function ApiOperationsPage() {
       await fetchData()
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'SMS provider status could not be changed.')
+    }
+  }
+
+  const openBankWizard = (provider?: Provider) => {
+    if (provider) {
+      const currency = COUNTRY_META[provider.country]?.currency || 'KES'
+      const accounts = buildEmptyBankForm().accounts
+      // Load each stored account into its matching core slot (first per type).
+      for (const core of CORE_ACCOUNTS) {
+        const match = (provider.accounts || []).find((a) => a.account_type === core.key && a.is_active !== false)
+        accounts[core.key] = match
+          ? {
+              id: match.id,
+              account_number: match.account_number || '',
+              account_name: match.account_name || '',
+              currency: match.currency || currency,
+              bank_code: match.bank_code || '',
+              branch_code: match.branch_code || '',
+            }
+          : emptyAccountDraft(currency)
+      }
+      setBankForm({
+        id: provider.id,
+        provider_code: provider.provider_code,
+        name: provider.name,
+        country: provider.country,
+        region: provider.region || '',
+        environment: (provider.environment as 'sandbox' | 'live') || 'sandbox',
+        status: provider.status,
+        base_url: provider.base_url || '',
+        api_key: '',
+        api_secret: '',
+        merchant_code: provider.merchant_code || '',
+        webhook_url: provider.webhook_url || '',
+        webhook_secret: '',
+        supports_collections: provider.supports_collections ?? true,
+        supports_disbursements: provider.supports_disbursements ?? true,
+        supports_mobile_money: provider.supports_mobile_money ?? true,
+        accounts,
+      })
+    } else {
+      setBankForm(buildEmptyBankForm())
+    }
+    setShowBankWizard(true)
+  }
+
+  const saveBank = async (form: BankWizardForm) => {
+    setSavingBank(true)
+    const accounts = CORE_ACCOUNTS.filter((core) => form.accounts[core.key].account_number.trim()).map((core) => {
+      const draft = form.accounts[core.key]
+      const defaults: Record<string, boolean> = {}
+      if (core.defaultFlag) defaults[core.defaultFlag] = true
+      return {
+        ...(draft.id ? { id: draft.id } : {}),
+        label: core.label,
+        account_type: core.key,
+        account_number: draft.account_number.trim(),
+        account_name: draft.account_name.trim(),
+        country_code: COUNTRY_META[form.country]?.code || 'KE',
+        currency: draft.currency,
+        bank_code: draft.bank_code.trim(),
+        branch_code: draft.branch_code.trim(),
+        ...defaults,
+      }
+    })
+    const payload: Record<string, unknown> = {
+      provider_code: form.provider_code,
+      name: form.name,
+      country: form.country,
+      region: form.region.trim(),
+      environment: form.environment,
+      status: form.status,
+      base_url: form.base_url.trim(),
+      merchant_code: form.merchant_code.trim(),
+      webhook_url: form.webhook_url.trim(),
+      supports_collections: form.supports_collections,
+      supports_disbursements: form.supports_disbursements,
+      supports_mobile_money: form.supports_mobile_money,
+      accounts,
+    }
+    // Secrets are write-only; only send them when the operator typed one, so an
+    // edit that leaves them blank keeps the stored value.
+    if (form.api_key.trim()) payload.api_key = form.api_key.trim()
+    if (form.api_secret.trim()) payload.api_secret = form.api_secret.trim()
+    if (form.webhook_secret.trim()) payload.webhook_secret = form.webhook_secret.trim()
+    try {
+      if (form.id) {
+        await api.patch(`/admin-portal/superadmin/payment-providers/${form.id}/`, payload)
+      } else {
+        await api.post('/admin-portal/superadmin/payment-providers/', payload)
+      }
+      toast.success(`${form.name} saved.`)
+      setShowBankWizard(false)
+      await fetchData()
+    } catch (error: any) {
+      const detail = error.response?.data
+      const message =
+        typeof detail === 'object' && detail
+          ? Object.values(detail).flat().join(' ')
+          : 'Bank could not be saved.'
+      toast.error(message || 'Bank could not be saved.')
+    } finally {
+      setSavingBank(false)
+    }
+  }
+
+  const testBank = async (id: string) => {
+    setTestingId(id)
+    try {
+      const { data } = await api.post(`/admin-portal/superadmin/payment-providers/${id}/test/`)
+      if (data.success) {
+        toast.success(data.message || 'Bank connection is healthy.')
+      } else {
+        toast.error(data.message || 'Bank connection needs attention.')
+      }
+      await fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Bank connection test failed.')
+    } finally {
+      setTestingId(null)
+    }
+  }
+
+  const toggleBank = async (id: string) => {
+    try {
+      await api.post(`/admin-portal/superadmin/payment-providers/${id}/toggle/`)
+      toast.success('Bank status updated.')
+      await fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Bank status could not be changed.')
+    }
+  }
+
+  const deleteBank = async (id: string, name: string) => {
+    if (!window.confirm(`Remove ${name}? This cannot be undone.`)) return
+    try {
+      await api.delete(`/admin-portal/superadmin/payment-providers/${id}/`)
+      toast.success(`${name} removed.`)
+      await fetchData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Bank could not be removed.')
     }
   }
 
@@ -491,37 +780,42 @@ export default function ApiOperationsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-6 lg:p-8">
-      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-            Provider operations
-          </div>
-          <h1 className="text-3xl font-black tracking-tight text-navy md:text-4xl">API & Identity Settings</h1>
-          <p className="max-w-2xl text-sm font-medium leading-6 text-slate-500">
-            Manage KYC provider credentials, webhooks, payment APIs, and platform service settings from the console.
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-bold tracking-tight text-navy">Integrations</h1>
+          <p className="max-w-2xl text-sm leading-6 text-slate-500">
+            Partner banks and their accounts, identity, messaging and meeting providers. Credentials are encrypted at
+            rest and never returned to the console.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={fetchData}
-            className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-widest text-navy shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-navy shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
           >
             <RefreshCcw size={15} />
             Refresh
           </button>
           <button
             onClick={() =>
-              activeTab === 'meetings'
-                ? openMeetingDialog()
-                : activeTab === 'sms'
-                  ? openSmsDialog()
-                  : openKycDialog()
+              activeTab === 'payments'
+                ? openBankWizard()
+                : activeTab === 'meetings'
+                  ? openMeetingDialog()
+                  : activeTab === 'sms'
+                    ? openSmsDialog()
+                    : openKycDialog()
             }
-            className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-primary/90"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
           >
             <Plus size={16} />
-            {activeTab === 'meetings' ? 'Add Meeting Provider' : activeTab === 'sms' ? 'Add SMS Provider' : 'Add Didit'}
+            {activeTab === 'payments'
+              ? 'Add bank'
+              : activeTab === 'meetings'
+                ? 'Add meeting provider'
+                : activeTab === 'sms'
+                  ? 'Add SMS provider'
+                  : 'Add KYC provider'}
           </button>
         </div>
       </section>
@@ -585,18 +879,24 @@ export default function ApiOperationsPage() {
       </section>
 
       <section className="space-y-5">
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200">
+        <div className="flex flex-wrap items-center gap-5 border-b border-slate-200">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative flex h-12 items-center gap-2 px-2 text-xs font-black uppercase tracking-widest transition ${
-                activeTab === tab.key ? 'text-navy' : 'text-slate-400 hover:text-slate-600'
+              className={`relative flex h-11 items-center gap-2 text-sm font-semibold transition ${
+                activeTab === tab.key ? 'text-primary' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               {tab.label}
-              <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{tab.count}</span>
-              {activeTab === tab.key && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-primary" />}
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  activeTab === tab.key ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {tab.count}
+              </span>
+              {activeTab === tab.key && <span className="absolute -bottom-px left-0 h-0.5 w-full rounded-full bg-primary" />}
             </button>
           ))}
         </div>
@@ -612,7 +912,18 @@ export default function ApiOperationsPage() {
             onToggle={toggleKycProvider}
           />
         )}
-        {activeTab === 'payments' && <PaymentTab loading={loading} providers={providers} />}
+        {activeTab === 'payments' && (
+          <BanksTab
+            loading={loading}
+            providers={providers}
+            testingId={testingId}
+            onAdd={() => openBankWizard()}
+            onEdit={openBankWizard}
+            onTest={testBank}
+            onToggle={toggleBank}
+            onDelete={deleteBank}
+          />
+        )}
         {activeTab === 'sms' && (
           <SmsProvidersTab
             loading={loading}
@@ -639,6 +950,15 @@ export default function ApiOperationsPage() {
         {activeTab === 'logs' && <LogsTab loading={loading} logs={logs} />}
       </section>
 
+      {showBankWizard && (
+        <BankWizard
+          form={bankForm}
+          saving={savingBank}
+          onChange={setBankForm}
+          onClose={() => setShowBankWizard(false)}
+          onSubmit={saveBank}
+        />
+      )}
       {showKycDialog && (
         <KycDialog
           form={kycForm}
@@ -947,10 +1267,28 @@ function KycTab({
   )
 }
 
-function PaymentTab({ loading, providers }: { loading: boolean; providers: Provider[] }) {
+function BanksTab({
+  loading,
+  providers,
+  testingId,
+  onAdd,
+  onEdit,
+  onTest,
+  onToggle,
+  onDelete,
+}: {
+  loading: boolean
+  providers: Provider[]
+  testingId: string | null
+  onAdd: () => void
+  onEdit: (provider: Provider) => void
+  onTest: (id: string) => void
+  onToggle: (id: string) => void
+  onDelete: (id: string, name: string) => void
+}) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ProviderSkeleton />
         <ProviderSkeleton />
       </div>
@@ -960,36 +1298,574 @@ function PaymentTab({ loading, providers }: { loading: boolean; providers: Provi
   if (!providers.length) {
     return (
       <EmptyState
-        icon={<CreditCard size={24} />}
-        title="No payment providers configured"
-        description="Bank and mobile money providers will appear here after they are created from the provider workflow."
+        icon={<Landmark size={24} />}
+        title="No partner banks yet"
+        description="Add a partner bank (Equity, Absa, Co-operative and more) with its trust, savings, loan and company accounts. The wizard walks through it step by step."
+        actionLabel="Add bank"
+        onAction={onAdd}
       />
     )
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       {providers.map((provider) => (
-        <div key={provider.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-5 flex items-start justify-between">
+        <BankCard
+          key={provider.id}
+          provider={provider}
+          testing={testingId === provider.id}
+          onEdit={() => onEdit(provider)}
+          onTest={() => onTest(provider.id)}
+          onToggle={() => onToggle(provider.id)}
+          onDelete={() => onDelete(provider.id, provider.name)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function maskAccount(value: string) {
+  if (!value) return 'Not set'
+  const tail = value.slice(-4)
+  return `•••• ${tail}`
+}
+
+function BankCard({
+  provider,
+  testing,
+  onEdit,
+  onTest,
+  onToggle,
+  onDelete,
+}: {
+  provider: Provider
+  testing: boolean
+  onEdit: () => void
+  onTest: () => void
+  onToggle: () => void
+  onDelete: () => void
+}) {
+  const activeAccounts = (provider.accounts || []).filter((a) => a.is_active !== false)
+  const capabilities = [
+    provider.supports_collections && 'Collections',
+    provider.supports_disbursements && 'Disbursements',
+    provider.supports_mobile_money && 'Mobile money',
+  ].filter(Boolean) as string[]
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ecfdf3] text-[#039855]">
+            <Landmark size={21} />
+          </span>
+          <div>
+            <p className="text-base font-semibold text-navy">{provider.name}</p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={12} className="text-slate-400" />
+                {COUNTRY_META[provider.country]?.label || provider.country}
+                {provider.region ? ` · ${provider.region}` : ' · Country-wide'}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1.5">
+          <StatusBadge status={provider.status} />
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              provider.environment === 'live' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+            }`}
+          >
+            {provider.environment}
+          </span>
+        </div>
+      </div>
+
+      {capabilities.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {capabilities.map((c) => (
+            <span key={c} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+              {c}
+            </span>
+          ))}
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+              provider.has_api_key ? 'bg-[#ecfdf3] text-[#027a48]' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            <Key size={11} />
+            {provider.has_api_key ? 'Credentials set' : 'No credentials'}
+          </span>
+        </div>
+      )}
+
+      {/* Accounts */}
+      <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <Banknote size={12} /> Accounts ({activeAccounts.length})
+        </p>
+        {activeAccounts.length === 0 ? (
+          <p className="text-xs text-slate-400">No accounts recorded yet. Edit to add them.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {CORE_ACCOUNTS.map((core) => {
+              const acc = activeAccounts.find((a) => a.account_type === core.key)
+              if (!acc) return null
+              const Icon = core.icon
+              return (
+                <div key={core.key} className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5">
+                  <Icon size={14} className="shrink-0 text-slate-400" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-medium text-navy">{core.label}</p>
+                    <p className="truncate text-[11px] tabular-nums text-slate-400">
+                      {maskAccount(acc.account_number)} · {acc.currency}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {provider.last_test_message && (
+        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">{provider.last_test_message}</p>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          onClick={onTest}
+          disabled={testing}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-navy transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          {testing ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+          Test
+        </button>
+        <button
+          onClick={onToggle}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-navy transition hover:bg-slate-50"
+        >
+          <SlidersHorizontal size={13} />
+          {provider.status === 'active' ? 'Disable' : 'Enable'}
+        </button>
+        <button
+          onClick={onEdit}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-navy transition hover:bg-slate-50"
+        >
+          Edit
+        </button>
+        <button
+          onClick={onDelete}
+          aria-label="Remove bank"
+          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Add / edit bank wizard ─────────────────────────────────────────────────
+
+function InfoHint({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex align-middle">
+      <Info className="h-3.5 w-3.5 cursor-help text-slate-400" />
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 w-56 -translate-x-1/2 rounded-lg bg-navy px-3 py-2 text-[11px] font-medium leading-snug text-white opacity-0 shadow-lg transition group-hover:opacity-100">
+        {text}
+      </span>
+    </span>
+  )
+}
+
+function WizardField({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+        {label}
+        {hint && <InfoHint text={hint} />}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+const WIZARD_STEPS = ['Bank', 'Credentials', 'Accounts', 'Review'] as const
+
+function BankWizard({
+  form,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  form: BankWizardForm
+  saving: boolean
+  onChange: (form: BankWizardForm) => void
+  onClose: () => void
+  onSubmit: (form: BankWizardForm) => void
+}) {
+  const [step, setStep] = useState(0)
+  const set = (patch: Partial<BankWizardForm>) => onChange({ ...form, ...patch })
+  const setAccount = (key: CoreAccountKey, patch: Partial<BankAccountDraft>) =>
+    onChange({ ...form, accounts: { ...form.accounts, [key]: { ...form.accounts[key], ...patch } } })
+
+  const selectPartner = (code: string) => {
+    const partner = BANK_PARTNERS.find((p) => p.code === code)
+    if (!partner) {
+      set({ provider_code: code })
+      return
+    }
+    const currency = COUNTRY_META[partner.country]?.currency || form.accounts.trust.currency
+    // Re-currency the account drafts to the partner's country default.
+    const accounts = { ...form.accounts }
+    for (const core of CORE_ACCOUNTS) accounts[core.key] = { ...accounts[core.key], currency }
+    onChange({
+      ...form,
+      provider_code: code,
+      country: partner.country,
+      base_url: partner.base_url || form.base_url,
+      name: form.id ? form.name : partner.label.replace(/\s*\(.*\)\s*/, ''),
+      accounts,
+    })
+  }
+
+  const filledAccounts = CORE_ACCOUNTS.filter((c) => form.accounts[c.key].account_number.trim())
+  const canContinue = step === 0 ? Boolean(form.name.trim() && form.provider_code && form.country) : true
+  const isLast = step === WIZARD_STEPS.length - 1
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button aria-label="Close" className="absolute inset-0 bg-navy/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        {/* Header + stepper */}
+        <div className="border-b border-slate-100 px-6 py-5">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-50 text-navy">
-                <Globe size={22} />
-              </div>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ecfdf3] text-[#039855]">
+                <Landmark size={20} />
+              </span>
               <div>
-                <h3 className="text-base font-black text-navy">{provider.name}</h3>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  {provider.country} / {provider.environment}
-                </p>
+                <h2 className="text-lg font-semibold text-navy">{form.id ? 'Edit bank' : 'Add partner bank'}</h2>
+                <p className="text-xs text-slate-500">Credentials are encrypted and never shown again.</p>
               </div>
             </div>
-            <StatusBadge status={provider.status} />
+            <button onClick={onClose} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-navy">
+              <X size={18} />
+            </button>
           </div>
-          <InfoRow label="Provider code" value={provider.provider_code} />
-          <InfoRow label="Base URL" value={provider.base_url || 'Not set'} />
-          <InfoRow label="Last test" value={provider.last_test_status || 'Not tested'} />
+          <div className="mt-5 flex items-center gap-2">
+            {WIZARD_STEPS.map((label, i) => (
+              <div key={label} className="flex flex-1 items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                      i < step
+                        ? 'bg-primary text-white'
+                        : i === step
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary'
+                          : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    {i < step ? <Check size={13} /> : i + 1}
+                  </span>
+                  <span className={`text-xs font-medium ${i === step ? 'text-navy' : 'text-slate-400'}`}>{label}</span>
+                </div>
+                {i < WIZARD_STEPS.length - 1 && <span className="h-px flex-1 bg-slate-200" />}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {step === 0 && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <WizardField label="Bank partner" hint="Choose the bank whose API you are plugging in. This selects the integration adapter and prefills the endpoint.">
+                  <select value={form.provider_code} onChange={(e) => selectPartner(e.target.value)} className="input-shell">
+                    {BANK_PARTNERS.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </WizardField>
+              </div>
+              <div className="sm:col-span-2">
+                <WizardField label="Display name">
+                  <input value={form.name} onChange={(e) => set({ name: e.target.value })} className="input-shell" placeholder="Equity Bank Kenya" />
+                </WizardField>
+              </div>
+              <WizardField label="Country">
+                <select
+                  value={form.country}
+                  onChange={(e) => {
+                    const currency = COUNTRY_META[e.target.value]?.currency || 'KES'
+                    const accounts = { ...form.accounts }
+                    for (const core of CORE_ACCOUNTS) accounts[core.key] = { ...accounts[core.key], currency }
+                    set({ country: e.target.value, accounts })
+                  }}
+                  className="input-shell"
+                >
+                  {Object.entries(COUNTRY_META).map(([value, meta]) => (
+                    <option key={value} value={value}>
+                      {meta.label}
+                    </option>
+                  ))}
+                </select>
+              </WizardField>
+              <WizardField
+                label="Region"
+                hint="Leave blank for a country-wide bank. Later you can scope a bank to a region, e.g. Coast or Western, and assign different banks per region."
+              >
+                <input value={form.region} onChange={(e) => set({ region: e.target.value })} className="input-shell" placeholder="Country-wide" />
+              </WizardField>
+              <div className="sm:col-span-2">
+                <WizardField label="Environment" hint="Sandbox uses the bank’s test rails. Switch to Live only with production credentials.">
+                  <Segmented
+                    value={form.environment}
+                    onChange={(v) => set({ environment: v as 'sandbox' | 'live' })}
+                    options={[
+                      { value: 'sandbox', label: 'Sandbox' },
+                      { value: 'live', label: 'Live' },
+                    ]}
+                  />
+                </WizardField>
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <WizardField label="API base URL" hint="The bank’s API host for the selected environment.">
+                  <input value={form.base_url} onChange={(e) => set({ base_url: e.target.value })} className="input-shell" placeholder="https://api.finserve.africa" />
+                </WizardField>
+              </div>
+              <WizardField label="API key / Consumer key">
+                <input value={form.api_key} onChange={(e) => set({ api_key: e.target.value })} className="input-shell" placeholder={form.id ? 'Leave blank to keep current' : ''} />
+              </WizardField>
+              <WizardField label="API secret / Consumer secret">
+                <input type="password" value={form.api_secret} onChange={(e) => set({ api_secret: e.target.value })} className="input-shell" placeholder={form.id ? 'Leave blank to keep current' : ''} />
+              </WizardField>
+              <WizardField label="Merchant code" hint="The merchant or business short code the bank issued for your account.">
+                <input value={form.merchant_code} onChange={(e) => set({ merchant_code: e.target.value })} className="input-shell" />
+              </WizardField>
+              <WizardField label="Webhook secret" hint="Used to verify signatures on callbacks the bank sends us.">
+                <input type="password" value={form.webhook_secret} onChange={(e) => set({ webhook_secret: e.target.value })} className="input-shell" placeholder={form.id ? 'Leave blank to keep current' : ''} />
+              </WizardField>
+              <div className="sm:col-span-2">
+                <WizardField label="Webhook URL" hint="Our endpoint the bank calls back with settlement events.">
+                  <input value={form.webhook_url} onChange={(e) => set({ webhook_url: e.target.value })} className="input-shell" placeholder="https://api.orbisave.com/webhooks/…" />
+                </WizardField>
+              </div>
+              <div className="sm:col-span-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  Capabilities <InfoHint text="What this bank rail can do. Turn off any it does not support." />
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Toggle checked={form.supports_collections} onChange={(v) => set({ supports_collections: v })} label="Collections" />
+                  <Toggle checked={form.supports_disbursements} onChange={(v) => set({ supports_disbursements: v })} label="Disbursements" />
+                  <Toggle checked={form.supports_mobile_money} onChange={(v) => set({ supports_mobile_money: v })} label="Mobile money" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">
+                Add each account this bank holds for OrbiSave. Leave any you do not have yet blank, you can add it later.
+              </p>
+              {CORE_ACCOUNTS.map((core) => {
+                const Icon = core.icon
+                const draft = form.accounts[core.key]
+                return (
+                  <div key={core.key} className="rounded-xl border border-slate-200 p-3.5">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                        <Icon size={16} />
+                      </span>
+                      <span className="text-sm font-semibold text-navy">{core.label}</span>
+                      <InfoHint text={core.hint} />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        value={draft.account_number}
+                        onChange={(e) => setAccount(core.key, { account_number: e.target.value })}
+                        className="input-shell"
+                        placeholder="Account number"
+                      />
+                      <input
+                        value={draft.account_name}
+                        onChange={(e) => setAccount(core.key, { account_name: e.target.value })}
+                        className="input-shell"
+                        placeholder="Account name"
+                      />
+                      <input
+                        value={draft.currency}
+                        onChange={(e) => setAccount(core.key, { currency: e.target.value.toUpperCase() })}
+                        className="input-shell"
+                        placeholder="Currency"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          value={draft.bank_code}
+                          onChange={(e) => setAccount(core.key, { bank_code: e.target.value })}
+                          className="input-shell"
+                          placeholder="Bank code"
+                        />
+                        <input
+                          value={draft.branch_code}
+                          onChange={(e) => setAccount(core.key, { branch_code: e.target.value })}
+                          className="input-shell"
+                          placeholder="Branch"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bank</p>
+                <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                  <ReviewRow label="Name" value={form.name} />
+                  <ReviewRow label="Partner" value={BANK_PARTNERS.find((p) => p.code === form.provider_code)?.label || form.provider_code} />
+                  <ReviewRow label="Coverage" value={`${COUNTRY_META[form.country]?.label || form.country}${form.region ? ` · ${form.region}` : ' · Country-wide'}`} />
+                  <ReviewRow label="Environment" value={form.environment} />
+                  <ReviewRow label="Base URL" value={form.base_url || 'Not set'} />
+                  <ReviewRow label="Credentials" value={form.api_key || form.id ? 'Provided' : 'None yet'} />
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Accounts ({filledAccounts.length} of {CORE_ACCOUNTS.length})
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {CORE_ACCOUNTS.map((core) => (
+                    <div key={core.key} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">{core.label}</span>
+                      <span className="tabular-nums text-navy">
+                        {form.accounts[core.key].account_number
+                          ? maskAccount(form.accounts[core.key].account_number)
+                          : <span className="text-slate-300">Skipped</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <WizardField label="Status on save" hint="Inactive keeps the bank off the rails. Testing lets you run a connection test. Active puts it live for its region.">
+                <Segmented
+                  value={form.status}
+                  onChange={(v) => set({ status: v })}
+                  options={[
+                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'testing', label: 'Testing' },
+                    { value: 'active', label: 'Active' },
+                  ]}
+                />
+              </WizardField>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+          <button
+            onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg px-4 text-sm font-medium text-slate-500 transition hover:text-navy"
+          >
+            {step === 0 ? 'Cancel' : (<><ArrowLeft size={15} /> Back</>)}
+          </button>
+          {isLast ? (
+            <button
+              onClick={() => onSubmit(form)}
+              disabled={saving}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
+            >
+              {saving && <Loader2 size={15} className="animate-spin" />}
+              {form.id ? 'Save bank' : 'Add bank'}
+            </button>
+          ) : (
+            <button
+              onClick={() => setStep(step + 1)}
+              disabled={!canContinue}
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:opacity-40"
+            >
+              Continue <ArrowRight size={15} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Segmented({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+            value === opt.value ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-navy'
+          }`}
+        >
+          {opt.label}
+        </button>
       ))}
+    </div>
+  )
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+        checked ? 'border-primary/30 bg-primary/5 text-primary' : 'border-slate-200 bg-white text-slate-500'
+      }`}
+    >
+      <span className={`flex h-4 w-4 items-center justify-center rounded ${checked ? 'bg-primary text-white' : 'bg-slate-200'}`}>
+        {checked && <Check size={11} />}
+      </span>
+      {label}
+    </button>
+  )
+}
+
+function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-slate-400">{label}</span>
+      <span className="max-w-[60%] truncate text-right font-medium text-navy">{value}</span>
     </div>
   )
 }

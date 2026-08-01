@@ -15,8 +15,10 @@ from common.models import BaseModel
 COUNTRIES = [('kenya', 'Kenya'), ('rwanda', 'Rwanda'), ('ghana', 'Ghana')]
 
 PROVIDER_CODES = [
-    ('jenga_ke',   'Jenga (Equity Bank Kenya)'),
-    ('jenga_rw',   'Jenga (Equity Bank Rwanda)'),
+    ('jenga_ke',   'Equity Bank Kenya (Jenga)'),
+    ('jenga_rw',   'Equity Bank Rwanda (Jenga)'),
+    ('absa_ke',    'Absa Bank Kenya'),
+    ('coop_ke',    'Co-operative Bank Kenya'),
     ('ecobank_gh', 'Ecobank Ghana'),
     ('mtn_momo',   'MTN MoMo'),
     ('mpesa',      'M-Pesa (Daraja)'),
@@ -45,6 +47,11 @@ class BankProvider(BaseModel):
     name          = models.CharField(max_length=150, help_text="Display name, e.g. 'Equity Bank Kenya'")
     provider_code = models.CharField(max_length=30, choices=PROVIDER_CODES, default='custom')
     country       = models.CharField(max_length=10, choices=COUNTRIES)
+    region        = models.CharField(
+        max_length=80, blank=True,
+        help_text="Area served within the country, e.g. 'Coast' or 'Western'. "
+                  "Blank = country-wide (universal bank for the whole country)."
+    )
     environment   = models.CharField(max_length=10, choices=ENVIRONMENTS, default='sandbox')
     status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default='inactive')
 
@@ -81,7 +88,9 @@ class BankProvider(BaseModel):
     class Meta:
         db_table = 'payment_bank_provider'
         ordering = ['country', 'name']
-        unique_together = [('country', 'provider_code', 'environment')]
+        # region is part of the key so one country can run different banks per
+        # region (Coast vs Western); blank region = the country-wide bank.
+        unique_together = [('country', 'provider_code', 'environment', 'region')]
 
     def __str__(self):
         return f"{self.name} [{self.country.upper()} / {self.environment}]"
@@ -105,13 +114,17 @@ class PaymentProviderAccount(BaseModel):
     provider code and lets the admin console rotate sandbox/live account maps.
     """
     ACCOUNT_TYPES = [
+        # The four accounts every partner bank holds for OrbiSave.
+        ('trust', 'Main Trust / Custody'),
+        ('savings', 'Group Savings'),
+        ('loan', 'Loan Disbursement'),
+        ('fee', 'Company / Charges Revenue'),
+        # Additional operational accounts a provider may expose.
         ('collection', 'Collection'),
         ('payout', 'Payout'),
-        ('trust', 'Trust / Custody'),
         ('settlement', 'Settlement / Clearing'),
-        ('wallet', 'Jenga Wallet'),
+        ('wallet', 'Wallet'),
         ('reconciliation', 'Reconciliation'),
-        ('fee', 'Fee / Revenue'),
     ]
 
     provider = models.ForeignKey(BankProvider, on_delete=models.PROTECT, related_name='accounts')
