@@ -43,6 +43,7 @@ from .super_views import (
     SuperAdminCountryView,
     SuperAdminDemographicsView,
     SuperAdminSignupsTrendView,
+    SuperAdminApiHealthView,
     SuperAdminQuickSearchView,
     SuperAdminSystemHealthView,
     SuperAdminAdminListView,
@@ -149,6 +150,7 @@ urlpatterns = [
     path('superadmin/demographics/',   SuperAdminDemographicsView.as_view(), name='superadmin-demographics'),
     path('superadmin/signups-trend/',  SuperAdminSignupsTrendView.as_view(), name='superadmin-signups-trend'),
     path('superadmin/quick-search/',   SuperAdminQuickSearchView.as_view(),  name='superadmin-quick-search'),
+    path('superadmin/api-health/',     SuperAdminApiHealthView.as_view(),    name='superadmin-api-health'),
     path('superadmin/system-health/',  SuperAdminSystemHealthView.as_view(), name='superadmin-health'),
     path('superadmin/audit/',          SuperAdminGlobalAuditView.as_view(), name='superadmin-audit'),
 

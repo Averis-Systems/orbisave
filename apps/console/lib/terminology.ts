@@ -18,6 +18,7 @@ export const consoleCopy = {
     trustAccounts: "Trust Accounts",
     analytics: "Analytics",
     auditLogs: "Audit Logs",
+    apiHealth: "API health",
     // Providers & Config is an expandable parent. Its children are the three
     // configuration surfaces that actually exist as routes today; nothing here
     // points at a page that has not been built.

@@ -306,3 +306,33 @@ class AdminEmailVerification(BaseModel):
             self.used_at = timezone.now()
         self.save(update_fields=['attempt_count', 'used_at', 'updated_at'])
         return is_valid
+
+
+class ApiEvent(BaseModel):
+    """
+    A recorded API anomaly: a request that failed (5xx) or ran slow. Written
+    only for anomalies by common.api_metrics.ApiMetricsMiddleware, so the table
+    stays small, and read by the API-health page to answer the only question
+    that matters in a hurry: is anything failing, and where. Lives on default,
+    which is platform-wide.
+    """
+    KIND_CHOICES = [('error', 'Error'), ('slow', 'Slow')]
+
+    method = models.CharField(max_length=8)
+    path = models.CharField(max_length=255)
+    status_code = models.IntegerField(default=0)
+    duration_ms = models.IntegerField(default=0)
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    actor_email = models.CharField(max_length=255, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'api_event'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['kind', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.method} {self.path} [{self.status_code}] {self.duration_ms}ms'

@@ -34,6 +34,7 @@ const PATH_TITLES: Array<[string, string]> = [
   ['/dashboard/savings', 'Savings'],
   ['/dashboard/trust', 'Trust reconciliation'],
   ['/dashboard/analytics', 'Analytics'],
+  ['/dashboard/api-health', 'API health'],
   ['/dashboard/logs', 'Audit logs'],
   ['/dashboard/payments', 'Payment providers'],
   ['/dashboard/settings/apis', 'API & integrations'],

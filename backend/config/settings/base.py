@@ -58,6 +58,10 @@ MIDDLEWARE = [
     # django_ratelimit read REMOTE_ADDR, and every browser-facing app now
     # reaches Django through a Next proxy, so it needs correcting once here.
     'common.client_ip.ClientIPMiddleware',
+    # Times /api/ requests and records only 5xx or slow ones as ApiEvent, for
+    # the Console API-health page. Outer enough to time the full stack; after
+    # the IP rewrite so the recorded IP is the real client.
+    'common.api_metrics.ApiMetricsMiddleware',
     # Right after the IP rewrite: pre-DRF backstop for admin-portal paths,
     # because DRF checks permissions before throttles and would otherwise
     # serve unlimited 401/403s to a prober. See common/admin_gate.py.

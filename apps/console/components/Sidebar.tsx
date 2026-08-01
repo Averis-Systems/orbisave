@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { usePlatformBranding } from '@/lib/useBranding'
 import {
+  Activity,
   BarChart3,
   Banknote,
   ChevronDown,
@@ -72,6 +73,7 @@ const sections: NavSection[] = [
     items: [
       { name: ct('nav.trustAccounts'), icon: Landmark, href: '/dashboard/trust', badge: 'trust_open' },
       { name: ct('nav.analytics'), icon: BarChart3, href: '/dashboard/analytics' },
+      { name: ct('nav.apiHealth'), icon: Activity, href: '/dashboard/api-health' },
       { name: ct('nav.auditLogs'), icon: FileText, href: '/dashboard/logs' },
     ],
   },

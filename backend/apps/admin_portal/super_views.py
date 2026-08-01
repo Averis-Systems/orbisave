@@ -469,6 +469,57 @@ class SuperAdminQuickSearchView(APIView):
         return Response({'groups': groups, 'members': members})
 
 
+class SuperAdminApiHealthView(APIView):
+    """
+    GET /api/v1/superadmin/api-health/
+
+    The ops read for "is anything failing, act fast": database and cache
+    reachability with latency, a 24h count of API errors and slow requests, and
+    the most recent anomalies (5xx or slow) recorded by ApiMetricsMiddleware,
+    each a row an engineer can act on. Full peak-hour traffic and latency
+    percentiles belong in an APM (Datadog), not the app database.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        checks = {}
+        try:
+            t = time.time()
+            User.objects.count()
+            checks['database'] = {'status': 'ok', 'latency_ms': int((time.time() - t) * 1000)}
+        except Exception as e:
+            checks['database'] = {'status': 'error', 'error': str(e)}
+
+        try:
+            from django.core.cache import cache
+            t = time.time()
+            cache.set('api_health_ping', '1', 5)
+            ok = cache.get('api_health_ping') == '1'
+            checks['cache'] = {'status': 'ok' if ok else 'degraded', 'latency_ms': int((time.time() - t) * 1000)}
+        except Exception as e:
+            checks['cache'] = {'status': 'error', 'error': str(e)}
+
+        from apps.admin_portal.models import ApiEvent
+        since = timezone.now() - timedelta(hours=24)
+        recent_qs = ApiEvent.objects.using('default').filter(created_at__gte=since)
+        recent = list(
+            ApiEvent.objects.using('default')
+            .order_by('-created_at')[:25]
+            .values('method', 'path', 'status_code', 'duration_ms', 'kind', 'actor_email', 'created_at')
+        )
+
+        return Response({
+            'checks': checks,
+            'api': {
+                'errors_24h': recent_qs.filter(kind='error').count(),
+                'slow_24h': recent_qs.filter(kind='slow').count(),
+            },
+            'recent': recent,
+            'slow_threshold_ms': 2000,
+            'checked_at': timezone.now().isoformat(),
+        })
+
+
 class SuperAdminSystemHealthView(APIView):
     """GET /api/v1/superadmin/system-health/, DB, Celery, and provider connectivity."""
     permission_classes = [IsSuperAdmin]
