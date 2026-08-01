@@ -16,8 +16,8 @@
  * results }.
  */
 
-import type { ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Lock, RefreshCw, Search } from 'lucide-react'
+import { Fragment, useState, type ReactNode } from 'react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Lock, RefreshCw, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ServerTableState } from './useServerTable'
 import { EmptyState } from './primitives'
@@ -53,6 +53,7 @@ export function ServerDataTable<Row>({
   emptyDescription,
   minWidth = 760,
   toolbarExtra,
+  renderExpanded,
 }: {
   table: ServerTableState<Row>
   columns: ServerColumn<Row>[]
@@ -65,8 +66,24 @@ export function ServerDataTable<Row>({
   minWidth?: number
   /** Page-specific toolbar content (e.g. an export button), right-aligned. */
   toolbarExtra?: ReactNode
+  /**
+   * When provided, each row gets a chevron toggle and, when expanded, this
+   * renders a detail panel in a full-width row beneath it. The panel is only
+   * mounted for expanded rows, so any lazy-loaded detail (member PII, etc.) is
+   * never in the DOM until an authorised admin opens it.
+   */
+  renderExpanded?: (row: Row) => ReactNode
 }) {
   const { query, rows, count, totalPages, loading, error, forbidden } = table
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const expandCols = renderExpanded ? 1 : 0
+  const toggleExpanded = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   const sortState = (field?: string): 'asc' | 'desc' | null => {
     if (!field || !query.sort) return null
@@ -131,6 +148,7 @@ export function ServerDataTable<Row>({
         <table className="w-full" style={{ minWidth }}>
           <thead className="sticky top-0 z-10 border-b border-slate-100 bg-white">
             <tr>
+              {renderExpanded && <th className="w-10 py-3 pl-6" aria-hidden="true" />}
               {columns.map((col) => {
                 const state = sortState(col.sortField)
                 return (
@@ -166,10 +184,10 @@ export function ServerDataTable<Row>({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <SkeletonRows columns={columns.length} rows={Math.min(query.page_size, 8)} />
+              <SkeletonRows columns={columns.length + expandCols} rows={Math.min(query.page_size, 8)} />
             ) : forbidden ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-14">
+                <td colSpan={columns.length + expandCols} className="px-6 py-14">
                   <div className="mx-auto flex max-w-sm flex-col items-center gap-2 text-center">
                     <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                       <Lock className="h-5 w-5" />
@@ -183,7 +201,7 @@ export function ServerDataTable<Row>({
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-14">
+                <td colSpan={columns.length + expandCols} className="px-6 py-14">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <p className="text-sm font-medium text-navy">{error}</p>
                     <button
@@ -199,7 +217,7 @@ export function ServerDataTable<Row>({
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-10">
+                <td colSpan={columns.length + expandCols} className="px-6 py-10">
                   <EmptyState
                     icon={emptyIcon}
                     title={hasActiveCriteria ? 'Nothing matches these filters' : emptyTitle}
@@ -212,18 +230,44 @@ export function ServerDataTable<Row>({
                 </td>
               </tr>
             ) : (
-              rows.map((row, index) => (
-                <tr key={rowKey(row, index)} className="transition-colors hover:bg-slate-50/70">
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={`px-4 py-3.5 text-sm text-slate-600 first:pl-6 last:pr-6 ${alignClass(col.align)}`}
-                    >
-                      {col.render(row)}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              rows.map((row, index) => {
+                const key = rowKey(row, index)
+                const isOpen = expanded.has(key)
+                return (
+                  <Fragment key={key}>
+                    <tr className={`transition-colors hover:bg-slate-50/70 ${isOpen ? 'bg-slate-50/70' : ''}`}>
+                      {renderExpanded && (
+                        <td className="w-10 py-3.5 pl-6">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(key)}
+                            aria-label={isOpen ? 'Collapse row' : 'Expand row'}
+                            aria-expanded={isOpen}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                          >
+                            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        </td>
+                      )}
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className={`px-4 py-3.5 text-sm text-slate-600 ${renderExpanded ? '' : 'first:pl-6'} last:pr-6 ${alignClass(col.align)}`}
+                        >
+                          {col.render(row)}
+                        </td>
+                      ))}
+                    </tr>
+                    {renderExpanded && isOpen && (
+                      <tr className="bg-slate-50/40">
+                        <td colSpan={columns.length + expandCols} className="border-t border-slate-100 px-6 py-4">
+                          {renderExpanded(row)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })
             )}
           </tbody>
         </table>

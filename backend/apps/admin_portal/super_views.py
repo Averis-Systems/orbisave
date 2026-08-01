@@ -5,7 +5,7 @@ from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncDate, TruncMonth
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from apps.groups.models import Group
+from apps.groups.models import Group, GroupMember
 from apps.accounts.models import User
 from apps.loans.models import Loan
 from apps.contributions.models import Contribution
@@ -392,6 +392,90 @@ class SuperAdminDemographicsView(APIView):
             'gender_global': gender_global,
             'gender_by_country': gender_by_country,
             'regions_by_country': regions_by_country,
+        })
+
+
+class SuperAdminGroupMembersView(APIView):
+    """
+    GET /api/v1/superadmin/groups/<group_id>/members/
+
+    A group's roster for the Console drill-down. Cross-DB safe: the group, its
+    memberships and contributions live on the country shard, but the member
+    Users live on default. So the group is located across shards, memberships
+    are read on that shard, and the Users are batch-resolved from default,
+    never through the cross-DB FK (which would raise OperationalError).
+
+    super_admin only. Member PII is fetched on demand by an authorised admin and
+    is never part of the groups-list payload, so it cannot leak to a lower role
+    or to an unauthenticated client.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request, group_id):
+        group = None
+        alias = None
+        for c in COUNTRIES:
+            candidate_alias = get_db_for_country(c)
+            g = Group.objects.using(candidate_alias).filter(id=group_id).first()
+            if g is not None:
+                group, alias = g, candidate_alias
+                break
+        if group is None:
+            return Response({'error': 'Group not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        memberships = list(
+            GroupMember.objects.using(alias)
+            .filter(group_id=group.id)
+            .order_by('rotation_position', 'joined_at')
+            .values('id', 'member_id', 'role', 'status', 'rotation_position', 'joined_at')
+        )
+        member_ids = [m['member_id'] for m in memberships]
+        users = {
+            str(u.id): u
+            for u in User.objects.filter(id__in=member_ids).only(
+                'id', 'full_name', 'email', 'phone', 'kyc_status', 'gender'
+            )
+        }
+        confirmed = {
+            str(r['member_id']): r['n']
+            for r in Contribution.objects.using(alias)
+            .filter(group_id=group.id, status='confirmed')
+            .values('member_id')
+            .annotate(n=Count('id'))
+        }
+
+        gender_labels = dict(User.GENDER_CHOICES)
+        members = []
+        for m in memberships:
+            uid = str(m['member_id'])
+            u = users.get(uid)
+            members.append({
+                'membership_id': str(m['id']),
+                'full_name': u.full_name if u else 'Unknown',
+                'email': u.email if u else '',
+                'phone': u.phone if u else '',
+                'kyc_status': u.kyc_status if u else '',
+                'gender': gender_labels.get(getattr(u, 'gender', ''), '') if u else '',
+                'role': m['role'],
+                'status': m['status'],
+                'rotation_position': m['rotation_position'],
+                'joined_at': m['joined_at'].isoformat() if m['joined_at'] else None,
+                'contributions_confirmed': confirmed.get(uid, 0),
+                'has_first_contribution': confirmed.get(uid, 0) > 0,
+            })
+
+        return Response({
+            'group': {
+                'id': str(group.id),
+                'name': group.name,
+                'country': group.country,
+                'currency': group.currency,
+                'invite_code': group.invite_code,
+                'invite_expires_at': group.invite_expires_at.isoformat() if group.invite_expires_at else None,
+                'max_members': group.max_members,
+                'member_count': len(members),
+            },
+            'members': members,
         })
 
 
