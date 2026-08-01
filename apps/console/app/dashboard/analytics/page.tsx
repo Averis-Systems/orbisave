@@ -132,8 +132,8 @@ export default function ConsoleAnalyticsPage() {
               <button
                 key={c}
                 onClick={() => setCountry(c)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  country === c ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-navy'
+                className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  country === c ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-navy'
                 }`}
               >
                 {countryLabel(c)}

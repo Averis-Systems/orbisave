@@ -12,6 +12,7 @@ import {
   Globe,
   Landmark,
   ShieldCheck,
+  TrendingUp,
   UserCheck,
   Users,
 } from 'lucide-react'
@@ -57,7 +58,9 @@ interface CountryKpis {
 interface CountryRevenue {
   country: string
   currency: string
+  today: number
   mtd: number
+  ytd: number
   total: number
 }
 
@@ -314,14 +317,7 @@ export default function ConsoleOverview() {
               sub={t && t.kyc_pending > 0 ? 'Submitted, not yet decided' : 'Queue clear'}
               href="/dashboard/users?tab=members&kyc_status=submitted"
             />
-            <StatCard
-              label="Active loans"
-              value={formatCount(t?.active_loans)}
-              icon={Banknote}
-              tone={defaultedLoans > 0 ? 'risk' : 'default'}
-              sub={defaultedLoans > 0 ? `${formatCount(defaultedLoans)} defaulted` : 'None defaulted'}
-              href="/dashboard/loans"
-            />
+            <RevenueCard revenue={data?.revenue_by_country || []} />
           </>
         )}
       </div>
@@ -412,7 +408,7 @@ export default function ConsoleOverview() {
           columns={columns}
           rows={byCountry}
           rowKey={(c) => c.country}
-          minWidth={920}
+          minWidth={680}
           empty={loading ? 'Loading country figures…' : 'No country data available.'}
         />
       </SectionCard>
@@ -430,8 +426,8 @@ export default function ConsoleOverview() {
                   <button
                     key={c}
                     onClick={() => setRegionCountry(c)}
-                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                      regionCountry === c ? 'bg-white text-navy shadow-sm' : 'text-slate-500 hover:text-navy'
+                    className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      regionCountry === c ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-navy'
                     }`}
                   >
                     {countryLabel(c)}
@@ -486,6 +482,56 @@ export default function ConsoleOverview() {
             )}
           </SectionCard>
         </div>
+      </div>
+    </div>
+  )
+}
+
+type RevenuePeriod = 'today' | 'mtd' | 'ytd'
+const REVENUE_PERIODS: { key: RevenuePeriod; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'mtd', label: 'MRR' },
+  { key: 'ytd', label: 'ARR' },
+]
+
+/**
+ * Platform revenue on the scale row, in place of the old active-loans count.
+ * Revenue is the platform fee on successful disbursements, recorded per
+ * country in that country's currency, so figures are shown per currency and
+ * never summed across borders. The small toggle switches the window (today,
+ * this month as MRR, this year as ARR). Same footprint as a StatCard.
+ */
+function RevenueCard({ revenue }: { revenue: CountryRevenue[] }) {
+  const [period, setPeriod] = useState<RevenuePeriod>('today')
+
+  const nonZero = revenue.filter((r) => r[period] > 0)
+  const valueText = nonZero.length
+    ? nonZero.map((r) => formatMoney(r[period], r.country)).join('   ·   ')
+    : formatMoney(0, revenue[0]?.country || 'kenya')
+
+  return (
+    <div className="flex h-full min-w-0 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-sm font-medium text-slate-500">Revenue</span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#ecfdf3] text-[#039855]">
+          <TrendingUp className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-2 truncate text-2xl font-semibold tabular-nums text-navy" title={valueText}>
+        {valueText}
+      </p>
+      <div className="mt-3 flex gap-0.5 rounded-lg bg-slate-100 p-0.5">
+        {REVENUE_PERIODS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPeriod(p.key)}
+            className={`flex-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
+              period === p.key ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-navy'
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
     </div>
   )

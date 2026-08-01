@@ -78,17 +78,25 @@ def _country_revenue(country):
     """
     alias = get_db_for_country(country)
     now = timezone.now()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = day_start.replace(day=1)
+    year_start = day_start.replace(month=1, day=1)
     qs = LedgerEntry.objects.using(alias).filter(
         group__country=country,
         account_stream='company_revenue',
         entry_type='service_fee',
         direction='credit',
     )
+
+    def total_since(start):
+        return float(qs.filter(created_at__gte=start).aggregate(t=Sum('amount'))['t'] or 0)
+
     return {
         'country': country,
         'currency': COUNTRY_CURRENCY.get(country, ''),
-        'mtd': float(qs.filter(created_at__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0),
+        'today': total_since(day_start),
+        'mtd': total_since(month_start),
+        'ytd': total_since(year_start),
         'total': float(qs.aggregate(t=Sum('amount'))['t'] or 0),
     }
 
