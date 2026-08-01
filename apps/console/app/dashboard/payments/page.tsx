@@ -153,6 +153,7 @@ export default function PaymentProvidersPage() {
         <StatCard label="Countries covered" value={stats.countries} icon={Globe2} />
       </div>
 
+      <div className="rounded-2xl shadow-[0_1px_2px_rgba(10,37,64,0.04),0_1px_3px_rgba(10,37,64,0.06)]">
       <SectionCard bodyClassName="p-0">
         {/* Toolbar */}
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
@@ -286,6 +287,7 @@ export default function PaymentProvidersPage() {
           </table>
         </div>
       </SectionCard>
+      </div>
     </div>
   )
 }
