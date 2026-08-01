@@ -36,6 +36,7 @@ Last reviewed: 2026-07-31 (pre-Absa partnership review, from QA / Product / CTO 
 | M4 | Ops / Telemetry | `ApiMetricsMiddleware` writes to the default DB synchronously on an anomaly; during a DB-degradation incident the anomaly write hits the same DB. Acceptable now; at scale move to a queue or external APM. | Accepted risk |
 | M5 | Product / UX | Manager register has no in-page verify-code step (redirects to `/login` with instructions). | Open |
 | M6 | Analytics | Nightly `MetricSnapshot` rollup not built, so deeper financial trends (on-time ratio, activation funnel, arrears over time) are deferred (honestly labelled). | Open |
+| M7 | Product / Payouts | `GroupMember.rotation_position` is not assigned sequentially: in live data multiple members in the same group share position `1`, so the payout order (who gets the pooled payout next, by join order + first contribution) is not actually resolved. The Console roster displays the DB value faithfully; the gap is in the rotation-assignment logic. Assign/normalise positions when a member makes their first confirmed contribution. Surfaced 2026-08-01 during the Console groups drill-down. | Open |
 
 ## LOW / NOT YET AUDITED
 
