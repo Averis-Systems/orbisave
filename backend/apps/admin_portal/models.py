@@ -336,3 +336,36 @@ class ApiEvent(BaseModel):
 
     def __str__(self):
         return f'{self.method} {self.path} [{self.status_code}] {self.duration_ms}ms'
+
+
+class PartnerEnquiry(BaseModel):
+    """
+    A partnership enquiry from the public marketing site (banks, distributors,
+    agent networks, investors). Submitted unauthenticated through a throttled
+    public endpoint and reviewed by the super admin. Business-contact data only,
+    no secrets. Lives on default, which is platform-wide.
+    """
+    PARTNER_TYPES = [
+        ('bank', 'Bank or financial institution'),
+        ('distributor', 'Distributor or agent network'),
+        ('investor', 'Investor'),
+        ('other', 'Other'),
+    ]
+    STATUS_CHOICES = [('new', 'New'), ('contacted', 'Contacted'), ('closed', 'Closed')]
+
+    organization = models.CharField(max_length=200)
+    contact_name = models.CharField(max_length=150)
+    email = models.EmailField()
+    phone = models.CharField(max_length=40, blank=True)
+    partner_type = models.CharField(max_length=20, choices=PARTNER_TYPES, default='other')
+    message = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    source = models.CharField(max_length=40, default='landing')
+
+    class Meta:
+        db_table = 'partner_enquiry'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.organization} ({self.partner_type})'

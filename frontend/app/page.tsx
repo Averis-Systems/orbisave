@@ -4,6 +4,7 @@ import { WhoItsFor } from "@/components/landing/WhoItsFor"
 import { HowItWorks } from "@/components/landing/HowItWorks"
 import { ComparisonMatrix } from "@/components/landing/ComparisonMatrix"
 import { PilotProof } from "@/components/landing/PilotProof"
+import { PartnerBand } from "@/components/landing/PartnerBand"
 import { CtaSection } from "@/components/landing/CtaSection"
 import { Footer } from "@/components/landing/Footer"
 
@@ -24,6 +25,7 @@ export default function Home() {
       <HowItWorks />
       <ComparisonMatrix />
       <PilotProof />
+      <PartnerBand />
       <CtaSection />
       <Footer />
     </div>

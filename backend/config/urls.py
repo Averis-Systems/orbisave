@@ -3,12 +3,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from apps.admin_portal.branding_views import PlatformBrandingView
+from apps.admin_portal.public_views import PartnerEnquiryCreateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # Public: all three frontends read this, including pre-login pages, 
+    # Public: all three frontends read this, including pre-login pages,
     # doesn't live under admin-portal/ since it isn't an admin-only concern.
     path('api/v1/platform-branding/', PlatformBrandingView.as_view(), name='platform-branding'),
+    # Public: partnership enquiries from the marketing site (anonymous, throttled).
+    path('api/v1/partner-enquiries/', PartnerEnquiryCreateView.as_view(), name='partner-enquiries'),
     path('api/v1/auth/', include('apps.accounts.urls', namespace='accounts')),
     path('api/v1/groups/', include('apps.groups.urls')),
     path('api/v1/invites/', include('apps.groups.invite_urls_global')),
