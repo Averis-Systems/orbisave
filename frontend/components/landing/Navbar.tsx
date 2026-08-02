@@ -74,23 +74,18 @@ export function Navbar({ variant = "light" }: { variant?: "light" | "dark" }) {
               />
             ) : (
               <>
-                <span
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:rotate-6"
-                  style={{ background: "#0a2540" }}
-                  aria-hidden="true"
+                <div
+                  className="w-8 h-8 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:rotate-6"
+                  style={{ background: "#00ab00", borderRadius: "5px" }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="4.2" fill="#00ab00" />
-                    <ellipse cx="12" cy="12" rx="9.5" ry="4.4" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="1.4" transform="rotate(-28 12 12)" />
-                    <circle cx="20" cy="8.7" r="1.7" fill="#ffffff" />
-                  </svg>
-                </span>
+                  <span className="text-white font-semibold text-sm leading-none">O</span>
+                </div>
                 <span
                   className={`text-lg font-bold tracking-tight transition-colors duration-200 ${
                     !scrolled && variant === "dark" ? "text-white" : "text-[#0a2540]"
                   }`}
                 >
-                  Orbi<span style={{ color: "#00ab00" }}>Save</span>
+                  OrbiSave
                 </span>
               </>
             )}
