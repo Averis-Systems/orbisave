@@ -11,10 +11,10 @@ const STEPS = [
     number: "01",
     icon: Users,
     iconCls: "step-icon-users",
-    title: "Start Your Group",
+    title: "Start your group",
     description:
-      "Create your group, define the savings terms, and set the payout sequence. Members join via secure invites, establishing a closed, trusted network.",
-    detail: "KES 5,000 · Weekly · 10 Members",
+      "Create your group, set the contribution amount and schedule, and decide the payout order. Members join through secure invite codes, so your circle stays closed and trusted.",
+    detail: "KES 5,000 · Weekly · 10 members",
     bg: "#e9f3ed",
     accent: "#00ab00",
     image: "/images/step1.jpg"
@@ -23,10 +23,10 @@ const STEPS = [
     number: "02",
     icon: Smartphone,
     iconCls: "step-icon-phone",
-    title: "Save Every Week",
+    title: "Save together every cycle",
     description:
-      "Members contribute via mobile money (M-Pesa, MTN) or bank transfer. The platform automatically reconciles payments, eliminating manual bookkeeping and disputes.",
-    detail: "9/10 Confirmed · 1 Pending",
+      "Members contribute by mobile money or bank transfer. We reconcile every payment automatically and post it to a ledger the whole group can see, so there is no manual bookkeeping and nothing to argue over.",
+    detail: "9/10 confirmed · 1 pending",
     bg: "#e8edf3",
     accent: "#0a2540",
     image: "/images/step2.jpg"
@@ -35,10 +35,10 @@ const STEPS = [
     number: "03",
     icon: RotateCcw,
     iconCls: "step-icon-rotate",
-    title: "Get Your Big Payout",
+    title: "Receive your payout",
     description:
-      "When a member's turn arrives, the rotation savings total is disbursed directly to their wallet. Smart contracts enforce the queue, ensuring zero delays.",
-    detail: "Payout → Amara K. · KES 48,500 Net",
+      "When a member's turn comes, we disburse the pooled amount straight to their account. The rotation follows join order and first contribution, so the queue stays fair and on time.",
+    detail: "Payout → Amara K. · KES 48,500",
     bg: "#e9f3ed",
     accent: "#00ab00",
     image: "/images/step3.jpg"
@@ -47,10 +47,10 @@ const STEPS = [
     number: "04",
     icon: Landmark,
     iconCls: "step-icon-landmark",
-    title: "Emergency Loans",
+    title: "Borrow from your pool",
     description:
-      "A portion of contributions forms a reserve fund. Members can request instant, low-interest micro-loans, approved digitally by group administrators.",
-    detail: "Reserve: KES 18,000 · Rate: 3% / month",
+      "Part of the savings forms a loan pool. Members can request affordable loans from their own group, reviewed and approved by the group's leaders, and repaid on clear terms.",
+    detail: "Loan pool: KES 18,000 · From your group",
     bg: "#e8edf3",
     accent: "#0a2540",
     image: "/images/step4.jpg"
@@ -129,16 +129,17 @@ export function HowItWorks() {
             className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.15em] uppercase mb-5 px-3 py-1.5"
             style={{ color: "#00ab00", background: "#e9f3ed", borderRadius: "4px", border: "1px solid #d6e4df" }}
           >
-            How Orbisave Works
+            How OrbiSave works
           </div>
           <h2
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight mb-5"
             style={{ color: "#0a2540" }}
           >
-            A secure, transparent wealth-building engine.
+            A secure, transparent way to save, rotate and borrow.
           </h2>
           <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
-            We take the group savings you know and trust, and move them to your phone. It&apos;s the same chama you love, but much safer and easier to manage for everyone.
+            We take the group savings you already know and trust and bring them to your phone. The same circle, now
+            safer and simpler for everyone to manage.
           </p>
         </div>
 

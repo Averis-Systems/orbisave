@@ -34,8 +34,7 @@ export function HeroLanding() {
       if (reduce) return
 
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } })
-      tl.from(".hero-eyebrow", { y: 16, opacity: 0, duration: 0.5 })
-        .from(".hero-line", { y: 34, opacity: 0, duration: 0.75, stagger: 0.1 }, "-=0.2")
+      tl.from(".hero-line", { y: 34, opacity: 0, duration: 0.75, stagger: 0.1 })
         .from(".hero-sub", { y: 18, opacity: 0, duration: 0.6 }, "-=0.35")
         .from(".hero-cta", { y: 14, opacity: 0, duration: 0.5, stagger: 0.08 }, "-=0.3")
         .from(".hero-trust", { opacity: 0, y: 10, duration: 0.5, stagger: 0.08 }, "-=0.25")
@@ -80,27 +79,18 @@ export function HeroLanding() {
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-24 pt-28 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-8 lg:px-8 lg:pb-32 lg:pt-32">
         {/* ── Copy ─────────────────────────────────────────────────────── */}
         <div className="hero-reveal invisible flex flex-col gap-6">
-          <div
-            className="hero-eyebrow inline-flex w-fit items-center gap-2 rounded-full border px-3.5 py-1.5"
-            style={{ borderColor: "#cfe3d8", background: "rgba(255,255,255,0.7)" }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#00ab00" }} />
-            <span className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "#0a2540" }}>
-              Kenya · Rwanda · Ghana
-            </span>
-          </div>
-
-          <h1 className="text-[2.6rem] font-extrabold leading-[1.04] tracking-tight sm:text-5xl lg:text-[4rem]" style={{ color: "#0a2540" }}>
-            <span className="hero-line block">The safe home for</span>
+          <h1 className="text-[2.6rem] font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-[4rem]" style={{ color: "#0a2540" }}>
+            <span className="hero-line block">Digitizing Africa&apos;s</span>
             <span className="hero-line block">
-              your group&apos;s <span style={{ color: "#00ab00" }}>money</span>.
+              oldest <span style={{ color: "#00ab00" }}>savings tradition</span>.
             </span>
           </h1>
 
-          <p className="hero-sub max-w-[540px] text-base leading-relaxed sm:text-lg" style={{ color: "#46586a" }}>
-            Chamas, staff welfare, student groups, teachers&apos; SACCOs and farmer co-ops. OrbiSave keeps your pooled
-            savings in a real bank trust account, records every shilling on a ledger everyone can see, and manages whose
-            turn it is to be paid.
+          <p className="hero-sub max-w-[560px] text-base leading-relaxed sm:text-lg" style={{ color: "#46586a" }}>
+            For generations, communities have saved together in chamas, welfare groups and table-banking circles.
+            OrbiSave brings that tradition into one secure app. We hold your group&apos;s funds in a licensed bank trust
+            account, log every contribution on a shared ledger, and handle payouts and loans automatically. No more
+            notebook, no more cash box, no more doubt about who paid what.
           </p>
 
           <div className="flex flex-wrap gap-3 pt-1">
