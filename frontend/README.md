@@ -45,9 +45,9 @@ Console `emanuel@averissystems.com` · Manager `manager@averissystems.com` · Me
 To run the frontend alongside the backend and database:
 Refer to the [Root README](../README.md) for Docker commands. The Dockerized frontend will be available at [http://localhost:3001](http://localhost:3001).
 
-> Docker uses **PostgreSQL**; local `npm run dev` + local Django uses **SQLite**.
-> These are separate databases with separate accounts. Do not mix the two on
-> port 8000, or the account you seeded in one will be "missing" in the other.
+> Dev runs on **Postgres** (same engine as production), started with
+> `docker compose ... up -d db`. See [backend/README](../backend/README.md).
+> Just don't run two backends on port 8000 at once.
 
 ---
 

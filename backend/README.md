@@ -40,14 +40,22 @@ To ensure regional data isolation and compliance, we use a custom database route
 
 ## 🚀 Getting Started
 
-### Local development (no Docker) — SQLite
+### Local development — Postgres (recommended)
 
-> **Which database?** The local dev backend uses **SQLite**: `db.sqlite3` plus one
-> file per country shard (`db_ke.sqlite3`, `db_rw.sqlite3`, `db_gh.sqlite3`). The
-> Docker stack (root README) uses a **separate PostgreSQL** database. They do NOT
-> share data or accounts. Pick one and stay on it, and never let both serve port
-> 8000 at the same time (see Troubleshooting).
+Run dev against the **same engine as production (Postgres)**. SQLite is offered
+as a no-setup fallback, but it does **not** exercise the financial-engine
+concurrency (`pg_advisory_xact_lock` is a no-op on SQLite), so anything touching
+money should be tested on Postgres.
 
+0. **Database config**: copy `.env.example` to `.env`. It already points at the
+   dockerised Postgres (host port **5433**). Start just the DB (you do **not**
+   need the full Docker stack):
+   ```bash
+   docker compose -f infrastructure/docker/docker-compose.yml up -d db
+   ```
+   > Host port is **5433**, not 5432, so it never clashes with a native Postgres
+   > install that may already own 5432. Creds: `orbisave` / `dev_password`, DBs
+   > `orbisave`, `orbisave_ke`, `orbisave_rw`, `orbisave_gh`.
 1. **Virtual environment** (first time only):
    ```bash
    python -m venv venv
@@ -56,7 +64,7 @@ To ensure regional data isolation and compliance, we use a custom database route
    ```
 2. **Migrate every database, seed the dev accounts, then run** (from `backend/`):
    ```bash
-   # Windows (this is exactly what .claude/launch.json runs)
+   # Windows (migrate + seed is exactly what .claude/launch.json runs)
    venv\Scripts\python.exe manage.py migrate_all
    venv\Scripts\python.exe manage.py seed_dev_accounts
    venv\Scripts\python.exe manage.py runserver 8000
@@ -66,6 +74,11 @@ To ensure regional data isolation and compliance, we use a custom database route
    - `seed_dev_accounts` is **idempotent** and (re)creates the login accounts
      below, so a fresh or wiped database never leaves you at "invalid
      credentials".
+
+> Because local dev and the Docker backend now use the **same** Postgres, an
+> account seeded once works no matter which backend answers on :8000. The only
+> rule left: don't run two backends on :8000 at once (that's a port clash, not a
+> data mismatch).
 
 ### Dev login accounts (created/reset by `seed_dev_accounts`)
 

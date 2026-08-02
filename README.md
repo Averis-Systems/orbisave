@@ -42,24 +42,26 @@ docker-compose -f infrastructure/docker/docker-compose.yml up --build
 
 If you prefer running services individually for faster hot-reloading:
 
-> **Docker vs local, read this once.** The Docker stack above uses **PostgreSQL**.
-> The local (no-Docker) flow below uses **SQLite**. They are separate databases
-> with separate accounts. Run **one** backend on port 8000 at a time. If login
-> says "invalid credentials" with the right password, you are almost certainly
-> hitting the other database, stop it (`docker stop orbisave_backend`) and use one.
+> **One database everywhere.** Dev now runs on **Postgres**, the same engine as
+> production, so behaviour matches and there is a single set of accounts. Just
+> don't run two backends on port 8000 at once (a port clash, not a data one).
 
-### 1. Backend (Django, SQLite)
+### 1. Backend (Django + Postgres)
 ```bash
+# Start only the Postgres container (host port 5433; no need for the full stack)
+docker compose -f infrastructure/docker/docker-compose.yml up -d db
+
 cd backend
+cp .env.example .env                # already points at localhost:5433 Postgres
 python -m venv venv
-.\venv\Scripts\activate           # Windows  (Unix: source venv/bin/activate)
+.\venv\Scripts\activate             # Windows  (Unix: source venv/bin/activate)
 pip install -r requirements/development.txt
 
-python manage.py migrate_all       # default DB + kenya/rwanda/ghana shards
-python manage.py seed_dev_accounts # idempotent: guarantees the login accounts exist
+python manage.py migrate_all        # default DB + kenya/rwanda/ghana shards
+python manage.py seed_dev_accounts  # idempotent: guarantees the login accounts exist
 python manage.py runserver 8000
 ```
-*Backend runs at [http://localhost:8000](http://localhost:8000). `migrate_all` + `seed_dev_accounts` are what keep logins working, this is exactly what `.claude/launch.json` runs.*
+*Backend runs at [http://localhost:8000](http://localhost:8000). `migrate_all` + `seed_dev_accounts` are what keep logins working, this is exactly what `.claude/launch.json` runs. SQLite is still available as a no-Docker fallback, see `backend/.env.example`.*
 
 ### 2. Frontends (Next.js) — run each in its own terminal
 ```bash

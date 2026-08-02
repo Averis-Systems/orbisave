@@ -76,9 +76,13 @@ class BankProvider(BaseModel):
                                                  help_text="e.g. ['mpesa', 'airtel'], methods bridged via this bank")
 
     # ── Management metadata ───────────────────────────────────────────────────
+    # db_constraint=False: User lives on 'default', but payments is a financial
+    # app so this table is also created on the country shards, where accounts_user
+    # does not exist. A real FK constraint there fails to build on Postgres (it
+    # silently passed on SQLite). Matches the loans/contributions User-FK pattern.
     configured_by     = models.ForeignKey(
         'accounts.User', on_delete=models.PROTECT,
-        null=True, related_name='configured_providers'
+        null=True, related_name='configured_providers', db_constraint=False,
     )
     last_tested_at    = models.DateTimeField(null=True, blank=True)
     last_test_status  = models.CharField(max_length=20, blank=True)   # ok | error | timeout
