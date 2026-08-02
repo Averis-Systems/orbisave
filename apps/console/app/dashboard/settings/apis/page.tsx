@@ -4,31 +4,18 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Banknote,
-  Building2,
-  Check,
   CheckCircle,
   Clock,
-  Coins,
   Database,
   Fingerprint,
-  Info,
   Key,
-  Landmark,
   Loader2,
-  Lock,
-  MapPin,
   MessageSquare,
-  PiggyBank,
   Plus,
-  Smartphone,
   RefreshCcw,
   ShieldCheck,
   SlidersHorizontal,
   Terminal,
-  Trash2,
   Video,
   X,
   Zap,
@@ -38,7 +25,7 @@ import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
 
-type TabKey = 'kyc' | 'payments' | 'sms' | 'meetings' | 'platform' | 'logs'
+type TabKey = 'kyc' | 'sms' | 'meetings' | 'platform' | 'logs'
 
 interface Config {
   id: string
@@ -50,170 +37,6 @@ interface Config {
   updated_at: string
 }
 
-interface BankAccount {
-  id?: string
-  label: string
-  account_type: string
-  account_number: string
-  account_name: string
-  currency: string
-  bank_code?: string
-  branch_code?: string
-  is_active?: boolean
-  is_default_for_collections?: boolean
-  is_default_for_disbursements?: boolean
-  is_default_for_reconciliation?: boolean
-}
-
-interface Provider {
-  id: string
-  name: string
-  provider_code: string
-  country: string
-  region?: string
-  environment: string
-  status: string
-  base_url: string
-  merchant_code?: string
-  webhook_url?: string
-  supports_collections?: boolean
-  supports_disbursements?: boolean
-  supports_mobile_money?: boolean
-  has_api_key?: boolean
-  has_api_secret?: boolean
-  has_webhook_secret?: boolean
-  accounts?: BankAccount[]
-  last_tested_at?: string | null
-  last_test_status?: string
-  last_test_message?: string
-}
-
-/** The four accounts every partner bank holds for OrbiSave, in wizard order. */
-const CORE_ACCOUNTS = [
-  {
-    key: 'trust',
-    label: 'Main Trust / Custody',
-    icon: ShieldCheck,
-    hint: 'Holds members’ pooled savings in custody. The regulated trust account the bank ring-fences from OrbiSave’s own funds.',
-    defaultFlag: 'is_default_for_reconciliation' as const,
-  },
-  {
-    key: 'savings',
-    label: 'Group Savings',
-    icon: PiggyBank,
-    hint: 'Where member contributions are collected before they settle into the trust. Default account for collections.',
-    defaultFlag: 'is_default_for_collections' as const,
-  },
-  {
-    key: 'loan',
-    label: 'Loan Disbursement',
-    icon: Coins,
-    hint: 'Funds loans are paid out from and repayments return to. Default account for disbursements.',
-    defaultFlag: 'is_default_for_disbursements' as const,
-  },
-  {
-    key: 'fee',
-    label: 'Company / Charges',
-    icon: Building2,
-    hint: 'OrbiSave’s own account. Collects the transactional charges we earn on each successful transaction.',
-    defaultFlag: null,
-  },
-] as const
-
-type CoreAccountKey = (typeof CORE_ACCOUNTS)[number]['key']
-
-interface BankAccountDraft {
-  id?: string
-  account_number: string
-  account_name: string
-  currency: string
-  bank_code: string
-  branch_code: string
-}
-
-interface BankWizardForm {
-  id?: string
-  provider_code: string
-  name: string
-  country: string
-  region: string
-  environment: 'sandbox' | 'live'
-  status: string
-  base_url: string
-  api_key: string
-  api_secret: string
-  merchant_code: string
-  webhook_url: string
-  webhook_secret: string
-  supports_collections: boolean
-  supports_disbursements: boolean
-  supports_mobile_money: boolean
-  accounts: Record<CoreAccountKey, BankAccountDraft>
-}
-
-/**
- * Partner rails we can plug in. Selecting one prefills name, country and base
- * URL. `short` is the card title, `kind` groups them (bank vs wallet vs custom)
- * and `initials` renders the logo tile when we have no brand mark.
- */
-type PartnerKind = 'bank' | 'wallet' | 'custom'
-const BANK_PARTNERS: {
-  code: string
-  label: string
-  short: string
-  initials: string
-  kind: PartnerKind
-  country: string
-  base_url: string
-}[] = [
-  { code: 'jenga_ke', label: 'Equity Bank Kenya (Jenga)', short: 'Equity Bank', initials: 'EQ', kind: 'bank', country: 'kenya', base_url: 'https://api.finserve.africa' },
-  { code: 'absa_ke', label: 'Absa Bank Kenya', short: 'Absa Bank', initials: 'AB', kind: 'bank', country: 'kenya', base_url: '' },
-  { code: 'coop_ke', label: 'Co-operative Bank Kenya', short: 'Co-operative Bank', initials: 'CO', kind: 'bank', country: 'kenya', base_url: '' },
-  { code: 'jenga_rw', label: 'Equity Bank Rwanda (Jenga)', short: 'Equity Rwanda', initials: 'EQ', kind: 'bank', country: 'rwanda', base_url: 'https://api.finserve.africa' },
-  { code: 'ecobank_gh', label: 'Ecobank Ghana', short: 'Ecobank', initials: 'EC', kind: 'bank', country: 'ghana', base_url: '' },
-  { code: 'mpesa', label: 'M-Pesa (Daraja)', short: 'M-Pesa', initials: 'MP', kind: 'wallet', country: 'kenya', base_url: 'https://sandbox.safaricom.co.ke' },
-  { code: 'mtn_momo', label: 'MTN MoMo', short: 'MTN MoMo', initials: 'MT', kind: 'wallet', country: 'ghana', base_url: '' },
-  { code: 'airtel', label: 'Airtel Money', short: 'Airtel Money', initials: 'AT', kind: 'wallet', country: 'kenya', base_url: '' },
-  { code: 'custom', label: 'Custom / Other', short: 'Custom rail', initials: '+', kind: 'custom', country: 'kenya', base_url: '' },
-]
-
-const COUNTRY_META: Record<string, { label: string; currency: string; code: string }> = {
-  kenya: { label: 'Kenya', currency: 'KES', code: 'KE' },
-  rwanda: { label: 'Rwanda', currency: 'RWF', code: 'RW' },
-  ghana: { label: 'Ghana', currency: 'GHS', code: 'GH' },
-}
-
-const emptyAccountDraft = (currency: string): BankAccountDraft => ({
-  account_number: '',
-  account_name: '',
-  currency,
-  bank_code: '',
-  branch_code: '',
-})
-
-const buildEmptyBankForm = (): BankWizardForm => ({
-  provider_code: 'jenga_ke',
-  name: 'Equity Bank Kenya',
-  country: 'kenya',
-  region: '',
-  environment: 'sandbox',
-  status: 'inactive',
-  base_url: 'https://api.finserve.africa',
-  api_key: '',
-  api_secret: '',
-  merchant_code: '',
-  webhook_url: '',
-  webhook_secret: '',
-  supports_collections: true,
-  supports_disbursements: true,
-  supports_mobile_money: true,
-  accounts: {
-    trust: emptyAccountDraft('KES'),
-    savings: emptyAccountDraft('KES'),
-    loan: emptyAccountDraft('KES'),
-    fee: emptyAccountDraft('KES'),
-  },
-})
 
 interface KycProvider {
   id: string
@@ -363,9 +186,8 @@ const emptySmsForm: SmsProviderForm = {
 }
 
 export default function ApiOperationsPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>('payments')
+  const [activeTab, setActiveTab] = useState<TabKey>('kyc')
   const [configs, setConfigs] = useState<Config[]>([])
-  const [providers, setProviders] = useState<Provider[]>([])
   const [kycProviders, setKycProviders] = useState<KycProvider[]>([])
   const [meetingProviders, setMeetingProviders] = useState<MeetingProvider[]>([])
   const [smsProviders, setSmsProviders] = useState<SmsProvider[]>([])
@@ -379,9 +201,6 @@ export default function ApiOperationsPage() {
   const [showKycDialog, setShowKycDialog] = useState(false)
   const [showMeetingDialog, setShowMeetingDialog] = useState(false)
   const [showSmsDialog, setShowSmsDialog] = useState(false)
-  const [showBankWizard, setShowBankWizard] = useState(false)
-  const [savingBank, setSavingBank] = useState(false)
-  const [bankForm, setBankForm] = useState<BankWizardForm>(buildEmptyBankForm)
   const [kycForm, setKycForm] = useState<KycProviderForm>(emptyKycForm)
   const [meetingForm, setMeetingForm] = useState<MeetingProviderForm>(emptyMeetingForm)
   const [smsForm, setSmsForm] = useState<SmsProviderForm>(emptySmsForm)
@@ -393,9 +212,8 @@ export default function ApiOperationsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [configRes, providerRes, kycRes, meetingRes, smsRes, logRes, metricRes] = await Promise.all([
+      const [configRes, kycRes, meetingRes, smsRes, logRes, metricRes] = await Promise.all([
         api.get('/admin-portal/superadmin/settings/?category=api_data'),
-        api.get('/admin-portal/superadmin/payment-providers/'),
         api.get('/admin-portal/superadmin/kyc-providers/'),
         api.get('/admin-portal/superadmin/meeting-providers/'),
         api.get('/admin-portal/superadmin/notification-providers/'),
@@ -403,7 +221,6 @@ export default function ApiOperationsPage() {
         api.get('/admin-portal/superadmin/monitoring/metrics/'),
       ])
       setConfigs(configRes.data || [])
-      setProviders(providerRes.data.results || [])
       setKycProviders(kycRes.data.results || [])
       setMeetingProviders(meetingRes.data.results || [])
       setSmsProviders(smsRes.data.results || [])
@@ -421,18 +238,17 @@ export default function ApiOperationsPage() {
   const health = metrics?.summary?.success_rate ?? 100
   const meetingProvidersConfigured = meetingProviders.length
   const connectedServices =
-    configs.length + providers.length + kycProviders.length + meetingProvidersConfigured + smsProviders.length
+    configs.length + kycProviders.length + meetingProvidersConfigured + smsProviders.length
 
   const tabs = useMemo(
     () => [
-      { key: 'payments' as const, label: 'Banks & Payments', count: providers.length },
       { key: 'kyc' as const, label: 'KYC Identity', count: kycProviders.length },
       { key: 'sms' as const, label: 'SMS / OTP', count: smsProviders.length },
       { key: 'meetings' as const, label: 'Meetings', count: meetingProvidersConfigured },
       { key: 'platform' as const, label: 'Platform APIs', count: configs.length },
       { key: 'logs' as const, label: 'Audit Logs', count: logs.length },
     ],
-    [configs.length, kycProviders.length, logs.length, meetingProvidersConfigured, providers.length, smsProviders.length],
+    [configs.length, kycProviders.length, logs.length, meetingProvidersConfigured, smsProviders.length],
   )
 
   const openSmsDialog = (provider?: SmsProvider) => {
@@ -499,147 +315,6 @@ export default function ApiOperationsPage() {
       await fetchData()
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'SMS provider status could not be changed.')
-    }
-  }
-
-  const openBankWizard = (provider?: Provider) => {
-    if (provider) {
-      const currency = COUNTRY_META[provider.country]?.currency || 'KES'
-      const accounts = buildEmptyBankForm().accounts
-      // Load each stored account into its matching core slot (first per type).
-      for (const core of CORE_ACCOUNTS) {
-        const match = (provider.accounts || []).find((a) => a.account_type === core.key && a.is_active !== false)
-        accounts[core.key] = match
-          ? {
-              id: match.id,
-              account_number: match.account_number || '',
-              account_name: match.account_name || '',
-              currency: match.currency || currency,
-              bank_code: match.bank_code || '',
-              branch_code: match.branch_code || '',
-            }
-          : emptyAccountDraft(currency)
-      }
-      setBankForm({
-        id: provider.id,
-        provider_code: provider.provider_code,
-        name: provider.name,
-        country: provider.country,
-        region: provider.region || '',
-        environment: (provider.environment as 'sandbox' | 'live') || 'sandbox',
-        status: provider.status,
-        base_url: provider.base_url || '',
-        api_key: '',
-        api_secret: '',
-        merchant_code: provider.merchant_code || '',
-        webhook_url: provider.webhook_url || '',
-        webhook_secret: '',
-        supports_collections: provider.supports_collections ?? true,
-        supports_disbursements: provider.supports_disbursements ?? true,
-        supports_mobile_money: provider.supports_mobile_money ?? true,
-        accounts,
-      })
-    } else {
-      setBankForm(buildEmptyBankForm())
-    }
-    setShowBankWizard(true)
-  }
-
-  const saveBank = async (form: BankWizardForm) => {
-    setSavingBank(true)
-    const accounts = CORE_ACCOUNTS.filter((core) => form.accounts[core.key].account_number.trim()).map((core) => {
-      const draft = form.accounts[core.key]
-      const defaults: Record<string, boolean> = {}
-      if (core.defaultFlag) defaults[core.defaultFlag] = true
-      return {
-        ...(draft.id ? { id: draft.id } : {}),
-        label: core.label,
-        account_type: core.key,
-        account_number: draft.account_number.trim(),
-        account_name: draft.account_name.trim(),
-        country_code: COUNTRY_META[form.country]?.code || 'KE',
-        currency: draft.currency,
-        bank_code: draft.bank_code.trim(),
-        branch_code: draft.branch_code.trim(),
-        ...defaults,
-      }
-    })
-    const payload: Record<string, unknown> = {
-      provider_code: form.provider_code,
-      name: form.name,
-      country: form.country,
-      region: form.region.trim(),
-      environment: form.environment,
-      status: form.status,
-      base_url: form.base_url.trim(),
-      merchant_code: form.merchant_code.trim(),
-      webhook_url: form.webhook_url.trim(),
-      supports_collections: form.supports_collections,
-      supports_disbursements: form.supports_disbursements,
-      supports_mobile_money: form.supports_mobile_money,
-      accounts,
-    }
-    // Secrets are write-only; only send them when the operator typed one, so an
-    // edit that leaves them blank keeps the stored value.
-    if (form.api_key.trim()) payload.api_key = form.api_key.trim()
-    if (form.api_secret.trim()) payload.api_secret = form.api_secret.trim()
-    if (form.webhook_secret.trim()) payload.webhook_secret = form.webhook_secret.trim()
-    try {
-      if (form.id) {
-        await api.patch(`/admin-portal/superadmin/payment-providers/${form.id}/`, payload)
-      } else {
-        await api.post('/admin-portal/superadmin/payment-providers/', payload)
-      }
-      toast.success(`${form.name} saved.`)
-      setShowBankWizard(false)
-      await fetchData()
-    } catch (error: any) {
-      const detail = error.response?.data
-      const message =
-        typeof detail === 'object' && detail
-          ? Object.values(detail).flat().join(' ')
-          : 'Bank could not be saved.'
-      toast.error(message || 'Bank could not be saved.')
-    } finally {
-      setSavingBank(false)
-    }
-  }
-
-  const testBank = async (id: string) => {
-    setTestingId(id)
-    try {
-      const { data } = await api.post(`/admin-portal/superadmin/payment-providers/${id}/test/`)
-      if (data.success) {
-        toast.success(data.message || 'Bank connection is healthy.')
-      } else {
-        toast.error(data.message || 'Bank connection needs attention.')
-      }
-      await fetchData()
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Bank connection test failed.')
-    } finally {
-      setTestingId(null)
-    }
-  }
-
-  const toggleBank = async (id: string) => {
-    try {
-      await api.post(`/admin-portal/superadmin/payment-providers/${id}/toggle/`)
-      toast.success('Bank status updated.')
-      await fetchData()
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Bank status could not be changed.')
-    }
-  }
-
-  const deleteBank = async (id: string, name: string) => {
-    if (!window.confirm(`Remove ${name}? This cannot be undone.`)) return
-    try {
-      await api.delete(`/admin-portal/superadmin/payment-providers/${id}/`)
-      toast.success(`${name} removed.`)
-      await fetchData()
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Bank could not be removed.')
     }
   }
 
@@ -799,8 +474,8 @@ export default function ApiOperationsPage() {
         <div className="space-y-1.5">
           <h1 className="text-2xl font-bold tracking-tight text-navy">Integrations</h1>
           <p className="max-w-2xl text-sm leading-6 text-slate-500">
-            Partner banks and their accounts, identity, messaging and meeting providers. Credentials are encrypted at
-            rest and never returned to the console.
+            Identity, messaging and meeting providers, plus platform API keys. Credentials are encrypted at rest and
+            never returned to the console. Partner banks live under Payment providers.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -813,24 +488,20 @@ export default function ApiOperationsPage() {
           </button>
           <button
             onClick={() =>
-              activeTab === 'payments'
-                ? openBankWizard()
-                : activeTab === 'meetings'
-                  ? openMeetingDialog()
-                  : activeTab === 'sms'
-                    ? openSmsDialog()
-                    : openKycDialog()
+              activeTab === 'meetings'
+                ? openMeetingDialog()
+                : activeTab === 'sms'
+                  ? openSmsDialog()
+                  : openKycDialog()
             }
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
           >
             <Plus size={16} />
-            {activeTab === 'payments'
-              ? 'Add bank'
-              : activeTab === 'meetings'
-                ? 'Add meeting provider'
-                : activeTab === 'sms'
-                  ? 'Add SMS provider'
-                  : 'Add KYC provider'}
+            {activeTab === 'meetings'
+              ? 'Add meeting provider'
+              : activeTab === 'sms'
+                ? 'Add SMS provider'
+                : 'Add KYC provider'}
           </button>
         </div>
       </section>
@@ -927,18 +598,6 @@ export default function ApiOperationsPage() {
             onToggle={toggleKycProvider}
           />
         )}
-        {activeTab === 'payments' && (
-          <BanksTab
-            loading={loading}
-            providers={providers}
-            testingId={testingId}
-            onAdd={() => openBankWizard()}
-            onEdit={openBankWizard}
-            onTest={testBank}
-            onToggle={toggleBank}
-            onDelete={deleteBank}
-          />
-        )}
         {activeTab === 'sms' && (
           <SmsProvidersTab
             loading={loading}
@@ -965,15 +624,6 @@ export default function ApiOperationsPage() {
         {activeTab === 'logs' && <LogsTab loading={loading} logs={logs} />}
       </section>
 
-      {showBankWizard && (
-        <BankWizard
-          form={bankForm}
-          saving={savingBank}
-          onChange={setBankForm}
-          onClose={() => setShowBankWizard(false)}
-          onSubmit={saveBank}
-        />
-      )}
       {showKycDialog && (
         <KycDialog
           form={kycForm}
@@ -1278,817 +928,6 @@ function KycTab({
           </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-function BanksTab({
-  loading,
-  providers,
-  testingId,
-  onAdd,
-  onEdit,
-  onTest,
-  onToggle,
-  onDelete,
-}: {
-  loading: boolean
-  providers: Provider[]
-  testingId: string | null
-  onAdd: () => void
-  onEdit: (provider: Provider) => void
-  onTest: (id: string) => void
-  onToggle: (id: string) => void
-  onDelete: (id: string, name: string) => void
-}) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <ProviderSkeleton />
-        <ProviderSkeleton />
-      </div>
-    )
-  }
-
-  if (!providers.length) {
-    return (
-      <EmptyState
-        icon={<Landmark size={24} />}
-        title="No partner banks yet"
-        description="Add a partner bank (Equity, Absa, Co-operative and more) with its trust, savings, loan and company accounts. The wizard walks through it step by step."
-        actionLabel="Add bank"
-        onAction={onAdd}
-      />
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      {providers.map((provider) => (
-        <BankCard
-          key={provider.id}
-          provider={provider}
-          testing={testingId === provider.id}
-          onEdit={() => onEdit(provider)}
-          onTest={() => onTest(provider.id)}
-          onToggle={() => onToggle(provider.id)}
-          onDelete={() => onDelete(provider.id, provider.name)}
-        />
-      ))}
-    </div>
-  )
-}
-
-function maskAccount(value: string) {
-  if (!value) return 'Not set'
-  const tail = value.slice(-4)
-  return `•••• ${tail}`
-}
-
-function BankCard({
-  provider,
-  testing,
-  onEdit,
-  onTest,
-  onToggle,
-  onDelete,
-}: {
-  provider: Provider
-  testing: boolean
-  onEdit: () => void
-  onTest: () => void
-  onToggle: () => void
-  onDelete: () => void
-}) {
-  const activeAccounts = (provider.accounts || []).filter((a) => a.is_active !== false)
-  const capabilities = [
-    provider.supports_collections && 'Collections',
-    provider.supports_disbursements && 'Disbursements',
-    provider.supports_mobile_money && 'Mobile money',
-  ].filter(Boolean) as string[]
-
-  return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(10,37,64,0.04),0_1px_3px_rgba(10,37,64,0.06)] transition hover:border-slate-300 hover:shadow-[0_8px_24px_-8px_rgba(10,37,64,0.16)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ecfdf3] text-[#039855]">
-            <Landmark size={21} />
-          </span>
-          <div>
-            <p className="text-base font-semibold text-navy">{provider.name}</p>
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-1">
-                <MapPin size={12} className="text-slate-400" />
-                {COUNTRY_META[provider.country]?.label || provider.country}
-                {provider.region ? ` · ${provider.region}` : ' · Country-wide'}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <StatusBadge status={provider.status} />
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              provider.environment === 'live' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-            }`}
-          >
-            {provider.environment}
-          </span>
-        </div>
-      </div>
-
-      {capabilities.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {capabilities.map((c) => (
-            <span key={c} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-              {c}
-            </span>
-          ))}
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-              provider.has_api_key ? 'bg-[#ecfdf3] text-[#027a48]' : 'bg-slate-100 text-slate-500'
-            }`}
-          >
-            <Key size={11} />
-            {provider.has_api_key ? 'Credentials set' : 'No credentials'}
-          </span>
-        </div>
-      )}
-
-      {/* Accounts */}
-      <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          <Banknote size={12} /> Accounts ({activeAccounts.length})
-        </p>
-        {activeAccounts.length === 0 ? (
-          <p className="text-xs text-slate-400">No accounts recorded yet. Edit to add them.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {CORE_ACCOUNTS.map((core) => {
-              const acc = activeAccounts.find((a) => a.account_type === core.key)
-              if (!acc) return null
-              const Icon = core.icon
-              return (
-                <div key={core.key} className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5">
-                  <Icon size={14} className="shrink-0 text-slate-400" />
-                  <div className="min-w-0">
-                    <p className="truncate text-[11px] font-medium text-navy">{core.label}</p>
-                    <p className="truncate text-[11px] tabular-nums text-slate-400">
-                      {maskAccount(acc.account_number)} · {acc.currency}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {provider.last_test_message && (
-        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">{provider.last_test_message}</p>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          onClick={onTest}
-          disabled={testing}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-navy transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          {testing ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-          Test
-        </button>
-        <button
-          onClick={onToggle}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-navy transition hover:bg-slate-50"
-        >
-          <SlidersHorizontal size={13} />
-          {provider.status === 'active' ? 'Disable' : 'Enable'}
-        </button>
-        <button
-          onClick={onEdit}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-navy transition hover:bg-slate-50"
-        >
-          Edit
-        </button>
-        <button
-          onClick={onDelete}
-          aria-label="Remove bank"
-          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ── Add / edit bank wizard ─────────────────────────────────────────────────
-
-function InfoHint({ text }: { text: string }) {
-  return (
-    <span className="group relative inline-flex align-middle">
-      <Info className="h-3.5 w-3.5 cursor-help text-slate-400" />
-      <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 w-56 -translate-x-1/2 rounded-lg bg-navy px-3 py-2 text-[11px] font-medium leading-snug text-white opacity-0 shadow-lg transition group-hover:opacity-100">
-        {text}
-      </span>
-    </span>
-  )
-}
-
-function WizardField({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-        {label}
-        {hint && <InfoHint text={hint} />}
-      </span>
-      {children}
-    </label>
-  )
-}
-
-const WIZARD_STEPS = [
-  { title: 'Bank', desc: 'Partner, coverage & environment' },
-  { title: 'Credentials', desc: 'API keys & webhooks' },
-  { title: 'Accounts', desc: 'Trust, savings, loan & fees' },
-  { title: 'Review', desc: 'Confirm & activate' },
-] as const
-
-const PARTNER_GROUPS: { kind: PartnerKind; label: string }[] = [
-  { kind: 'bank', label: 'Partner banks' },
-  { kind: 'wallet', label: 'Mobile money' },
-  { kind: 'custom', label: 'Custom' },
-]
-
-const DEFAULT_BADGE: Record<string, string> = {
-  is_default_for_collections: 'Collections default',
-  is_default_for_disbursements: 'Disbursements default',
-  is_default_for_reconciliation: 'Reconciliation default',
-}
-
-function BankWizard({
-  form,
-  saving,
-  onChange,
-  onClose,
-  onSubmit,
-}: {
-  form: BankWizardForm
-  saving: boolean
-  onChange: (form: BankWizardForm) => void
-  onClose: () => void
-  onSubmit: (form: BankWizardForm) => void
-}) {
-  const [step, setStep] = useState(0)
-  const [nameTouched, setNameTouched] = useState(false)
-  const set = (patch: Partial<BankWizardForm>) => onChange({ ...form, ...patch })
-  const setAccount = (key: CoreAccountKey, patch: Partial<BankAccountDraft>) =>
-    onChange({ ...form, accounts: { ...form.accounts, [key]: { ...form.accounts[key], ...patch } } })
-
-  const selectPartner = (code: string) => {
-    const partner = BANK_PARTNERS.find((p) => p.code === code)
-    if (!partner) {
-      set({ provider_code: code })
-      return
-    }
-    const currency = COUNTRY_META[partner.country]?.currency || form.accounts.trust.currency
-    const accounts = { ...form.accounts }
-    for (const core of CORE_ACCOUNTS) accounts[core.key] = { ...accounts[core.key], currency }
-    onChange({
-      ...form,
-      provider_code: code,
-      country: partner.country,
-      base_url: partner.base_url || form.base_url,
-      name: form.id ? form.name : partner.short,
-      accounts,
-    })
-  }
-
-  const setCountry = (country: string) => {
-    const currency = COUNTRY_META[country]?.currency || 'KES'
-    const accounts = { ...form.accounts }
-    for (const core of CORE_ACCOUNTS) accounts[core.key] = { ...accounts[core.key], currency }
-    set({ country, accounts })
-  }
-
-  const applyCurrencyToAll = (currency: string) => {
-    const accounts = { ...form.accounts }
-    for (const core of CORE_ACCOUNTS) accounts[core.key] = { ...accounts[core.key], currency }
-    set({ accounts })
-  }
-
-  const filledAccounts = CORE_ACCOUNTS.filter((c) => form.accounts[c.key].account_number.trim())
-  const nameValid = Boolean(form.name.trim())
-  const canContinue = step === 0 ? Boolean(nameValid && form.provider_code && form.country) : true
-  const isLast = step === WIZARD_STEPS.length - 1
-  const active = WIZARD_STEPS[step]
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-      <button aria-label="Close" className="absolute inset-0 bg-navy/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative grid max-h-[92vh] w-full max-w-4xl grid-cols-1 overflow-hidden rounded-2xl bg-white shadow-[0_24px_70px_-15px_rgba(10,37,64,0.4)] md:grid-cols-[250px_1fr]">
-        {/* Step rail */}
-        <aside className="hidden flex-col justify-between bg-gradient-to-b from-navy to-[#0b2947] p-6 text-white md:flex">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15">
-                <Landmark size={18} />
-              </span>
-              <div className="leading-tight">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-white/50">OrbiSave</p>
-                <p className="text-sm font-semibold">{form.id ? 'Edit bank' : 'Onboard a bank'}</p>
-              </div>
-            </div>
-
-            <ol className="mt-8 space-y-1">
-              {WIZARD_STEPS.map((s, i) => {
-                const done = i < step
-                const current = i === step
-                return (
-                  <li key={s.title} className="relative flex gap-3 pb-5 last:pb-0">
-                    {i < WIZARD_STEPS.length - 1 && (
-                      <span className={`absolute left-[13px] top-7 h-[calc(100%-1.25rem)] w-px ${done ? 'bg-primary' : 'bg-white/15'}`} />
-                    )}
-                    <span
-                      className={`relative z-10 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold transition ${
-                        done
-                          ? 'bg-primary text-white'
-                          : current
-                            ? 'bg-white text-navy ring-4 ring-white/15'
-                            : 'bg-white/10 text-white/50'
-                      }`}
-                    >
-                      {done ? <Check size={13} /> : i + 1}
-                    </span>
-                    <div className="pt-0.5">
-                      <p className={`text-sm font-medium ${current ? 'text-white' : done ? 'text-white/80' : 'text-white/45'}`}>
-                        {s.title}
-                      </p>
-                      <p className={`text-[11px] leading-snug ${current ? 'text-white/60' : 'text-white/35'}`}>{s.desc}</p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
-          </div>
-
-          <div className="flex items-start gap-2 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
-            <Lock size={14} className="mt-0.5 shrink-0 text-primary" />
-            <p className="text-[11px] leading-snug text-white/60">
-              Bank-grade encryption. Credentials are encrypted at rest and never shown again.
-            </p>
-          </div>
-        </aside>
-
-        {/* Content pane */}
-        <div className="flex min-h-0 flex-col">
-          <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 sm:px-8">
-            <div className="min-w-0">
-              {/* Mobile progress */}
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-primary md:hidden">
-                Step {step + 1} of {WIZARD_STEPS.length}
-              </p>
-              <h2 className="text-xl font-semibold tracking-tight text-navy">{active.title}</h2>
-              <p className="mt-0.5 text-sm text-slate-500">{active.desc}</p>
-            </div>
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-navy"
-            >
-              <X size={18} />
-            </button>
-          </header>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
-            {step === 0 && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  {PARTNER_GROUPS.map((group) => {
-                    const items = BANK_PARTNERS.filter((p) => p.kind === group.kind)
-                    if (!items.length) return null
-                    return (
-                      <div key={group.kind}>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{group.label}</p>
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                          {items.map((p) => (
-                            <PartnerCard
-                              key={p.code}
-                              partner={p}
-                              selected={form.provider_code === p.code}
-                              onSelect={() => selectPartner(p.code)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <WizardField label="Display name">
-                      <input
-                        value={form.name}
-                        onChange={(e) => set({ name: e.target.value })}
-                        onBlur={() => setNameTouched(true)}
-                        aria-invalid={nameTouched && !nameValid}
-                        className={`input-shell ${nameTouched && !nameValid ? 'border-[#d92d20] focus:border-[#d92d20] focus:ring-[#d92d20]/15' : ''}`}
-                        placeholder="Equity Bank Kenya"
-                      />
-                    </WizardField>
-                    {nameTouched && !nameValid && <p className="mt-1.5 text-xs text-[#b42318]">Give the bank a display name.</p>}
-                  </div>
-                  <WizardField label="Country">
-                    <Segmented
-                      value={form.country}
-                      onChange={setCountry}
-                      options={Object.entries(COUNTRY_META).map(([value, meta]) => ({ value, label: meta.label }))}
-                    />
-                  </WizardField>
-                  <WizardField
-                    label="Region"
-                    hint="Leave blank for a country-wide bank. Later you can scope a bank to a region, e.g. Coast or Western, and assign different banks per region."
-                  >
-                    <input value={form.region} onChange={(e) => set({ region: e.target.value })} className="input-shell" placeholder="Country-wide" />
-                  </WizardField>
-                  <div className="sm:col-span-2">
-                    <WizardField label="Environment" hint="Sandbox uses the bank’s test rails. Switch to Live only with production credentials.">
-                      <Segmented
-                        value={form.environment}
-                        onChange={(v) => set({ environment: v as 'sandbox' | 'live' })}
-                        options={[
-                          { value: 'sandbox', label: 'Sandbox' },
-                          { value: 'live', label: 'Live' },
-                        ]}
-                      />
-                    </WizardField>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className="space-y-6">
-                <div className="flex items-start gap-2.5 rounded-xl border border-[#abefc6] bg-[#f6fef9] p-3.5">
-                  <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[#039855]" />
-                  <p className="text-xs leading-snug text-[#067647]">
-                    These credentials are encrypted at rest with bank-grade encryption and are never shown again. On edit,
-                    leave a secret blank to keep the stored value.
-                  </p>
-                </div>
-
-                <FieldGroup title="Connection">
-                  <div className="sm:col-span-2">
-                    <WizardField label="API base URL" hint="The bank’s API host for the selected environment.">
-                      <input value={form.base_url} onChange={(e) => set({ base_url: e.target.value })} className="input-shell" placeholder="https://api.finserve.africa" />
-                    </WizardField>
-                  </div>
-                </FieldGroup>
-
-                <FieldGroup title="API credentials">
-                  <WizardField label="API key / Consumer key">
-                    <input value={form.api_key} onChange={(e) => set({ api_key: e.target.value })} className="input-shell" placeholder={form.id ? 'Leave blank to keep current' : ''} />
-                  </WizardField>
-                  <WizardField label="API secret / Consumer secret">
-                    <input type="password" value={form.api_secret} onChange={(e) => set({ api_secret: e.target.value })} className="input-shell" placeholder={form.id ? 'Leave blank to keep current' : ''} />
-                  </WizardField>
-                  <div className="sm:col-span-2">
-                    <WizardField label="Merchant code" hint="The merchant or business short code the bank issued for your account.">
-                      <input value={form.merchant_code} onChange={(e) => set({ merchant_code: e.target.value })} className="input-shell" />
-                    </WizardField>
-                  </div>
-                </FieldGroup>
-
-                <FieldGroup title="Webhooks">
-                  <div className="sm:col-span-2">
-                    <WizardField label="Webhook URL" hint="Our endpoint the bank calls back with settlement events.">
-                      <input value={form.webhook_url} onChange={(e) => set({ webhook_url: e.target.value })} className="input-shell" placeholder="https://api.orbisave.com/webhooks/…" />
-                    </WizardField>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <WizardField label="Webhook secret" hint="Used to verify signatures on callbacks the bank sends us.">
-                      <input type="password" value={form.webhook_secret} onChange={(e) => set({ webhook_secret: e.target.value })} className="input-shell" placeholder={form.id ? 'Leave blank to keep current' : ''} />
-                    </WizardField>
-                  </div>
-                </FieldGroup>
-
-                <FieldGroup title="Capabilities" hint="What this rail can do. Turn off any it does not support.">
-                  <div className="sm:col-span-2 flex flex-wrap gap-2">
-                    <Toggle checked={form.supports_collections} onChange={(v) => set({ supports_collections: v })} label="Collections" />
-                    <Toggle checked={form.supports_disbursements} onChange={(v) => set({ supports_disbursements: v })} label="Disbursements" />
-                    <Toggle checked={form.supports_mobile_money} onChange={(v) => set({ supports_mobile_money: v })} label="Mobile money" />
-                  </div>
-                </FieldGroup>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-slate-500">
-                    The four accounts this bank holds for OrbiSave. Leave any you do not have yet blank.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => applyCurrencyToAll(COUNTRY_META[form.country]?.currency || 'KES')}
-                    className="shrink-0 text-xs font-medium text-primary transition hover:text-[#009200]"
-                  >
-                    Reset currency to {COUNTRY_META[form.country]?.currency || 'KES'}
-                  </button>
-                </div>
-                {CORE_ACCOUNTS.map((core) => (
-                  <AccountCard
-                    key={core.key}
-                    core={core}
-                    draft={form.accounts[core.key]}
-                    onChange={(patch) => setAccount(core.key, patch)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-5">
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bank</p>
-                    <button type="button" onClick={() => setStep(0)} className="text-xs font-medium text-primary hover:text-[#009200]">
-                      Edit
-                    </button>
-                  </div>
-                  <div className="grid gap-2.5 p-4 text-sm sm:grid-cols-2">
-                    <ReviewRow label="Name" value={form.name} />
-                    <ReviewRow label="Partner" value={BANK_PARTNERS.find((p) => p.code === form.provider_code)?.short || form.provider_code} />
-                    <ReviewRow label="Coverage" value={`${COUNTRY_META[form.country]?.label || form.country}${form.region ? ` · ${form.region}` : ' · Country-wide'}`} />
-                    <ReviewRow label="Environment" value={<span className="capitalize">{form.environment}</span>} />
-                    <ReviewRow label="Base URL" value={form.base_url || 'Not set'} />
-                    <ReviewRow label="Credentials" value={form.api_key || form.id ? 'Provided' : 'None yet'} />
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Accounts · {filledAccounts.length} of {CORE_ACCOUNTS.length}
-                    </p>
-                    <button type="button" onClick={() => setStep(2)} className="text-xs font-medium text-primary hover:text-[#009200]">
-                      Edit
-                    </button>
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {CORE_ACCOUNTS.map((core) => {
-                      const Icon = core.icon
-                      const draft = form.accounts[core.key]
-                      const filled = Boolean(draft.account_number.trim())
-                      return (
-                        <div key={core.key} className="flex items-center gap-3 px-4 py-2.5">
-                          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${filled ? 'bg-[#ecfdf3] text-[#039855]' : 'bg-slate-50 text-slate-300'}`}>
-                            <Icon size={15} />
-                          </span>
-                          <span className="flex-1 text-sm text-navy">{core.label}</span>
-                          {filled ? (
-                            <span className="text-sm tabular-nums text-slate-500">
-                              {maskAccount(draft.account_number)} · {draft.currency}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-300">Skipped</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <WizardField label="Status on save" hint="Inactive keeps the bank off the rails. Testing lets you run a connection test. Active puts it live for its region.">
-                  <Segmented
-                    value={form.status}
-                    onChange={(v) => set({ status: v })}
-                    options={[
-                      { value: 'inactive', label: 'Inactive' },
-                      { value: 'testing', label: 'Testing' },
-                      { value: 'active', label: 'Active' },
-                    ]}
-                  />
-                </WizardField>
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-white px-6 py-4 sm:px-8">
-            <button
-              onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg px-4 text-sm font-medium text-slate-500 transition hover:text-navy"
-            >
-              {step === 0 ? 'Cancel' : (<><ArrowLeft size={15} /> Back</>)}
-            </button>
-            {isLast ? (
-              <button
-                onClick={() => onSubmit(form)}
-                disabled={saving}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:opacity-60"
-              >
-                {saving && <Loader2 size={15} className="animate-spin" />}
-                {form.id ? 'Save bank' : 'Add bank'}
-              </button>
-            ) : (
-              <button
-                onClick={() => setStep(step + 1)}
-                disabled={!canContinue}
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Continue <ArrowRight size={15} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PartnerCard({
-  partner,
-  selected,
-  onSelect,
-}: {
-  partner: (typeof BANK_PARTNERS)[number]
-  selected: boolean
-  onSelect: () => void
-}) {
-  const KindIcon = partner.kind === 'wallet' ? Smartphone : partner.kind === 'custom' ? Plus : Landmark
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={`group relative flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition ${
-        selected
-          ? 'border-primary bg-primary/[0.04] shadow-[0_1px_2px_rgba(10,37,64,0.04)] ring-1 ring-primary'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-[0_2px_8px_-2px_rgba(10,37,64,0.1)]'
-      }`}
-    >
-      {selected && (
-        <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
-          <Check size={11} />
-        </span>
-      )}
-      <span
-        className={`flex h-9 w-9 items-center justify-center rounded-lg text-[11px] font-bold ${
-          partner.kind === 'custom' ? 'bg-slate-100 text-slate-400' : 'bg-navy/[0.06] text-navy'
-        }`}
-      >
-        {partner.kind === 'custom' ? <KindIcon size={16} /> : partner.initials}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-navy">{partner.short}</p>
-        <p className="flex items-center gap-1 truncate text-[11px] text-slate-400">
-          <KindIcon size={10} />
-          {COUNTRY_META[partner.country]?.label || partner.country}
-        </p>
-      </div>
-    </button>
-  )
-}
-
-function FieldGroup({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {title}
-        {hint && <InfoHint text={hint} />}
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
-    </div>
-  )
-}
-
-function AccountCard({
-  core,
-  draft,
-  onChange,
-}: {
-  core: (typeof CORE_ACCOUNTS)[number]
-  draft: BankAccountDraft
-  onChange: (patch: Partial<BankAccountDraft>) => void
-}) {
-  const Icon = core.icon
-  const filled = Boolean(draft.account_number.trim())
-  const badge = core.defaultFlag ? DEFAULT_BADGE[core.defaultFlag] : null
-  return (
-    <div className={`rounded-2xl border p-4 transition ${filled ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50/40'}`}>
-      <div className="mb-3.5 flex items-start gap-3">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${filled ? 'bg-[#ecfdf3] text-[#039855]' : 'bg-white text-slate-400 ring-1 ring-slate-200'}`}>
-          <Icon size={17} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-navy">{core.label}</p>
-            {badge && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">{badge}</span>
-            )}
-          </div>
-          <p className="mt-0.5 text-xs leading-snug text-slate-400">{core.hint}</p>
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <input
-          value={draft.account_number}
-          onChange={(e) => onChange({ account_number: e.target.value })}
-          className="input-shell"
-          placeholder="Account number"
-          inputMode="numeric"
-        />
-        <input
-          value={draft.account_name}
-          onChange={(e) => onChange({ account_name: e.target.value })}
-          className="input-shell"
-          placeholder="Account name"
-        />
-        <input
-          value={draft.currency}
-          onChange={(e) => onChange({ currency: e.target.value.toUpperCase() })}
-          className="input-shell"
-          placeholder="Currency"
-          maxLength={5}
-        />
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={draft.bank_code}
-            onChange={(e) => onChange({ bank_code: e.target.value })}
-            className="input-shell"
-            placeholder="Bank code"
-          />
-          <input
-            value={draft.branch_code}
-            onChange={(e) => onChange({ branch_code: e.target.value })}
-            className="input-shell"
-            placeholder="Branch"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Segmented({
-  value,
-  onChange,
-  options,
-}: {
-  value: string
-  onChange: (value: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-            value === opt.value ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-navy'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-        checked ? 'border-primary/30 bg-primary/5 text-primary' : 'border-slate-200 bg-white text-slate-500'
-      }`}
-    >
-      <span className={`flex h-4 w-4 items-center justify-center rounded ${checked ? 'bg-primary text-white' : 'bg-slate-200'}`}>
-        {checked && <Check size={11} />}
-      </span>
-      {label}
-    </button>
-  )
-}
-
-function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-slate-400">{label}</span>
-      <span className="max-w-[60%] truncate text-right font-medium text-navy">{value}</span>
     </div>
   )
 }
