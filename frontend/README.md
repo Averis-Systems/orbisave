@@ -21,20 +21,33 @@ Located in `packages/`, these ensure consistency across the frontend ecosystem:
 
 ## 🚀 Getting Started
 
-### 1. Local Development
-For the best development experience with hot-reloading:
-```bash
-# Install dependencies
-npm install
+> **Start the backend first.** Every frontend talks to the API at
+> `http://localhost:8000` through the same-origin `/api/backend` proxy. If the
+> backend is not running (or is a different database than the one seeded), you
+> will see "invalid credentials" on login. See
+> [backend/README](../backend/README.md) for the exact start command; it seeds
+> the dev accounts below on every start.
 
-# Start the dev server
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+### 1. Local Development
+
+Run each app from its own directory with `npm run dev`:
+
+| App | Directory | Command | URL |
+|-----|-----------|---------|-----|
+| Member app / landing | `frontend/` | `npm install && npm run dev` | http://localhost:3000 |
+| Console (super admin) | `apps/console/` | `npm install && npm run dev` | http://localhost:3002 |
+| Manager (platform admin) | `apps/manager/` | `npm install && npm run dev` | http://localhost:3003 |
+
+**Dev login** (seeded by the backend's `seed_dev_accounts`, password `OrbiSave2026!`):
+Console `emanuel@averissystems.com` · Manager `manager@averissystems.com` · Member `member@orbisave.com`.
 
 ### 2. Full Stack (Docker)
 To run the frontend alongside the backend and database:
 Refer to the [Root README](../README.md) for Docker commands. The Dockerized frontend will be available at [http://localhost:3001](http://localhost:3001).
+
+> Docker uses **PostgreSQL**; local `npm run dev` + local Django uses **SQLite**.
+> These are separate databases with separate accounts. Do not mix the two on
+> port 8000, or the account you seeded in one will be "missing" in the other.
 
 ---
 

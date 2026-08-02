@@ -42,28 +42,38 @@ docker-compose -f infrastructure/docker/docker-compose.yml up --build
 
 If you prefer running services individually for faster hot-reloading:
 
-### 1. Backend (Django)
+> **Docker vs local, read this once.** The Docker stack above uses **PostgreSQL**.
+> The local (no-Docker) flow below uses **SQLite**. They are separate databases
+> with separate accounts. Run **one** backend on port 8000 at a time. If login
+> says "invalid credentials" with the right password, you are almost certainly
+> hitting the other database, stop it (`docker stop orbisave_backend`) and use one.
+
+### 1. Backend (Django, SQLite)
 ```bash
 cd backend
 python -m venv venv
-# Windows
-.\venv\Scripts\activate
-# Unix
-source venv/bin/activate
-
+.\venv\Scripts\activate           # Windows  (Unix: source venv/bin/activate)
 pip install -r requirements/development.txt
-python manage.py migrate
-python manage.py runserver
-```
-*Backend runs at [http://localhost:8000](http://localhost:8000)*
 
-### 2. Frontend (Next.js)
-```bash
-cd frontend
-npm install
-npm run dev
+python manage.py migrate_all       # default DB + kenya/rwanda/ghana shards
+python manage.py seed_dev_accounts # idempotent: guarantees the login accounts exist
+python manage.py runserver 8000
 ```
-*Frontend runs at [http://localhost:3000](http://localhost:3000)*
+*Backend runs at [http://localhost:8000](http://localhost:8000). `migrate_all` + `seed_dev_accounts` are what keep logins working, this is exactly what `.claude/launch.json` runs.*
+
+### 2. Frontends (Next.js) — run each in its own terminal
+```bash
+cd frontend      && npm install && npm run dev   # Member app / landing  -> http://localhost:3000
+cd apps/console  && npm install && npm run dev   # Console (super admin) -> http://localhost:3002
+cd apps/manager  && npm install && npm run dev   # Manager (platform)    -> http://localhost:3003
+```
+
+### 3. Dev login (seeded by `seed_dev_accounts`, password `OrbiSave2026!`)
+| Portal | Email |
+|--------|-------|
+| Console | `emanuel@averissystems.com` |
+| Manager | `manager@averissystems.com` |
+| Member app | `member@orbisave.com` |
 
 ---
 
