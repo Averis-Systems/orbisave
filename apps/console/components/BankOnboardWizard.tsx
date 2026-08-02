@@ -360,9 +360,9 @@ export function BankWizard({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <button aria-label="Close" className="absolute inset-0 bg-navy/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative grid max-h-[92vh] w-full max-w-4xl grid-cols-1 overflow-hidden rounded-2xl bg-white shadow-[0_24px_70px_-15px_rgba(10,37,64,0.4)] md:grid-cols-[250px_1fr]">
+      <div className="relative flex max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-[0_24px_70px_-15px_rgba(10,37,64,0.4)]">
         {/* Step rail */}
-        <aside className="hidden flex-col justify-between bg-gradient-to-b from-navy to-[#0b2947] p-6 text-white md:flex">
+        <aside className="hidden w-[250px] shrink-0 flex-col justify-between bg-gradient-to-b from-navy to-[#0b2947] p-6 text-white md:flex">
           <div>
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15">
@@ -415,7 +415,7 @@ export function BankWizard({
         </aside>
 
         {/* Content pane */}
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 sm:px-8">
             <div className="min-w-0">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-primary md:hidden">
