@@ -2,7 +2,7 @@
 
 import { useRef } from "react"
 import { useGSAP } from "@gsap/react"
-import { Users, Smartphone, RotateCcw, Landmark, ArrowRight } from "lucide-react"
+import { Users, Smartphone, RotateCcw, Landmark, ArrowRight, ShieldCheck, Check } from "lucide-react"
 import { gsap } from "@/lib/gsap-init"
 import { TRUST_PILLARS } from "@/lib/landing-data"
 
@@ -225,46 +225,35 @@ export function HowItWorks() {
         </div>
 
         {/* Cycle note */}
+        {/* Closing: the cycle note + built-in security, in one panel that
+            blends with the light section instead of a hard navy block. */}
         <div
-          className="mt-20 pt-10 text-center"
-          style={{ borderTop: "1px solid #d6e4df" }}
+          className="hiw-trust-panel mt-16 overflow-hidden rounded-2xl border"
+          style={{ borderColor: "#cfeddb", background: "#f6fef9" }}
         >
-          <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: "#00ab00" }}>
-            The cycle repeats systematically until every member receives their scheduled payout.
-          </p>
-        </div>
-
-        {/* Trust screenshot panel, additional info from platform */}
-        <div
-          className="hiw-trust-panel mt-16 p-8 lg:p-10"
-          style={{
-            background: "#0a2540",
-            borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <p
-            className="text-xs font-bold tracking-[0.15em] uppercase mb-6"
-            style={{ color: "rgba(255,255,255,0.4)" }}
-          >
-            Platform Security, Non-Negotiable
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {TRUST_PILLARS.map((point, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{ background: "#00ab00" }}
-                >
-                  <svg viewBox="0 0 10 10" className="w-3 h-3 fill-white">
-                    <path d="M2 5.5L4.2 7.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  </svg>
+          <div className="grid gap-7 p-7 lg:grid-cols-[minmax(0,20rem)_1fr] lg:items-center lg:gap-12 lg:p-9">
+            <div>
+              <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "#039855" }}>
+                <ShieldCheck className="h-4 w-4" />
+                Security, built in
+              </p>
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: "#46586a" }}>
+                The cycle keeps turning until every member has been paid, and every shilling stays protected the whole
+                way round.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {TRUST_PILLARS.map((point, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full" style={{ background: "#00ab00" }}>
+                    <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                  </span>
+                  <p className="text-sm leading-snug" style={{ color: "#334656" }}>
+                    {point}
+                  </p>
                 </div>
-                <p className="text-sm font-medium leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-                  {point}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

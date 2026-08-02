@@ -51,6 +51,8 @@ from .super_views import (
     SuperAdminAdminDetailView,
     SuperAdminAdminSuspendView,
     SuperAdminGlobalAuditView,
+    SuperAdminPartnerEnquiryListView,
+    SuperAdminPartnerEnquiryDetailView,
 )
 from .provider_views import (
     ProviderHubListView,
@@ -155,6 +157,8 @@ urlpatterns = [
     path('superadmin/api-health/',     SuperAdminApiHealthView.as_view(),    name='superadmin-api-health'),
     path('superadmin/system-health/',  SuperAdminSystemHealthView.as_view(), name='superadmin-health'),
     path('superadmin/audit/',          SuperAdminGlobalAuditView.as_view(), name='superadmin-audit'),
+    path('superadmin/partner-enquiries/', SuperAdminPartnerEnquiryListView.as_view(), name='superadmin-partner-enquiries'),
+    path('superadmin/partner-enquiries/<uuid:enquiry_id>/', SuperAdminPartnerEnquiryDetailView.as_view(), name='superadmin-partner-enquiry-detail'),
 
     # Provider Hub
     path('superadmin/payment-providers/',                       ProviderHubListView.as_view(),   name='provider-list'),

@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncDate, TruncMonth
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.groups.models import Group, GroupMember
@@ -792,3 +793,82 @@ class SuperAdminGlobalAuditView(APIView):
             for a in qs[offset:offset+page_size]
         ]
         return Response({'count': total, 'page': page, 'results': results})
+
+
+class SuperAdminPartnerEnquiryListView(APIView):
+    """
+    GET /api/v1/superadmin/partner-enquiries/
+
+    Partnership enquiries submitted from the public marketing site (banks,
+    distributors, investors). Filter by ?status= and ?partner_type=, search by
+    organisation / contact / email. Returns the standard table envelope.
+    """
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        from .models import PartnerEnquiry
+
+        qs = PartnerEnquiry.objects.all().order_by('-created_at')
+        status_f = request.query_params.get('status')
+        ptype = request.query_params.get('partner_type')
+        search = (request.query_params.get('search') or '').strip()
+        if status_f:
+            qs = qs.filter(status=status_f)
+        if ptype:
+            qs = qs.filter(partner_type=ptype)
+        if search:
+            qs = qs.filter(
+                Q(organization__icontains=search)
+                | Q(contact_name__icontains=search)
+                | Q(email__icontains=search)
+            )
+
+        page = max(int(request.query_params.get('page', 1) or 1), 1)
+        page_size = min(max(int(request.query_params.get('page_size', 25) or 25), 1), 100)
+        total = qs.count()
+        total_pages = max((total + page_size - 1) // page_size, 1)
+        offset = (page - 1) * page_size
+
+        results = [
+            {
+                'id': str(e.id),
+                'organization': e.organization,
+                'contact_name': e.contact_name,
+                'email': e.email,
+                'phone': e.phone,
+                'partner_type': e.partner_type,
+                'message': e.message,
+                'status': e.status,
+                'created_at': e.created_at.isoformat(),
+            }
+            for e in qs[offset:offset + page_size]
+        ]
+        return Response({
+            'count': total, 'page': page, 'page_size': page_size,
+            'total_pages': total_pages, 'results': results,
+        })
+
+
+class SuperAdminPartnerEnquiryDetailView(APIView):
+    """PATCH /api/v1/superadmin/partner-enquiries/<id>/ , triage the status."""
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, enquiry_id):
+        from .models import PartnerEnquiry
+
+        try:
+            enquiry = PartnerEnquiry.objects.get(id=enquiry_id)
+        except PartnerEnquiry.DoesNotExist:
+            return Response({'error': 'Enquiry not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        valid = {c[0] for c in PartnerEnquiry.STATUS_CHOICES}
+        if new_status not in valid:
+            return Response(
+                {'error': f"status must be one of {sorted(valid)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        enquiry.status = new_status
+        enquiry.save(update_fields=['status', 'updated_at'])
+        logger.info('partner_enquiry_status', enquiry_id=str(enquiry_id), status=new_status, admin=str(request.user.id))
+        return Response({'status': enquiry.status})

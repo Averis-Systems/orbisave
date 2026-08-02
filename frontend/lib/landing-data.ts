@@ -19,9 +19,9 @@ export const ROTATION_QUEUE = [
 ]
 
 export const TRUST_PILLARS = [
-  "Regulated bank custody for all group funds.",
-  "Immutable ledger records accessible to all members.",
-  "Multi-sig authorization for all disbursements.",
+  "Group funds held in regulated partner-bank custody",
+  "A shared, tamper-evident ledger every member can see",
+  "Layered approval before any money leaves the group",
 ]
 
 export const G = {

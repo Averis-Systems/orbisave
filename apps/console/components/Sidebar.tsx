@@ -12,6 +12,7 @@ import {
   ChevronDown,
   FileText,
   Globe,
+  Handshake,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -73,6 +74,7 @@ const sections: NavSection[] = [
     items: [
       { name: ct('nav.trustAccounts'), icon: Landmark, href: '/dashboard/trust', badge: 'trust_open' },
       { name: ct('nav.analytics'), icon: BarChart3, href: '/dashboard/analytics' },
+      { name: ct('nav.partnerships'), icon: Handshake, href: '/dashboard/partnerships' },
       { name: ct('nav.apiHealth'), icon: Activity, href: '/dashboard/api-health' },
       { name: ct('nav.auditLogs'), icon: FileText, href: '/dashboard/logs' },
     ],

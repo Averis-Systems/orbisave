@@ -26,7 +26,7 @@ export function CtaSection() {
   return (
     <section
       ref={sectionRef}
-      className="py-24 lg:py-32 relative overflow-hidden"
+      className="py-14 lg:py-20 relative overflow-hidden"
       style={{ background: "#f7f9f8" }}
     >
       {/* Dot grid */}
@@ -38,27 +38,26 @@ export function CtaSection() {
         }}
       />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative cta-content">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative cta-content">
         <div
-          className="inline-flex items-center text-xs font-bold tracking-[0.15em] uppercase mb-6 px-3 py-1.5"
+          className="inline-flex items-center text-[11px] font-bold tracking-[0.15em] uppercase mb-5 px-3 py-1.5"
           style={{ color: "#00ab00", background: "#e9f3ed", borderRadius: "4px", border: "1px solid #d6e4df" }}
         >
           Ready to start your group?
         </div>
 
         <h2
-          className="text-4xl sm:text-5xl font-black leading-tight tracking-tight mb-5"
+          className="text-3xl sm:text-4xl font-black leading-tight tracking-tight mb-4"
           style={{ color: "#0a2540" }}
         >
-          Run your group easily<br />
-          <span style={{ color: "#00ab00" }}>starting today</span>
+          Run your group easily, <span style={{ color: "#00ab00" }}>starting today</span>
         </h2>
 
         <p
-          className="text-lg sm:text-xl font-medium leading-relaxed mb-12 max-w-2xl mx-auto"
+          className="text-base sm:text-lg font-medium leading-relaxed mb-8 max-w-xl mx-auto"
           style={{ color: "#4a5c6a" }}
         >
-          Start your group in minutes, invite members safely, and let OrbiSave handle the records. We manage the savings, payments, and loans automatically on your phone.
+          Start your group in minutes, invite members safely, and let OrbiSave handle the records, payments and loans.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
