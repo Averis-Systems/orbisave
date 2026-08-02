@@ -50,8 +50,8 @@ export function CtaSection() {
           className="text-4xl sm:text-5xl font-black leading-tight tracking-tight mb-5"
           style={{ color: "#0a2540" }}
         >
-          Run your group easily.<br />
-          <span style={{ color: "#00ab00" }}>Starting today.</span>
+          Run your group easily<br />
+          <span style={{ color: "#00ab00" }}>starting today</span>
         </h2>
 
         <p

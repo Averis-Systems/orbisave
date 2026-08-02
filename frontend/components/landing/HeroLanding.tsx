@@ -24,6 +24,16 @@ const LEDGER = [
   { initials: "JM", name: "James Mwangi", amount: "5,000" },
 ]
 
+/** Marker-pen highlight: a soft green sweep behind the lower half of the text. */
+const MARK: React.CSSProperties = {
+  color: "#0a2540",
+  backgroundImage: "linear-gradient(180deg, transparent 58%, rgba(0,171,0,0.22) 58%)",
+  padding: "0 0.12em",
+  borderRadius: "2px",
+  boxDecorationBreak: "clone",
+  WebkitBoxDecorationBreak: "clone",
+}
+
 export function HeroLanding() {
   const scope = useRef<HTMLDivElement>(null)
 
@@ -82,15 +92,16 @@ export function HeroLanding() {
           <h1 className="text-[2.6rem] font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-[4rem]" style={{ color: "#0a2540" }}>
             <span className="hero-line block">Digitizing Africa&apos;s</span>
             <span className="hero-line block">
-              oldest <span style={{ color: "#00ab00" }}>savings tradition</span>.
+              oldest <span style={{ color: "#00ab00" }}>savings tradition</span>
             </span>
           </h1>
 
           <p className="hero-sub max-w-[560px] text-base leading-relaxed sm:text-lg" style={{ color: "#46586a" }}>
             For generations, communities have saved together in chamas, welfare groups and table-banking circles.
-            OrbiSave brings that tradition into one secure app. We hold your group&apos;s funds in a licensed bank trust
-            account, log every contribution on a shared ledger, and handle payouts and loans automatically. No more
-            notebook, no more cash box, no more doubt about who paid what.
+            OrbiSave brings that tradition into one secure app. Your group&apos;s money is channelled straight to a{" "}
+            <span className="font-semibold" style={MARK}>licensed partner bank</span>, every contribution is{" "}
+            <span className="font-semibold" style={MARK}>recorded on a shared ledger</span>, and payouts and loans run
+            on their own. No more notebook, no more cash box.
           </p>
 
           <div className="flex flex-wrap gap-3 pt-1">
@@ -113,14 +124,14 @@ export function HeroLanding() {
             </Link>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3">
             {[
-              { icon: Landmark, label: "Bank-trust custody" },
-              { icon: Layers, label: "Shared live ledger" },
-              { icon: ShieldCheck, label: "Encrypted & ring-fenced" },
+              { icon: Landmark, label: "Partner-bank held" },
+              { icon: Layers, label: "Shared ledger" },
+              { icon: ShieldCheck, label: "Encrypted" },
             ].map(({ icon: Icon, label }) => (
-              <div key={label} className="hero-trust flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#46586a" }}>
-                <Icon className="h-4 w-4" style={{ color: "#00ab00" }} />
+              <div key={label} className="hero-trust flex items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#46586a" }}>
+                <Icon className="h-4 w-4 shrink-0" style={{ color: "#00ab00" }} />
                 {label}
               </div>
             ))}

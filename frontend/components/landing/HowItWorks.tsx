@@ -124,18 +124,12 @@ export function HowItWorks() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
 
-        <div className="hiw-header max-w-2xl mb-20">
-          <div
-            className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.15em] uppercase mb-5 px-3 py-1.5"
-            style={{ color: "#00ab00", background: "#e9f3ed", borderRadius: "4px", border: "1px solid #d6e4df" }}
-          >
-            How OrbiSave works
-          </div>
+        <div className="hiw-header max-w-2xl mb-16">
           <h2
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight mb-5"
             style={{ color: "#0a2540" }}
           >
-            A secure, transparent way to save, rotate and borrow.
+            How OrbiSave works
           </h2>
           <p className="text-lg font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
             We take the group savings you already know and trust and bring them to your phone. The same circle, now
@@ -205,18 +199,6 @@ export function HowItWorks() {
                         <p className="text-base font-medium leading-relaxed" style={{ color: "#4a5c6a" }}>
                           {step.description}
                         </p>
-                      </div>
-                      <div
-                        className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-3 py-1.5 w-fit"
-                        style={{
-                          background: step.bg,
-                          border: `1px solid ${step.accent}30`,
-                          borderRadius: "4px",
-                          color: step.accent,
-                        }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: step.accent }} />
-                        {step.detail}
                       </div>
                     </div>
 

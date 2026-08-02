@@ -88,7 +88,7 @@ export function WhoItsFor() {
   )
 
   return (
-    <section ref={scope} className="relative bg-white py-20 lg:py-28">
+    <section ref={scope} className="relative bg-white py-14 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="wif-head mx-auto max-w-2xl text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#00ab00" }}>
@@ -98,12 +98,12 @@ export function WhoItsFor() {
             If your group saves together, OrbiSave is for you
           </h2>
           <p className="mt-4 text-base leading-relaxed" style={{ color: "#46586a" }}>
-            The tradition is the same everywhere. Only the names change. We keep the money safe and the records clear,
+            The tradition is the same everywhere, only the names change. We keep the money safe and the records clear,
             whoever you are.
           </p>
         </div>
 
-        <div className="wif-grid mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="wif-grid mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SEGMENTS.map(({ icon: Icon, title, body, tint, fg }) => (
             <div
               key={title}
