@@ -11,6 +11,8 @@ from common.pagination import apply_admin_ordering, paginate_admin_queryset
 from .membership_lookup import (
     active_groups_for_users,
     all_active_member_ids,
+    kyc_context_for_users,
+    kyc_reason,
     member_ids_in_group,
 )
 import structlog
@@ -97,7 +99,21 @@ class AdminKYCQueueView(APIView):
         qs = apply_admin_ordering(request, qs, allowed={'created_at', 'status'})
         page_items, meta = paginate_admin_queryset(request, qs)
         serializer = KYCDocumentSerializer(page_items, many=True, context={'request': request})
-        return Response({**meta, 'results': serializer.data})
+        rows = serializer.data
+
+        # Explain WHY each person is in the queue so the reviewer acts per
+        # policy: management always verifies; a member only when applying for a
+        # loan their group actually offers. Resolved cross-shard, batched.
+        ctx_by_user = kyc_context_for_users([doc.user for doc in page_items])
+        for row in rows:
+            ctx = ctx_by_user.get(str(row['user_id'])) or {}
+            row['group_role'] = ctx.get('group_role') or 'member'
+            row['group_name'] = ctx.get('group_name')
+            row['group_offers_loans'] = ctx.get('group_offers_loans', False)
+            row['has_pending_loan'] = ctx.get('has_pending_loan', False)
+            row['kyc_reason'] = kyc_reason(ctx)
+
+        return Response({**meta, 'results': rows})
 
 
 class AdminKYCReviewView(APIView):

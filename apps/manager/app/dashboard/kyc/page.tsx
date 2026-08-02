@@ -6,10 +6,12 @@ import { api } from '@/lib/api'
 import {
   AlertCircle,
   CheckCircle2,
+  Coins,
   Eye,
   Loader2,
   ShieldCheck,
   UserCheck,
+  UserCog,
   X,
   XCircle,
 } from 'lucide-react'
@@ -57,6 +59,38 @@ interface KYCDocument {
   status: string
   rejection_reason: string | null
   created_at: string
+  // Why this person needs KYC (policy: management always; members only when
+  // applying for a loan their group offers).
+  kyc_reason: 'management' | 'loan' | 'member'
+  group_role: string
+  group_name: string | null
+  group_offers_loans: boolean
+  has_pending_loan: boolean
+}
+
+/**
+ * A badge naming WHY someone is verifying, so the reviewer checks the right
+ * thing. Management (chairperson/treasurer/secretary) verify to run a group; a
+ * member appears here only because they are applying for a loan.
+ */
+function ReasonBadge({ doc }: { doc: KYCDocument }) {
+  if (doc.kyc_reason === 'management') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef4ff] px-2.5 py-0.5 text-xs font-medium capitalize text-[#3538cd]">
+        <UserCog className="h-3.5 w-3.5" />
+        {doc.group_role || 'Management'}
+      </span>
+    )
+  }
+  if (doc.kyc_reason === 'loan') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fef6ee] px-2.5 py-0.5 text-xs font-medium text-[#b93815]">
+        <Coins className="h-3.5 w-3.5" />
+        Loan applicant
+      </span>
+    )
+  }
+  return <span className="text-xs text-slate-400">Member</span>
 }
 
 const STATUS_OPTIONS = [
@@ -104,6 +138,11 @@ export default function KYCReviewsPage() {
         ),
       },
       {
+        key: 'reason',
+        header: 'Reason',
+        render: (doc) => <ReasonBadge doc={doc} />,
+      },
+      {
         key: 'document_type',
         header: 'Document',
         render: (doc) => <span className="capitalize">{doc.document_type?.replace(/_/g, ' ')}</span>,
@@ -135,7 +174,7 @@ export default function KYCReviewsPage() {
     <div className="mx-auto max-w-[1400px] space-y-6 pb-16">
       <PageHeader
         title="Identity verification"
-        description="Review member KYC submissions for your country. Approving one activates the member's account."
+        description="Review KYC for your country. Group management always verifies; a member appears only when applying for a loan. The Reason column tells you which."
       />
 
       <ServerDataTable
@@ -219,6 +258,15 @@ function ReviewDrawer({
             <p className="mt-1 truncate text-sm text-slate-500">
               {doc.user_name} · {doc.user_email}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <ReasonBadge doc={doc} />
+              {doc.group_name && <span className="text-xs text-slate-400">{doc.group_name}</span>}
+              {doc.kyc_reason === 'loan' && (
+                <span className="text-xs text-slate-400">
+                  {doc.group_offers_loans ? 'Applying for a group loan' : 'Loan requested'}
+                </span>
+              )}
+            </div>
           </div>
           <button
             type="button"

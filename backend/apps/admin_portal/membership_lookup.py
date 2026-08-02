@@ -49,6 +49,75 @@ def active_groups_for_users(users):
     return result
 
 
+#: Loan statuses that mean the borrower is mid-application (wants a loan).
+PENDING_LOAN_STATUSES = ('pending_chair', 'pending_treasurer', 'pending_admin')
+
+
+def kyc_context_for_users(users):
+    """
+    Map user id (str) -> KYC context used to explain WHY a person is doing KYC.
+
+    Under OrbiSave's policy KYC is not for everyone: group management
+    (chairperson / treasurer / secretary) always verify, while ordinary members
+    verify only when they apply for their first loan, and only if their group
+    runs a loan pool. This resolves, per user:
+
+      - group_role         their role in their active group ('' if none)
+      - group_name         that group's name
+      - group_offers_loans whether the group runs a loan pool (loan_pool_pct > 0)
+      - has_pending_loan    whether they have a loan awaiting a decision
+
+    from which the caller derives a single reason. Membership and loans live on
+    the country shards, so it batches one pair of queries per country.
+    """
+    from apps.groups.models import GroupMember
+    from apps.loans.models import Loan
+
+    ids_by_country = defaultdict(list)
+    for u in users:
+        if u.country:
+            ids_by_country[u.country].append(u.id)
+
+    result = {}
+    for country, ids in ids_by_country.items():
+        alias = get_db_for_country(country)
+        memberships = (
+            GroupMember.objects.using(alias)
+            .filter(member_id__in=ids, status='active')
+            .select_related('group')
+        )
+        for m in memberships:
+            result[str(m.member_id)] = {
+                'group_role': m.role,
+                'group_name': m.group.name,
+                'group_offers_loans': (m.group.loan_pool_pct or 0) > 0,
+                'has_pending_loan': False,
+            }
+        borrowers = set(
+            Loan.objects.using(alias)
+            .filter(borrower_id__in=ids, status__in=PENDING_LOAN_STATUSES)
+            .values_list('borrower_id', flat=True)
+        )
+        for bid in borrowers:
+            entry = result.setdefault(
+                str(bid),
+                {'group_role': '', 'group_name': None, 'group_offers_loans': False, 'has_pending_loan': False},
+            )
+            entry['has_pending_loan'] = True
+    return result
+
+
+def kyc_reason(ctx):
+    """Reduce a kyc_context entry to a single reason label the reviewer acts on."""
+    if not ctx:
+        return 'member'
+    if ctx.get('group_role') in ('chairperson', 'treasurer', 'secretary'):
+        return 'management'
+    if ctx.get('has_pending_loan'):
+        return 'loan'
+    return 'member'
+
+
 def member_ids_in_group(group_id, aliases):
     """
     Active member ids for one group, searched across the given shard aliases.
