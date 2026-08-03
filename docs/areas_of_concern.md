@@ -9,6 +9,11 @@ Status: `Open` | `In progress` | `Done (YYYY-MM-DD)` | `Accepted risk`.
 
 Last reviewed: 2026-07-31 (pre-Absa partnership review, from QA / Product / CTO lenses).
 
+> See also [`security_review.md`](security_review.md) — the full pre-production
+> security posture mapped to the fintech vulnerability categories (financial,
+> API, auth, crypto, injection, mobile, infra, compliance) + the VPS deployment
+> hardening checklist. Worked chunk by chunk as we ready production.
+
 ---
 
 ## CRITICAL
