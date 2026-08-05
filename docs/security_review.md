@@ -197,13 +197,24 @@ maintenance window, with the team told in advance.
 ### A.2 Generate fresh production secrets (does not touch git)
 
 ```bash
-# A new SECRET_KEY (50+ random chars):
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+# A new SECRET_KEY. Use a URL-safe token, NOT get_random_secret_key(): Django's
+# generator can emit '$', and a '$' inside an env-file value is interpolated
+# (blanked) by docker compose's env_file processing, so the container would sign
+# with a DIFFERENT, corrupted key than the file shows. python-dotenv (local
+# runserver) keeps '$' literal, so the two disagree. A URL-safe key ([A-Za-z0-9_-])
+# has no '$' and is safe across compose, POSIX shells, and systemd EnvironmentFile.
+python -c "import secrets; print(secrets.token_urlsafe(64))"
 
 # Fresh RS256 JWT keypair for production (never reuse the dev keys):
 openssl genrsa -out jwt_private.pem 4096
 openssl rsa -in jwt_private.pem -pubout -out jwt_public.pem
 ```
+
+> **Env-file gotcha (learned 2026-08-06):** never put a value containing a
+> literal `$` in an env file that `docker compose` loads via `env_file` — it is
+> silently interpolated. Keep secrets `$`-free (the URL-safe generator above),
+> or the container receives a mangled value. Verify after deploy with
+> `docker exec <svc> printenv SECRET_KEY | wc -c` against the file's length.
 
 Put these only in the production environment (systemd `EnvironmentFile`, or the
 secret store), never in the repo:
