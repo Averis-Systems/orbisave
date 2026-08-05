@@ -5,6 +5,16 @@ from .base import *
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend', '0.0.0.0']
 
+# Dev-only CORS origins (the member app, Console, Manager on localhost). Kept
+# here, not in base.py, so they are never allowed in production (H4).
+CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS + [
+    'http://localhost:3000', 'http://127.0.0.1:3000',
+    'http://localhost:3001', 'http://127.0.0.1:3001',
+    'http://localhost:3002', 'http://127.0.0.1:3002',  # Console
+    'http://localhost:3003', 'http://127.0.0.1:3003',  # Manager
+    'http://localhost:3010', 'http://127.0.0.1:3010',  # web fallback port
+]
+
 # Show full Django error pages in development
 INTERNAL_IPS = ['127.0.0.1']
 

@@ -29,7 +29,7 @@ Last reviewed: 2026-07-31 (pre-Absa partnership review, from QA / Product / CTO 
 | H1 | Ops / Reliability | No unauthenticated liveness/readiness endpoint. `/superadmin/system-health/` is auth-gated so a load balancer/uptime monitor cannot use it. Add `/healthz` (liveness) and `/readyz` (DB reachable). | Open |
 | H2 | Ops / Alerting | No alerting on 5xx spikes or a down dependency. The API-health page is a quick-action log only. Wire alerting (PagerDuty connector available; email/Slack minimum). | Open |
 | H3 | QA / Testing | Frontend test coverage is thin (~4 test files vs ~43 backend). Money-critical UI flows (contribution, disbursement approval, KYC) have no automated coverage. Add e2e/integration tests. | Open |
-| H4 | Security / CORS | `CORS_ALLOWED_ORIGINS` hardcodes localhost dev origins alongside prod domains in `base.py`, so dev origins are allowed in production. Gate localhost entries to dev only. | Open |
+| H4 | Security / CORS | `CORS_ALLOWED_ORIGINS` hardcodes localhost dev origins alongside prod domains in `base.py`, so dev origins are allowed in production. Gate localhost entries to dev only. | **Resolved 2026-08-06.** `base.py` now lists only prod origins (`console.`/`manager.orbisave.com`) plus an env-extendable `CORS_ALLOWED_ORIGINS`; the localhost entries live only in `development.py`. Verified: prod settings load with zero localhost origins, dev still allows :3000–:3010. |
 
 ## MEDIUM
 
@@ -37,7 +37,7 @@ Last reviewed: 2026-07-31 (pre-Absa partnership review, from QA / Product / CTO 
 |---|------|---------|--------|
 | M1 | Product / Completeness | Seven placeholder pages still ship: Manager (contributions, loans, members, savings, settings, support) and Console (savings). Honest stubs, but a partner touring the portal hits half-built sections. Finish or intentionally gate them. | Open |
 | M2 | Product / Revenue | Monetization loop unproven end to end: revenue reads 0 because no disbursement has booked a `service_fee` yet. Validate the full path once (payout → `service_fee` ledger row → revenue card). | Open |
-| M3 | Security / Config | `DEBUG=True` in `base.py`; safe only because `production.py` overrides it. Add an assert/guard so a misconfigured deploy can never serve with `DEBUG=True`. | Open |
+| M3 | Security / Config | `DEBUG=True` in `base.py`; safe only because `production.py` overrides it. Add an assert/guard so a misconfigured deploy can never serve with `DEBUG=True`. | **Resolved 2026-08-06.** `base.py` now defaults `DEBUG=False` (fail-safe); `development.py` opts back in explicitly; `production.py` ends with `assert DEBUG is False`. Both the default and the assert must be defeated for a debug leak to reach prod. Verified via `manage.py check` on both settings modules. |
 | M4 | Ops / Telemetry | `ApiMetricsMiddleware` writes to the default DB synchronously on an anomaly; during a DB-degradation incident the anomaly write hits the same DB. Acceptable now; at scale move to a queue or external APM. | Accepted risk |
 | M5 | Product / UX | Manager register has no in-page verify-code step (redirects to `/login` with instructions). | Open |
 | M6 | Analytics | Nightly `MetricSnapshot` rollup not built, so deeper financial trends (on-time ratio, activation funnel, arrears over time) are deferred (honestly labelled). | Open |

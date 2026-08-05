@@ -7,7 +7,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # ─── Security ────────────────────────────────────────────────────────────────
 SECRET_KEY = os.environ['SECRET_KEY']
-DEBUG = True
+# Fail safe: DEBUG is OFF by default here. Only development.py opts back in, so a
+# deploy that loads the wrong (or no) settings module can never serve with
+# DEBUG=True (M3). production.py additionally asserts it stays off.
+DEBUG = False
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
 
 # ─── Applications ────────────────────────────────────────────────────────────
@@ -229,20 +232,17 @@ SIMPLE_JWT = {
 }
 
 # ─── CORS ────────────────────────────────────────────────────────────────────
+# Shared/production origins only. The dev localhost origins are added in
+# development.py so they are never allowed in production (H4). Extra production
+# origins (e.g. the member-app domain) can be supplied via the CORS_ALLOWED_
+# ORIGINS env var, comma-separated, without a code change.
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3001',
-    'http://localhost:3002',        # Console (super_admin), dev
-    'http://127.0.0.1:3002',
-    'http://localhost:3003',        # Manager (platform_admin), dev
-    'http://127.0.0.1:3003',
-    'http://localhost:3010',        # Web dashboard fallback dev port
-    'http://127.0.0.1:3010',
-    'https://console.orbisave.com', # Console, production
-    'https://manager.orbisave.com', # Manager, production
+    'https://console.orbisave.com',  # Console, production
+    'https://manager.orbisave.com',  # Manager, production
 ]
+_extra_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '').strip()
+if _extra_cors_origins:
+    CORS_ALLOWED_ORIGINS += [o.strip() for o in _extra_cors_origins.split(',') if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = list(default_headers) + [

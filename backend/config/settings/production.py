@@ -34,3 +34,8 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # Enable S3 in production
 USE_S3 = True
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# Fail closed: never serve production with DEBUG on, even if a future import or
+# override flips it back. base.py also defaults DEBUG=False now, so both the
+# default and this assertion have to be defeated for a debug leak to reach prod.
+assert DEBUG is False, 'Production must run with DEBUG=False.'

@@ -150,7 +150,7 @@ Not code yet — the go-live runbook. Track as its own chunk.
 - **Redis**: password-protected, bound to localhost/private network; used for cache + Celery broker.
 - **Secrets**: from the host secret store / env, never the repo. **Rotate the dev `SECRET_KEY` and the Resend API key**; purge the old `.env` from git history (C1).
 - **Firewall**: ufw allow only 80/443 (+ SSH from known IPs); SSH key-only, no root login, fail2ban.
-- **Config guards**: assert `DEBUG=False` in prod (M3); set `ALLOWED_HOSTS` to the real domains; gate localhost CORS origins to dev only (H4).
+- **Config guards**: ~~assert `DEBUG=False` in prod (M3)~~ **done** (`base.py` fail-safe default + `production.py` assert); ~~gate localhost CORS origins to dev only (H4)~~ **done** (localhost origins live only in `development.py`). Remaining: set `ALLOWED_HOSTS` to the real domains at deploy.
 - **Scaling**: horizontal app scale behind the proxy/LB; Celery workers for background jobs; CDN for static; DB read replicas + pooling when traffic grows; cache hot reads in Redis.
 - **Monitoring**: `/healthz`+`/readyz` (H1) for the LB; Sentry for errors; centralised logs; uptime + 5xx/latency + DB/redis alerts (H2).
 - **Pre-launch**: third-party penetration test (L4); dependency scan gate (L3).
@@ -160,7 +160,7 @@ Not code yet — the go-live runbook. Track as its own chunk.
 ## 10. Suggested remediation order (chunk by chunk)
 
 1. ~~**KYC upload validation** (§5)~~ — **Done 2026-08-02** (MIME+size+extension + byte sniffing). Media-serving hardening (nosniff/attachment/separate domain) remains at deploy.
-2. **Secrets + config for prod** — rotate SECRET_KEY + Resend key, purge git history (C1), DEBUG guard (M3), CORS localhost gating (H4), ALLOWED_HOSTS.
+2. **Secrets + config for prod** — ~~DEBUG guard (M3)~~ **Done 2026-08-06** (`base.py` defaults `DEBUG=False`, `production.py` asserts it); ~~CORS localhost gating (H4)~~ **Done 2026-08-06** (localhost origins moved to `development.py`; prod verified to carry none). Still open in this chunk: rotate SECRET_KEY + Resend key and purge git history (C1) — needs a deliberate procedure, not an auto-run; set `ALLOWED_HOSTS` to the real domains at deploy.
 3. **Health + observability** — `/healthz`+`/readyz` (H1), Sentry + alerting (H2).
 4. **Admin MFA + login lockout** (§3) — TOTP for Console/Manager, per-account backoff.
 5. **Object-authorization (IDOR) audit** (§2) — sweep every member-facing detail/mutation route for per-owner checks; verify no mass-assignment; verify webhook signature enforcement.
