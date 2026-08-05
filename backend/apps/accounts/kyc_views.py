@@ -7,7 +7,10 @@ Flow:
     2. GET  /api/v1/kyc/status/, member checks their verification status
     3. POST /api/v1/kyc/pin/set/, member sets transaction PIN post-KYC
 """
+import os
+
 import structlog
+from PIL import Image
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,6 +22,55 @@ from .models import KYCDocument, User
 logger = structlog.get_logger(__name__)
 
 ALLOWED_DOCUMENT_TYPES = ['national_id', 'passport', 'drivers_license']
+
+# KYC documents are identity photos or scans. Accept only real JPG/PNG/PDF and
+# cap the size. Without this an authenticated user could upload any file (an SVG
+# or HTML carrying script) to the media directory; an admin opening it in the
+# review drawer could then be XSS'd. We check size, extension and the declared
+# content type, then sniff the actual bytes, the client-declared type is not
+# trusted on its own.
+MAX_KYC_FILE_MB = 10
+ALLOWED_KYC_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf'}
+ALLOWED_KYC_CONTENT_TYPES = {'image/jpeg', 'image/png', 'application/pdf'}
+
+
+def validate_kyc_upload(uploaded, field):
+    """Return an error string if `uploaded` is not a safe KYC file, else None."""
+    if uploaded is None:
+        return None
+    if not uploaded.size:
+        return f"{field} is empty."
+    if uploaded.size > MAX_KYC_FILE_MB * 1024 * 1024:
+        return f"{field} is larger than the {MAX_KYC_FILE_MB} MB limit."
+
+    ext = os.path.splitext((uploaded.name or '').lower())[1]
+    if ext not in ALLOWED_KYC_EXTENSIONS:
+        return f"{field} must be a JPG, PNG or PDF."
+    declared = getattr(uploaded, 'content_type', None)
+    if declared and declared not in ALLOWED_KYC_CONTENT_TYPES:
+        return f"{field} must be a JPG, PNG or PDF."
+
+    # Sniff the real bytes. This is what rejects an SVG/HTML script payload that
+    # was renamed to .jpg or sent with a spoofed content type.
+    try:
+        if ext == '.pdf':
+            head = uploaded.read(5)
+            uploaded.seek(0)
+            if head != b'%PDF-':
+                return f"{field} is not a valid PDF."
+        else:
+            image = Image.open(uploaded)
+            image.verify()               # raises if not a genuine image
+            if image.format not in ('JPEG', 'PNG'):
+                return f"{field} must be a JPG or PNG image."
+    except Exception:  # UnidentifiedImageError, truncated/corrupt files, etc.
+        return f"{field} is not a valid image or PDF."
+    finally:
+        try:
+            uploaded.seek(0)             # rewind so the subsequent save is complete
+        except Exception:
+            pass
+    return None
 
 
 class KYCSubmitView(APIView):
@@ -46,6 +98,12 @@ class KYCSubmitView(APIView):
                 {'error': 'front_image file is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Reject anything that is not a genuine JPG/PNG/PDF within the size cap.
+        for uploaded, field in ((front_image, 'front_image'), (back_image, 'back_image')):
+            file_error = validate_kyc_upload(uploaded, field)
+            if file_error:
+                return Response({'error': file_error}, status=status.HTTP_400_BAD_REQUEST)
 
         # Prevent re-submission if already verified
         if user.kyc_status == 'verified':

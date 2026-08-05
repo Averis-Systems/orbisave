@@ -101,7 +101,7 @@ layer (reverse proxy, TLS, firewall, backups, WAF/DDoS). None are blockers to a
 | CSRF | ✅ | API auth is JWT (not session), so CSRF N/A for it; cookies are SameSite=lax; mutations use POST/PATCH/DELETE. Consider SameSite=strict for the auth cookie. |
 | Insecure deserialization | ✅ | No `pickle`/`yaml.load`/`eval`/`marshal` on untrusted data. |
 | Unvalidated redirects/forwards | 🔍 | `?next=` used on login redirect; confirm it only accepts same-origin/relative paths (open-redirect check). |
-| File upload (RCE / stored XSS) | 🔴 | **Real gap.** `KYCSubmitView` saves `request.FILES` to a `FileField` with **no** content-type/extension/size validation — an authenticated user can upload any file (e.g. an SVG/HTML with script) to `media/kyc/`. Impact depends on how media is served; an admin opening it in the review drawer could be XSS'd if served inline. Fix: validate MIME (jpeg/png/pdf) + extension + size cap, re-encode images, and serve media with `nosniff` + `Content-Disposition: attachment` (see §9). Branding uses `ImageField` (Pillow-validated) — lower risk. |
+| File upload (RCE / stored XSS) | ✅ (2026-08-02) | `KYCSubmitView.validate_kyc_upload` now enforces a 10 MB cap, an extension + declared-content-type allowlist (jpg/png/pdf), and **byte sniffing** (Pillow `verify()` for images, `%PDF-` magic for PDFs) so an SVG/HTML script renamed to `.jpg` is rejected (tested). Remaining at deploy (§9): serve `media/` with `nosniff` + `Content-Disposition: attachment` from a cookie-less domain, and optionally re-encode images to strip polyglots/EXIF. Branding uses `ImageField` (Pillow-validated). |
 
 ## 6. Mobile & client-side
 
@@ -159,7 +159,7 @@ Not code yet — the go-live runbook. Track as its own chunk.
 
 ## 10. Suggested remediation order (chunk by chunk)
 
-1. **KYC upload validation** (§5) — small, concrete, real. MIME+size+extension, re-encode, harden media serving.
+1. ~~**KYC upload validation** (§5)~~ — **Done 2026-08-02** (MIME+size+extension + byte sniffing). Media-serving hardening (nosniff/attachment/separate domain) remains at deploy.
 2. **Secrets + config for prod** — rotate SECRET_KEY + Resend key, purge git history (C1), DEBUG guard (M3), CORS localhost gating (H4), ALLOWED_HOSTS.
 3. **Health + observability** — `/healthz`+`/readyz` (H1), Sentry + alerting (H2).
 4. **Admin MFA + login lockout** (§3) — TOTP for Console/Manager, per-account backoff.
