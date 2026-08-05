@@ -4,9 +4,14 @@ from django.contrib import admin
 from django.urls import path, include
 from apps.admin_portal.branding_views import PlatformBrandingView
 from apps.admin_portal.public_views import PartnerEnquiryCreateView
+from common.health import healthz, readyz
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Liveness/readiness probes for the load balancer + uptime monitor (H1).
+    # Unauthenticated and unthrottled by design; kept at the root, not /api/v1/.
+    path('healthz', healthz, name='healthz'),
+    path('readyz', readyz, name='readyz'),
     # Public: all three frontends read this, including pre-login pages,
     # doesn't live under admin-portal/ since it isn't an admin-only concern.
     path('api/v1/platform-branding/', PlatformBrandingView.as_view(), name='platform-branding'),

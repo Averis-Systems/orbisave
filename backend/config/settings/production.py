@@ -25,6 +25,10 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_SSL_REDIRECT = True
+# The load balancer / orchestrator health checks hit these over plain HTTP on
+# the internal network; without an exemption SECURE_SSL_REDIRECT would 301 them
+# and many probes read a redirect as unhealthy (H1).
+SECURE_REDIRECT_EXEMPT = [r'^healthz$', r'^readyz$']
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True

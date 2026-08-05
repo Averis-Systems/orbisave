@@ -161,7 +161,7 @@ Not code yet — the go-live runbook. Track as its own chunk.
 
 1. ~~**KYC upload validation** (§5)~~ — **Done 2026-08-02** (MIME+size+extension + byte sniffing). Media-serving hardening (nosniff/attachment/separate domain) remains at deploy.
 2. **Secrets + config for prod** — ~~DEBUG guard (M3)~~ **Done 2026-08-06** (`base.py` defaults `DEBUG=False`, `production.py` asserts it); ~~CORS localhost gating (H4)~~ **Done 2026-08-06** (localhost origins moved to `development.py`; prod verified to carry none). Still open in this chunk: rotate SECRET_KEY + Resend key and purge git history (C1) — needs a deliberate procedure, not an auto-run; set `ALLOWED_HOSTS` to the real domains at deploy.
-3. **Health + observability** — `/healthz`+`/readyz` (H1), Sentry + alerting (H2).
+3. **Health + observability** — ~~`/healthz`+`/readyz` (H1)~~ **Done 2026-08-06** (`common/health.py`, unauthenticated/unthrottled, `/readyz` checks every shard, 503 on any failure). Still open: Sentry + alerting (H2).
 4. **Admin MFA + login lockout** (§3) — TOTP for Console/Manager, per-account backoff.
 5. **Object-authorization (IDOR) audit** (§2) — sweep every member-facing detail/mutation route for per-owner checks; verify no mass-assignment; verify webhook signature enforcement.
 6. **VPS runbook** (§9) — nginx/TLS/firewall/backups/gunicorn; the deployment itself.
@@ -171,3 +171,96 @@ Not code yet — the go-live runbook. Track as its own chunk.
 
 Nothing here blocks continued refinement or a working dev system today; it is the
 runway to a safe production launch.
+
+---
+
+## Appendix A. Secret rotation + git-history purge runbook (C1)
+
+**Do not run this automatically.** It is captured here to run deliberately when
+readying production. Two of these steps are one-way: rotating `SECRET_KEY`
+invalidates every signed value in flight (all active sessions, password-reset
+and email-verification links), and a history rewrite force-pushes the shared
+remote, so every collaborator must re-clone or hard-reset. Do them in a
+maintenance window, with the team told in advance.
+
+### A.1 What is exposed and why it matters
+
+- The **development `SECRET_KEY`** was committed and pushed, so it lives in the
+  public git history forever, even though the current tree reads it from the
+  environment. In production `SECRET_KEY` signs sessions/CSRF and is the HS256
+  fallback for JWTs, `production.py` already refuses to boot on that fallback,
+  but the key must still never be the committed one.
+- The **`RESEND_API_KEY`** and any real provider credentials must exist only in
+  the server environment (`.env` is gitignored). Confirm none were ever
+  committed (see A.4).
+
+### A.2 Generate fresh production secrets (does not touch git)
+
+```bash
+# A new SECRET_KEY (50+ random chars):
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# Fresh RS256 JWT keypair for production (never reuse the dev keys):
+openssl genrsa -out jwt_private.pem 4096
+openssl rsa -in jwt_private.pem -pubout -out jwt_public.pem
+```
+
+Put these only in the production environment (systemd `EnvironmentFile`, or the
+secret store), never in the repo:
+
+```
+SECRET_KEY=<new value>
+JWT_PRIVATE_KEY_PATH=/etc/orbisave/jwt_private.pem
+JWT_PUBLIC_KEY_PATH=/etc/orbisave/jwt_public.pem
+RESEND_API_KEY=<rotate a NEW key in the Resend dashboard, revoke the old one>
+DATABASE_URL=...            # and the _KENYA/_RWANDA/_GHANA shards
+CORS_ALLOWED_ORIGINS=       # only if a prod origin beyond console./manager. is needed
+ALLOWED_HOSTS=...           # set to the real domains in production.py/env
+```
+
+Rotate the Resend key in the provider dashboard and **revoke** the old one, a
+new value in the env is not enough while the old one still works.
+
+### A.3 Purge the committed dev secret from git history
+
+Use `git filter-repo` (preferred over the deprecated `filter-branch`/BFG). This
+rewrites every commit, so coordinate first.
+
+```bash
+# 1. Fresh mirror clone, never rewrite your working repo in place.
+git clone --mirror https://github.com/Averis-Systems/orbisave.git orbisave-purge
+cd orbisave-purge
+
+# 2. Replace the leaked literal everywhere it ever appeared. Put the exact
+#    old key on the left; ==> the placeholder is what remains in history.
+printf '<OLD_LEAKED_SECRET_KEY>==>REMOVED_SECRET\n' > ../replace.txt
+git filter-repo --replace-text ../replace.txt
+
+# 3. Force-push the rewritten history.
+git push --force --all
+git push --force --tags
+```
+
+Then, once, out of band: **every collaborator re-clones** (or
+`git fetch && git reset --hard origin/main`). Old clones and any fork still
+carry the secret, which is exactly why A.2's rotation is the real fix, the
+purge reduces exposure but the key must be treated as burned regardless.
+
+### A.4 Confirm no other secret was ever committed
+
+```bash
+# Spot-check history for the known-sensitive names:
+git log -p --all -S 'RESEND_API_KEY' -- . | head
+git log -p --all -S 'SECRET_KEY'      -- . | head
+# Or run a scanner over the whole history before launch:
+#   gitleaks detect --source . --log-opts="--all"
+```
+
+### A.5 Post-rotation verification
+
+- Production boots (RS256 keys present, `DEBUG=False` assert passes).
+- A fresh login issues a working JWT; an **old** token/session is rejected
+  (expected, that is the rotation working).
+- A verification/reset email sends via the new Resend key; the old key returns
+  401 at Resend.
+- `git log -p --all -S '<OLD_LEAKED_SECRET_KEY>'` returns nothing.
