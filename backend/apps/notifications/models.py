@@ -10,6 +10,8 @@ class Notification(BaseModel):
         ('loan_approval_required','Loan Approval Required'),
         ('new_member_joined','New Member Joined'),
         ('meeting_starting','Meeting Starting'),
+        ('group_status','Group Status'),      # group verified/rejected (was silently degrading to admin_alert)
+        ('group_invite','Group Invite'),      # invited to join a group
         ('admin_alert','Admin Alert'),
         ('reminder','Reminder'),
     ]
