@@ -122,6 +122,17 @@ class GroupSerializer(serializers.ModelSerializer):
             'verification_status', 'wallet', 'chairperson_name',
             'member_count', 'created_at'
         ]
+        # This serializer backs GroupViewSet update (PATCH/PUT). These fields are
+        # controlled by dedicated, gated workflows and must never be settable via
+        # a generic PATCH: `status` is driven by activate()/pause()/close() (with
+        # KYC + first-contribution + next-of-kin gates), `verification_status` by
+        # admin review (a verified chair could otherwise self-verify), and
+        # `country`/`currency` are shard-key + currency invariants that would
+        # corrupt per-country routing if changed. Editing the contribution/
+        # savings money parameters mid-cycle silently changes members'
+        # obligations and should likewise move to a governed action (tracked in
+        # areas_of_concern) rather than a raw field write.
+        read_only_fields = ['status', 'verification_status', 'country', 'currency']
 
     def get_wallet(self, obj):
         return WalletCalculations.get_cached_group_wallet(obj)

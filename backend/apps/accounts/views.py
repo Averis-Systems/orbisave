@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 import structlog
 from .serializers import RegisterSerializer, UserSerializer, KYCDocumentSerializer, ProfileUpdateSerializer
 from .models import KYCDocument
+from .kyc_views import validate_kyc_upload
 
 logger = structlog.get_logger(__name__)
 
@@ -181,6 +182,20 @@ class KYCSubmitView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Reject anything that is not a genuine JPG/PNG/PDF within the size cap.
+        # This is the LIVE endpoint (wired in accounts/urls.py); the same check
+        # previously lived only on an unrouted copy in kyc_views.py, so an
+        # attacker could upload an SVG/HTML polyglot renamed .jpg and XSS an admin
+        # opening it in the review drawer. Validate every uploaded file here.
+        for uploaded, field in (
+            (front_image, 'front_image'),
+            (selfie, 'selfie_image'),
+            (request.FILES.get('back_image'), 'back_image'),
+        ):
+            file_error = validate_kyc_upload(uploaded, field)
+            if file_error:
+                return Response({'error': file_error}, status=status.HTTP_400_BAD_REQUEST)
+
         valid_types = [c[0] for c in KYCDocument.DOCUMENT_TYPES]
         if doc_type not in valid_types:
             return Response(
@@ -241,7 +256,10 @@ class ProfileUpdateView(APIView):
     def patch(self, request):
         try:
             user = request.user
-            logger.info("profile_update_attempt", user_id=str(user.id), data=request.data)
+            # Log only which fields are being updated, never the values: the
+            # profile body carries PII (bank_account_number, next_of_kin_name/
+            # phone) that must not land in application logs.
+            logger.info("profile_update_attempt", user_id=str(user.id), fields=sorted(request.data.keys()))
             serializer = ProfileUpdateSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
                 updated_user = serializer.save()

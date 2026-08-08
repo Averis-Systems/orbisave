@@ -6,9 +6,11 @@ from django.utils import timezone as tz
 from rest_framework import views, status, viewsets, mixins
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import get_object_or_404
 from django.db import transaction, models, connections
 from django.db.models import F
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from contextlib import contextmanager
 from threading import Lock
@@ -54,9 +56,14 @@ def sqlite_write_lock(db_alias: str):
     else:
         yield
 
-class PenaltyViewSet(viewsets.ModelViewSet):
+class PenaltyViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Controller for member penalties (fines).
+
+    Read-only by design: members list/retrieve fines for their own groups. The
+    only write path is the leader-gated `issue` action below. Exposing the full
+    ModelViewSet previously let any group member DELETE a penalty (including
+    their own) and made `create` routable without leadership checks.
     """
     serializer_class = PenaltySerializer
     permission_classes = [IsAuthenticated, IsGroupMember]
@@ -76,10 +83,19 @@ class PenaltyViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    @action(detail=False, methods=['post'], permission_classes=[IsGroupLeader])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def issue(self, request):
         """
         Manually issue a fine to a member.
+
+        Authorization is enforced explicitly here: this is a detail=False action,
+        so IsGroupLeader.has_object_permission never runs on its own (it would
+        pass any caller). Previously the action set permission_classes to
+        [IsGroupLeader] alone, which both skipped that object check AND dropped
+        the class-level IsAuthenticated, letting an UNAUTHENTICATED caller inject
+        an arbitrary penalty against any member of any group. We now require
+        authentication, verify the caller is an active leader of the target
+        group, and confirm the fined member actually belongs to that group.
         """
         member_id = request.data.get('member')
         amount = request.data.get('amount')
@@ -90,27 +106,41 @@ class PenaltyViewSet(viewsets.ModelViewSet):
             return Response({"error": "Member, amount, and group are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            group = Group.objects.get(id=group_id)
-            # Find or create a generic rule for this type if needed
-            rule, _ = PenaltyRule.objects.get_or_create(
-                group=group,
-                rule_type=rule_type,
-                defaults={'penalty_type': 'fixed', 'value': amount}
+            amount_dec = Decimal(str(amount))
+        except (InvalidOperation, TypeError):
+            return Response({"error": "amount must be a valid number."}, status=status.HTTP_400_BAD_REQUEST)
+        if amount_dec <= 0:
+            return Response({"error": "amount must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+
+        group = get_object_or_404(Group, id=group_id)
+
+        # Object-level authorization on a non-detail action: the caller must be an
+        # active chairperson/treasurer of THIS specific group.
+        if not IsGroupLeader().has_object_permission(request, self, group):
+            raise PermissionDenied("Only an active leader of this group can issue fines.")
+
+        # The fined member must be an active member of the same group.
+        if not group.memberships.filter(member_id=member_id, status='active').exists():
+            return Response(
+                {"error": "That member is not an active member of this group."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-            from apps.accounts.models import User
-            member = User.objects.get(id=member_id)
+        from apps.accounts.models import User
+        member = get_object_or_404(User, id=member_id)
 
-            penalty = Penalty.objects.create(
-                member=member,
-                rule=rule,
-                amount=amount,
-                status='pending'
-            )
-
-            return success_response(data=PenaltySerializer(penalty).data, message="Fine issued successfully.")
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        rule, _ = PenaltyRule.objects.get_or_create(
+            group=group,
+            rule_type=rule_type,
+            defaults={'penalty_type': 'fixed', 'value': amount_dec},
+        )
+        penalty = Penalty.objects.create(
+            member=member,
+            rule=rule,
+            amount=amount_dec,
+            status='pending',
+        )
+        return success_response(data=PenaltySerializer(penalty).data, message="Fine issued successfully.")
 
 class ContributionViewSet(viewsets.ReadOnlyModelViewSet):
     """
