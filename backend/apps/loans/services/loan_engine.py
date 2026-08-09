@@ -134,76 +134,91 @@ class LoanEngine:
         is_manual = bool(disbursement_reference)
         provider_reference = disbursement_reference
 
+        from common.db_utils import advisory_xact_lock
+        from apps.loans.models import Loan
+
         with transaction.atomic(using=db_alias):
-            if not is_manual:
-                payment_method = COUNTRY_DEFAULT_METHOD.get(group.country, 'mpesa')
-                payout_phone = borrower.mobile_money_number or borrower.phone
-                provider = get_payment_provider(group.country, payment_method)
-                res = provider.initiate_disbursement(
-                    phone=payout_phone,
+            # Serialize disbursement of THIS loan so two concurrent requests
+            # cannot both see 'approved' and both send money. Held until commit.
+            with advisory_xact_lock(db_alias, 'loan_disburse', loan.id):
+                # Re-read the status under the lock: the fast-path check above ran
+                # on the passed-in object, which a concurrent disbursement may have
+                # already moved to 'disbursed'. This is the authoritative guard.
+                loan = Loan.objects.using(db_alias).select_for_update().get(id=loan.id)
+                if loan.status == 'disbursed':
+                    return loan
+                if loan.status != 'approved':
+                    raise ValueError(f"Loan is in '{loan.status}' - only approved loans can be disbursed.")
+
+                if not is_manual:
+                    payment_method = COUNTRY_DEFAULT_METHOD.get(group.country, 'mpesa')
+                    payout_phone = borrower.mobile_money_number or borrower.phone
+                    provider = get_payment_provider(group.country, payment_method)
+                    res = provider.initiate_disbursement(
+                        phone=payout_phone,
+                        amount=loan.amount,
+                        reference=f"LOAN-{loan.id}",
+                        remarks=f"Loan disbursement, {group.name}",
+                    )
+                    if res.get('status') != 'success':
+                        logger.warning(
+                            "loan_disbursement_provider_failed",
+                            loan_id=loan.id,
+                            group_id=group.id,
+                            response=res,
+                        )
+                        raise ValueError(
+                            f"Provider failed to disburse loan: {res.get('error', 'provider returned failure status')}"
+                        )
+                    provider_reference = res.get('provider_reference') or f"DISB-{uuid.uuid4()}"
+
+                loan.status = 'disbursed'
+                loan.disbursed_at = timezone.now()
+                loan.disbursement_reference = provider_reference
+                loan.save(using=db_alias, update_fields=['status', 'disbursed_at', 'disbursement_reference'])
+
+                event_group_key = f"loan_disbursement:{loan.id}"
+                append_ledger_entry(
+                    group=group,
+                    member=borrower,
+                    account_stream='loaning',
+                    entry_type='loan_disbursement',
+                    direction='debit',
                     amount=loan.amount,
-                    reference=f"LOAN-{loan.id}",
-                    remarks=f"Loan disbursement, {group.name}",
+                    currency=group.currency,
+                    description=f"Loan #{loan.id} principal disbursed to {borrower.full_name}. Authorised by {actor.full_name}.",
+                    reference=f"LOAN-LEDGER-{loan.id}",
+                    related_loan=loan,
+                    recorded_by=actor,
+                    idempotency_key=f"loan_disbursement:{loan.id}:loaning",
+                    source_system='orbisave_loans',
+                    event_group_key=event_group_key,
+                    event_type='loan_disbursement',
                 )
-                if res.get('status') != 'success':
-                    logger.warning(
-                        "loan_disbursement_provider_failed",
-                        loan_id=loan.id,
-                        group_id=group.id,
-                        response=res,
-                    )
-                    raise ValueError(
-                        f"Provider failed to disburse loan: {res.get('error', 'provider returned failure status')}"
-                    )
-                provider_reference = res.get('provider_reference') or f"DISB-{uuid.uuid4()}"
+                append_ledger_entry(
+                    group=group,
+                    member=borrower,
+                    account_stream='provider_settlement',
+                    entry_type='loan_disbursement',
+                    direction='credit',
+                    amount=loan.amount,
+                    currency=group.currency,
+                    description=(
+                        f"{'Manual settlement' if is_manual else 'Provider settlement'} payable for "
+                        f"loan #{loan.id} to {borrower.full_name}."
+                    ),
+                    reference=f"LOAN-PROVIDER-LEDGER-{loan.id}",
+                    related_loan=loan,
+                    recorded_by=actor,
+                    idempotency_key=f"loan_disbursement:{loan.id}:provider_settlement",
+                    source_system='orbisave_loans',
+                    event_group_key=event_group_key,
+                    event_type='loan_disbursement',
+                )
+                close_ledger_event_group(event_group_key, db_alias=db_alias)
 
-            loan.status = 'disbursed'
-            loan.disbursed_at = timezone.now()
-            loan.disbursement_reference = provider_reference
-            loan.save(using=db_alias, update_fields=['status', 'disbursed_at', 'disbursement_reference'])
-
-            event_group_key = f"loan_disbursement:{loan.id}"
-            append_ledger_entry(
-                group=group,
-                member=borrower,
-                account_stream='loaning',
-                entry_type='loan_disbursement',
-                direction='debit',
-                amount=loan.amount,
-                currency=group.currency,
-                description=f"Loan #{loan.id} principal disbursed to {borrower.full_name}. Authorised by {actor.full_name}.",
-                reference=f"LOAN-LEDGER-{loan.id}",
-                related_loan=loan,
-                recorded_by=actor,
-                idempotency_key=f"loan_disbursement:{loan.id}:loaning",
-                source_system='orbisave_loans',
-                event_group_key=event_group_key,
-                event_type='loan_disbursement',
-            )
-            append_ledger_entry(
-                group=group,
-                member=borrower,
-                account_stream='provider_settlement',
-                entry_type='loan_disbursement',
-                direction='credit',
-                amount=loan.amount,
-                currency=group.currency,
-                description=(
-                    f"{'Manual settlement' if is_manual else 'Provider settlement'} payable for "
-                    f"loan #{loan.id} to {borrower.full_name}."
-                ),
-                reference=f"LOAN-PROVIDER-LEDGER-{loan.id}",
-                related_loan=loan,
-                recorded_by=actor,
-                idempotency_key=f"loan_disbursement:{loan.id}:provider_settlement",
-                source_system='orbisave_loans',
-                event_group_key=event_group_key,
-                event_type='loan_disbursement',
-            )
-            close_ledger_event_group(event_group_key, db_alias=db_alias)
-
-            from apps.loans.services.repayment_service import LoanRepaymentService
-            LoanRepaymentService.generate_repayments(loan)
+                from apps.loans.services.repayment_service import LoanRepaymentService
+                LoanRepaymentService.generate_repayments(loan)
 
         logger.info(
             "loan_disbursed",

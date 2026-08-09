@@ -178,3 +178,27 @@ class TestPayoutIdempotency:
         assert payout2.status == 'completed'
         # These are DIFFERENT records, retry creates a new payout
         assert payout1.id != payout2.id
+
+    def test_unique_constraint_is_the_final_backstop(
+        self, group, user, group_member, rotation_cycle
+    ):
+        """
+        Even if the service-level advisory lock + idempotency guard were bypassed
+        (e.g. a raced INSERT), the DB partial-unique constraint blocks a second
+        ACTIVE payout for the same (group, recipient, cycle). A 'failed' one does
+        not occupy the slot, so retries are unaffected (covered above).
+        """
+        from apps.payouts.models import Payout
+        from django.db import IntegrityError, transaction
+
+        base = dict(
+            group=group, recipient=user, cycle=rotation_cycle,
+            rotation_position=2, cycle_number=1,
+            gross_amount=Decimal('1000.00'), service_fee=Decimal('40.00'),
+            net_amount=Decimal('960.00'), currency='KES', method='mpesa',
+            mobile_number=user.phone, scheduled_date=timezone.now().date(),
+        )
+        Payout.objects.using('kenya').create(status='completed', **base)
+        with pytest.raises(IntegrityError):
+            with transaction.atomic(using='kenya'):
+                Payout.objects.using('kenya').create(status='processing', **base)

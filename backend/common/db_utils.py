@@ -7,7 +7,47 @@ Usage:
     with transaction.atomic(using=get_db_for_group(group)):
         ...
 """
+import hashlib
+from contextlib import contextmanager
+from threading import Lock
+
 from django.conf import settings
+from django.db import connections
+
+
+# Process-local fallback for engines without advisory locks (SQLite in dev/tests).
+_advisory_local_lock = Lock()
+
+
+def advisory_lock_key(*parts) -> int:
+    """A stable signed-64-bit key for pg_advisory_xact_lock from any identifiers."""
+    raw = ':'.join(str(p) for p in parts).encode()
+    return int(hashlib.blake2s(raw, digest_size=8).hexdigest(), 16) % (2 ** 63 - 1)
+
+
+@contextmanager
+def advisory_xact_lock(db_alias, *key_parts):
+    """
+    Serialize a money-critical section per key on `db_alias`.
+
+    MUST be entered INSIDE `transaction.atomic(using=db_alias)`: pg_advisory_xact_lock
+    is transaction-scoped and released automatically on commit or rollback, so the
+    lock covers exactly the work in the surrounding transaction. Two concurrent
+    payout / loan-disbursement attempts for the same (group, cycle, recipient) or
+    the same loan serialize, the second blocks until the first commits, then
+    re-reads and sees the completed state instead of sending a second payment.
+
+    On SQLite (dev/tests) there are no advisory locks, so a process-local
+    threading.Lock stands in, which is enough to serialize the test process.
+    """
+    conn = connections[db_alias]
+    if conn.vendor == 'postgresql':
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT pg_advisory_xact_lock(%s)', [advisory_lock_key(*key_parts)])
+            yield
+    else:
+        with _advisory_local_lock:
+            yield
 
 
 # Country strings mapped to their DB alias names.

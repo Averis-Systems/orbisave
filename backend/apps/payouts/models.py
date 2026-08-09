@@ -38,3 +38,15 @@ class Payout(BaseModel):
 
     class Meta:
         db_table = 'payouts_payout'
+        constraints = [
+            # Final backstop against a double rotation payout for the same
+            # cycle+recipient (the advisory lock in execute_rotation_payout is the
+            # primary guard). Only 'live'/successful statuses occupy the slot, so a
+            # failed/cancelled payout can still be retried. Rows with cycle=NULL are
+            # distinct in Postgres, so non-cycle payouts are unaffected.
+            models.UniqueConstraint(
+                fields=['group', 'recipient', 'cycle'],
+                condition=models.Q(status__in=['processing', 'provider_processing', 'completed', 'paid']),
+                name='uniq_active_payout_per_group_cycle_recipient',
+            ),
+        ]

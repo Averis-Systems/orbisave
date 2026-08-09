@@ -11,7 +11,7 @@ from apps.groups.models import GroupMember, RotationCycle, RotationSchedule
 from apps.contributions.models import Contribution
 from apps.payments.selector import COUNTRY_DEFAULT_METHOD, get_payment_provider
 from apps.groups.serializers import WalletCalculations
-from common.db_utils import get_db_for_group
+from common.db_utils import get_db_for_group, advisory_xact_lock
 
 logger = structlog.get_logger(__name__)
 
@@ -188,112 +188,118 @@ class PayoutService:
         membership = GroupMember.objects.using(db_alias).get(group=group, member=target_member)
 
         with transaction.atomic(using=db_alias):
-            # ── Idempotency Guard ────────────────────────────────────────────
-            # Prevent double-payout from a double-click or a retry storm.
-            # If a payout already exists for this cycle+recipient in a
-            # non-failed state, return it, do not create a duplicate.
-            if cycle:
-                existing = Payout.objects.using(db_alias).filter(
+            # Serialize this (group, cycle, recipient) so two concurrent
+            # PIN-authorized requests cannot both pass the idempotency check and
+            # both disburse. The lock is held until this transaction commits;
+            # the second caller then re-reads and returns the existing payout.
+            with advisory_xact_lock(db_alias, 'rotation_payout', group.id, cycle.id if cycle else 0, target_member.id):
+                # ── Idempotency Guard ────────────────────────────────────────
+                # Prevent double-payout from a double-click or a retry storm.
+                # If a payout already exists for this cycle+recipient in a
+                # non-failed state, return it, do not create a duplicate. The DB
+                # also carries a partial-unique constraint as a final backstop.
+                if cycle:
+                    existing = Payout.objects.using(db_alias).filter(
+                        group=group,
+                        recipient=target_member,
+                        cycle=cycle,
+                        status__in=['processing', 'provider_processing', 'completed', 'paid'],
+                    ).first()
+                    if existing:
+                        logger.info(
+                            "payout_duplicate_blocked",
+                            group_id=group.id,
+                            recipient_id=target_member.id,
+                            payout_id=existing.id,
+                        )
+                        return existing
+
+                payout = Payout.objects.using(db_alias).create(
                     group=group,
                     recipient=target_member,
                     cycle=cycle,
-                    status__in=['processing', 'completed'],
-                ).first()
-                if existing:
-                    logger.info(
-                        "payout_duplicate_blocked",
-                        group_id=group.id,
-                        recipient_id=target_member.id,
-                        payout_id=existing.id,
+                    rotation_position=membership.rotation_position or 1,
+                    cycle_number=cycle.cycle_number if cycle else 0,
+                    gross_amount=available_rotation_funds,
+                    service_fee=raw_fee_value,
+                    net_amount=net_disbursement,
+                    currency=group.currency,
+                    method=payment_method,
+                    mobile_number=payout_phone,
+                    scheduled_date=timezone.now().date(),
+                    status='processing',
+                )
+
+                provider = get_payment_provider(group.country, payment_method)
+                res = provider.initiate_disbursement(
+                    phone=payout_phone,
+                    amount=net_disbursement,
+                    reference=f"PAY-{payout.id}",
+                    remarks=f"Rotation payout, {group.name}",
+                )
+
+                payout.provider_reference = res.get('provider_reference')
+
+                if res.get('status') == 'success':
+                    payout.status = 'completed'
+                    payout.processed_at = timezone.now()
+                    payout.save(using=db_alias)
+
+                    event_group_key = f"payout:{payout.id}:completed"
+                    append_ledger_entry(
+                        group=group,
+                        member=target_member,
+                        account_stream='rotation',
+                        entry_type='payout',
+                        direction='debit',
+                        amount=payout.gross_amount,
+                        currency=group.currency,
+                        description=f"Rotation payout to {target_member.full_name}.",
+                        reference=f"PAY-LEDGER-{payout.id}",
+                        related_payout=payout,
+                        idempotency_key=f"payout:{payout.id}:rotation",
+                        source_system='orbisave_payout',
+                        event_group_key=event_group_key,
+                        event_type='rotation_payout_completed',
                     )
-                    return existing
-
-            payout = Payout.objects.using(db_alias).create(
-                group=group,
-                recipient=target_member,
-                cycle=cycle,
-                rotation_position=membership.rotation_position or 1,
-                cycle_number=cycle.cycle_number if cycle else 0,
-                gross_amount=available_rotation_funds,
-                service_fee=raw_fee_value,
-                net_amount=net_disbursement,
-                currency=group.currency,
-                method=payment_method,
-                mobile_number=payout_phone,
-                scheduled_date=timezone.now().date(),
-                status='processing',
-            )
-
-            provider = get_payment_provider(group.country, payment_method)
-            res = provider.initiate_disbursement(
-                phone=payout_phone,
-                amount=net_disbursement,
-                reference=f"PAY-{payout.id}",
-                remarks=f"Rotation payout, {group.name}",
-            )
-
-            payout.provider_reference = res.get('provider_reference')
-
-            if res.get('status') == 'success':
-                payout.status = 'completed'
-                payout.processed_at = timezone.now()
-                payout.save(using=db_alias)
-
-                event_group_key = f"payout:{payout.id}:completed"
-                append_ledger_entry(
-                    group=group,
-                    member=target_member,
-                    account_stream='rotation',
-                    entry_type='payout',
-                    direction='debit',
-                    amount=payout.gross_amount,
-                    currency=group.currency,
-                    description=f"Rotation payout to {target_member.full_name}.",
-                    reference=f"PAY-LEDGER-{payout.id}",
-                    related_payout=payout,
-                    idempotency_key=f"payout:{payout.id}:rotation",
-                    source_system='orbisave_payout',
-                    event_group_key=event_group_key,
-                    event_type='rotation_payout_completed',
-                )
-                append_ledger_entry(
-                    group=group,
-                    member=target_member,
-                    account_stream='company_revenue',
-                    entry_type='service_fee',
-                    direction='credit',
-                    amount=payout.service_fee,
-                    currency=group.currency,
-                    description=f"Service fee for rotation payout to {target_member.full_name}.",
-                    reference=f"PAY-FEE-LEDGER-{payout.id}",
-                    related_payout=payout,
-                    idempotency_key=f"payout:{payout.id}:service_fee",
-                    source_system='orbisave_payout',
-                    event_group_key=event_group_key,
-                    event_type='rotation_payout_completed',
-                )
-                append_ledger_entry(
-                    group=group,
-                    member=target_member,
-                    account_stream='provider_settlement',
-                    entry_type='payout',
-                    direction='credit',
-                    amount=payout.net_amount,
-                    currency=group.currency,
-                    description=f"Provider settlement payable for rotation payout to {target_member.full_name}.",
-                    reference=f"PAY-PROVIDER-LEDGER-{payout.id}",
-                    related_payout=payout,
-                    idempotency_key=f"payout:{payout.id}:provider_settlement",
-                    source_system='orbisave_payout',
-                    event_group_key=event_group_key,
-                    event_type='rotation_payout_completed',
-                )
-                close_ledger_event_group(event_group_key, db_alias=db_alias)
-                logger.info("payout_completed", group_id=group.id, net=str(net_disbursement))
-            else:
-                payout.status = 'failed'
-                payout.failure_reason = res.get('error', 'Provider returned failure status.')
-                payout.save(using=db_alias)
-                logger.warning("payout_provider_failed", group_id=group.id, res=res)
+                    append_ledger_entry(
+                        group=group,
+                        member=target_member,
+                        account_stream='company_revenue',
+                        entry_type='service_fee',
+                        direction='credit',
+                        amount=payout.service_fee,
+                        currency=group.currency,
+                        description=f"Service fee for rotation payout to {target_member.full_name}.",
+                        reference=f"PAY-FEE-LEDGER-{payout.id}",
+                        related_payout=payout,
+                        idempotency_key=f"payout:{payout.id}:service_fee",
+                        source_system='orbisave_payout',
+                        event_group_key=event_group_key,
+                        event_type='rotation_payout_completed',
+                    )
+                    append_ledger_entry(
+                        group=group,
+                        member=target_member,
+                        account_stream='provider_settlement',
+                        entry_type='payout',
+                        direction='credit',
+                        amount=payout.net_amount,
+                        currency=group.currency,
+                        description=f"Provider settlement payable for rotation payout to {target_member.full_name}.",
+                        reference=f"PAY-PROVIDER-LEDGER-{payout.id}",
+                        related_payout=payout,
+                        idempotency_key=f"payout:{payout.id}:provider_settlement",
+                        source_system='orbisave_payout',
+                        event_group_key=event_group_key,
+                        event_type='rotation_payout_completed',
+                    )
+                    close_ledger_event_group(event_group_key, db_alias=db_alias)
+                    logger.info("payout_completed", group_id=group.id, net=str(net_disbursement))
+                else:
+                    payout.status = 'failed'
+                    payout.failure_reason = res.get('error', 'Provider returned failure status.')
+                    payout.save(using=db_alias)
+                    logger.warning("payout_provider_failed", group_id=group.id, res=res)
 
         return payout
