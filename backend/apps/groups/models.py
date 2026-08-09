@@ -68,6 +68,10 @@ class Group(BaseModel):
     harvest_start_month       = models.PositiveIntegerField(null=True, blank=True)
     harvest_end_month         = models.PositiveIntegerField(null=True, blank=True)
     rotation_savings_pct      = models.DecimalField(max_digits=5, decimal_places=2, default=70)
+    # Internal loaning is opt-in and turned on by a member vote (governance app).
+    # While False the loan_pool_pct is treated as 0 in the contribution split and
+    # loan requests are refused, so no group lends until it has agreed to.
+    loan_pool_enabled         = models.BooleanField(default=False)
     loan_pool_pct             = models.DecimalField(max_digits=5, decimal_places=2, default=30)
     max_loan_multiplier       = models.DecimalField(max_digits=5, decimal_places=2, default=3)
     loan_term_weeks           = models.PositiveIntegerField(default=12)

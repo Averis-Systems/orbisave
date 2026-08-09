@@ -26,6 +26,8 @@ urlpatterns = [
     path('api/v1/meetings/', include('apps.meetings.urls')),
     path('api/v1/notifications/', include('apps.notifications.urls')),
     path('api/v1/analytics/', include('apps.analytics.urls')),
+    # Group governance: member proposals + quorum voting.
+    path('api/v1/governance/', include('apps.governance.urls')),
     # Member-facing feedback/support (submit + own tickets).
     path('api/v1/feedback/', include('apps.feedback.urls')),
     # Admin queue: country managers (scoped) + super admin (all/escalated).

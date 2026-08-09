@@ -32,6 +32,7 @@ def group(db, auth_user):
         contribution_day=1,
         rotation_savings_pct=80.0,
         loan_pool_pct=20.0,
+        loan_pool_enabled=True,
         max_loan_multiplier=2.0,
         loan_term_weeks=4,
         loan_interest_rate_monthly=5.0,

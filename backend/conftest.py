@@ -94,6 +94,7 @@ def group(db, chairperson):
         contribution_day=1,
         rotation_savings_pct=Decimal('70'),
         loan_pool_pct=Decimal('30'),
+        loan_pool_enabled=True,
         max_loan_multiplier=Decimal('3'),
         loan_term_weeks=12,
         loan_interest_rate_monthly=Decimal('5.00'),

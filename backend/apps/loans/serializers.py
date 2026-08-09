@@ -48,6 +48,16 @@ class LoanRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError('Amount must be greater than zero.')
         return value
 
+    def validate(self, attrs):
+        # Loaning is opt-in: a group can only lend after voting the pool on.
+        group = attrs.get('group')
+        if group is not None and not group.loan_pool_enabled:
+            raise serializers.ValidationError(
+                "This group's loan pool is not active. Members must vote to enable "
+                "internal loaning before a loan can be requested."
+            )
+        return attrs
+
     def create(self, validated_data):
         # perform_create passes borrower via serializer.save(borrower=...);
         # duplicating it here used to crash the endpoint with a TypeError.

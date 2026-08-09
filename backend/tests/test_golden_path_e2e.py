@@ -157,6 +157,9 @@ def test_golden_path_full_money_lifecycle():
     }, format='json')
     assert create.status_code == 201, create.data
     group = Group.objects.using('kenya').get(name='Golden Path Chama')
+    # Loaning is opt-in (a governance vote enables it in production); turn it on
+    # here so the contribution split funds the loan pool and the loan leg runs.
+    Group.objects.using('kenya').filter(id=group.id).update(loan_pool_enabled=True)
 
     assert chair_client.post('/api/v1/auth/transaction-pin/', {
         'pin': '1234', 'password': 'GoldenPath123!',

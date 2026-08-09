@@ -7,7 +7,7 @@ class OrbiSaveRouter:
     Financial apps -> country-specific databases.
     """
     PLATFORM_APPS = {'accounts', 'audit', 'notifications', 'feedback', 'auth', 'contenttypes', 'sessions', 'admin', 'token_blacklist', 'django_celery_beat', 'django_celery_results'}
-    FINANCIAL_APPS = {'groups', 'contributions', 'loans', 'ledger', 'payouts', 'payments', 'analytics', 'meetings'}
+    FINANCIAL_APPS = {'groups', 'contributions', 'loans', 'ledger', 'payouts', 'payments', 'analytics', 'meetings', 'governance'}
 
     def _instance_origin(self, hints):
         """

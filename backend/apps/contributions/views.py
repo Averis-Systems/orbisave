@@ -391,7 +391,13 @@ class ContributionWebhookView(views.APIView):
                     Decimal(str(contrib.group.mandatory_savings_amount or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                 )
                 distributable_amount = actual_amount - savings_amount
-                loan_pct = Decimal(str(contrib.group.loan_pool_pct or 0))
+                # Loaning is opt-in: nothing is set aside for the loan pool until
+                # the group has voted it on (Group.loan_pool_enabled). Until then
+                # the whole distributable amount goes to the rotation pool.
+                loan_pct = (
+                    Decimal(str(contrib.group.loan_pool_pct or 0))
+                    if contrib.group.loan_pool_enabled else Decimal('0')
+                )
                 loaning_amount = ((distributable_amount * loan_pct) / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 rotation_amount = distributable_amount - loaning_amount
 
