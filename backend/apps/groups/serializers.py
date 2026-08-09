@@ -119,6 +119,8 @@ class GroupSerializer(serializers.ModelSerializer):
             'max_members', 'contribution_amount', 'contribution_frequency',
             'contribution_day', 'mandatory_savings_amount',
             'savings_access_month', 'savings_access_day',
+            'loan_pool_enabled', 'loan_pool_pct', 'loan_interest_rate_monthly',
+            'max_loan_multiplier', 'loan_term_weeks',
             'verification_status', 'wallet', 'chairperson_name',
             'member_count', 'created_at'
         ]
@@ -132,7 +134,13 @@ class GroupSerializer(serializers.ModelSerializer):
         # savings money parameters mid-cycle silently changes members'
         # obligations and should likewise move to a governed action (tracked in
         # areas_of_concern) rather than a raw field write.
-        read_only_fields = ['status', 'verification_status', 'country', 'currency']
+        # The loan-pool fields are set by a passed governance vote (apply_on_pass),
+        # never by a raw PATCH, so they are read-only here too.
+        read_only_fields = [
+            'status', 'verification_status', 'country', 'currency',
+            'loan_pool_enabled', 'loan_pool_pct', 'loan_interest_rate_monthly',
+            'max_loan_multiplier', 'loan_term_weeks',
+        ]
 
     def get_wallet(self, obj):
         return WalletCalculations.get_cached_group_wallet(obj)

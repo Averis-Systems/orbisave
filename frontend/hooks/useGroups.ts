@@ -28,6 +28,10 @@ export interface Group {
   chairperson_name: string
   member_count: number
   payout_strategy?: string
+  loan_pool_enabled?: boolean
+  loan_pool_pct?: number
+  max_loan_multiplier?: number
+  loan_term_weeks?: number
   loan_interest_rate_monthly?: number
   created_at: string
 }

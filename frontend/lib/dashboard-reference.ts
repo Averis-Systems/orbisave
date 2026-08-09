@@ -3,6 +3,7 @@ import {
   Building2,
   CreditCard,
   LayoutDashboard,
+  Vote,
   PiggyBank,
   RefreshCw,
   Settings,
@@ -117,6 +118,7 @@ export function getUserDashboardNavItems(
       items: [
         { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
         { name: "My Group", href: "/dashboard/my-group", icon: Building2 },
+        { name: "Decisions", href: "/dashboard/decisions", icon: Vote },
       ],
     },
     {
