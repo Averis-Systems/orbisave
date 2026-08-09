@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { KYCModal } from "@/components/dashboard/KYCModal"
 import { GuidedOnboardingModal } from "@/components/dashboard/GuidedOnboardingModal"
+import { FeedbackWidget } from "@/components/dashboard/FeedbackWidget"
 import { AppStateNotice } from "@/components/states/AppState"
 import { ConnectionBanner } from "@/components/states/ConnectionBanner"
 import { useActiveGroup } from "@/hooks/useGroups"
@@ -480,6 +481,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <KYCModal isOpen={isKycModalOpen} onClose={() => setIsKycModalOpen(false)} />
       <GuidedOnboardingModal />
+      <FeedbackWidget />
     </div>
   )
 }
