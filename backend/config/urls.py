@@ -26,6 +26,10 @@ urlpatterns = [
     path('api/v1/meetings/', include('apps.meetings.urls')),
     path('api/v1/notifications/', include('apps.notifications.urls')),
     path('api/v1/analytics/', include('apps.analytics.urls')),
+    # Member-facing feedback/support (submit + own tickets).
+    path('api/v1/feedback/', include('apps.feedback.urls')),
+    # Admin queue: country managers (scoped) + super admin (all/escalated).
+    path('api/v1/admin-portal/feedback/', include('apps.feedback.admin_urls')),
     path('api/v1/admin-portal/', include('apps.admin_portal.urls')),
 ]
 

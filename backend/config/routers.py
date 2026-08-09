@@ -6,7 +6,7 @@ class OrbiSaveRouter:
     Platform-wide apps -> default database.
     Financial apps -> country-specific databases.
     """
-    PLATFORM_APPS = {'accounts', 'audit', 'notifications', 'auth', 'contenttypes', 'sessions', 'admin', 'token_blacklist', 'django_celery_beat', 'django_celery_results'}
+    PLATFORM_APPS = {'accounts', 'audit', 'notifications', 'feedback', 'auth', 'contenttypes', 'sessions', 'admin', 'token_blacklist', 'django_celery_beat', 'django_celery_results'}
     FINANCIAL_APPS = {'groups', 'contributions', 'loans', 'ledger', 'payouts', 'payments', 'analytics', 'meetings'}
 
     def _instance_origin(self, hints):
