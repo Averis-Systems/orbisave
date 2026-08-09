@@ -57,13 +57,22 @@ class FeedbackSerializer(serializers.ModelSerializer):
     reporter_name = serializers.CharField(source='reporter.full_name', read_only=True, default=None)
     reporter_email = serializers.CharField(source='reporter.email', read_only=True, default=None)
     resolved_by_name = serializers.CharField(source='resolved_by.full_name', read_only=True, default=None)
+    screenshot_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Feedback
         fields = [
             'id', 'reporter', 'reporter_name', 'reporter_email', 'country',
-            'category', 'subject', 'message', 'screenshot', 'page_url',
+            'category', 'subject', 'message', 'screenshot', 'screenshot_url', 'page_url',
             'severity', 'status', 'resolution_note', 'resolved_by_name',
             'resolved_at', 'escalated_at', 'created_at', 'updated_at',
         ]
         read_only_fields = fields
+
+    def get_screenshot_url(self, obj):
+        """Absolute URL so the Manager/Console (on a different origin) can load it."""
+        if not obj.screenshot:
+            return None
+        request = self.context.get('request')
+        url = obj.screenshot.url
+        return request.build_absolute_uri(url) if request else url

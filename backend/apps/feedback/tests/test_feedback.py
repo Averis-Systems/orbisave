@@ -24,9 +24,15 @@ ADMIN_URL = '/api/v1/admin-portal/feedback/'
 
 
 def _rows(resp):
-    """Items from the StandardPagination envelope: {success, data: [...], meta}."""
+    """Items from either shape: the member StandardPagination envelope
+    ({data: [...]}) or the admin table shape ({results: [...], count})."""
     body = resp.json()
-    return body['data'] if isinstance(body, dict) and 'data' in body else body
+    if isinstance(body, dict):
+        if 'results' in body:
+            return body['results']
+        if 'data' in body:
+            return body['data']
+    return body
 
 
 def _png():

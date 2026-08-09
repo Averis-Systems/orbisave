@@ -5,12 +5,10 @@ import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import {
   AlertTriangle,
-  ArrowUpCircle,
   CheckCircle2,
   Eye,
   Inbox,
   Loader2,
-  PlayCircle,
   X,
 } from 'lucide-react'
 import {
@@ -26,12 +24,11 @@ import {
 } from '@orbisave/admin-ui'
 
 /**
- * Country support queue.
+ * Platform feedback queue (super admin).
  *
- * Members raise feedback from the app (the floating help button). A country
- * manager sees only their own country's items here and can start work on one,
- * resolve it with a note (which notifies the reporter), or escalate a serious
- * one to the super admin. The API scopes the queue to the manager's country.
+ * The super admin sees feedback from every country. Serious items escalated by
+ * a member or a country manager surface here for a final decision; the super
+ * admin can resolve any item with a note (which notifies the reporter).
  */
 
 interface Feedback {
@@ -63,9 +60,9 @@ const CATEGORY_LABEL: Record<string, string> = {
 }
 
 const STATUS_OPTIONS = [
+  { value: 'escalated', label: 'Escalated' },
   { value: 'open', label: 'Open' },
   { value: 'in_progress', label: 'In progress' },
-  { value: 'escalated', label: 'Escalated' },
   { value: 'resolved', label: 'Resolved' },
 ]
 
@@ -81,7 +78,7 @@ function SeverityBadge({ severity }: { severity: string }) {
   return <span className="text-xs text-slate-400">Normal</span>
 }
 
-export default function ManagerSupportPage() {
+export default function ConsoleFeedbackPage() {
   const [selected, setSelected] = useState<Feedback | null>(null)
 
   const fetcher = useCallback<TableFetcher<Feedback>>(async (params, signal) => {
@@ -102,6 +99,11 @@ export default function ManagerSupportPage() {
             <p className="truncate text-xs text-slate-400">{f.reporter_email}</p>
           </div>
         ),
+      },
+      {
+        key: 'country',
+        header: 'Country',
+        render: (f) => <span className="capitalize text-slate-600">{f.country || '—'}</span>,
       },
       {
         key: 'subject',
@@ -127,7 +129,7 @@ export default function ManagerSupportPage() {
         render: (f) => (
           <RowMenu
             label={`Actions for ${f.subject}`}
-            actions={[{ label: 'View & manage', icon: Eye, onSelect: () => setSelected(f) }]}
+            actions={[{ label: 'View & resolve', icon: Eye, onSelect: () => setSelected(f) }]}
           />
         ),
       },
@@ -138,24 +140,24 @@ export default function ManagerSupportPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6 pb-16">
       <PageHeader
-        title="Support"
-        description="Feedback raised by members in your country. Resolve issues with a note, or escalate a serious one to head office."
+        title="Feedback"
+        description="Member feedback across every country. Serious items escalated by members or country managers surface here for a final decision."
       />
 
       <ServerDataTable
         table={table}
         columns={columns}
         rowKey={(f) => f.id}
-        minWidth={880}
+        minWidth={980}
         searchPlaceholder="Search subject or member"
         filters={[{ key: 'status', label: 'Status', options: STATUS_OPTIONS }]}
         emptyIcon={Inbox}
-        emptyTitle="No feedback yet"
-        emptyDescription="When members in your country raise an issue, it appears here."
+        emptyTitle="No feedback"
+        emptyDescription="Feedback raised by members across all countries will appear here."
       />
 
       {selected && (
-        <ManageDrawer
+        <ResolveDrawer
           item={selected}
           onClose={() => setSelected(null)}
           onActioned={() => {
@@ -168,7 +170,7 @@ export default function ManagerSupportPage() {
   )
 }
 
-function ManageDrawer({
+function ResolveDrawer({
   item,
   onClose,
   onActioned,
@@ -178,28 +180,21 @@ function ManageDrawer({
   onActioned: () => void
 }) {
   const [note, setNote] = useState('')
-  const [busy, setBusy] = useState<'resolve' | 'escalate' | 'start' | null>(null)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const act = async (action: 'resolve' | 'escalate' | 'start') => {
+  const resolve = async () => {
     setError(null)
-    setBusy(action)
+    setBusy(true)
     try {
-      const body = action === 'resolve' ? { resolution_note: note.trim() } : {}
-      await api.post(`/admin-portal/feedback/${item.id}/${action}/`, body)
+      await api.post(`/admin-portal/feedback/${item.id}/resolve/`, { resolution_note: note.trim() })
       onActioned()
-      toast.success(
-        action === 'resolve'
-          ? 'Marked as resolved. The member has been notified.'
-          : action === 'escalate'
-          ? 'Escalated to the super admin.'
-          : 'Marked as in progress.',
-      )
+      toast.success('Resolved. The member has been notified.')
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data
-      setError(detail?.error || detail?.message || 'That action could not be completed. Try again.')
+      setError(detail?.error || detail?.message || 'Could not resolve. Try again.')
     } finally {
-      setBusy(null)
+      setBusy(false)
     }
   }
 
@@ -209,7 +204,7 @@ function ManageDrawer({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Manage feedback"
+      aria-label="Resolve feedback"
       className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4 sm:p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
@@ -222,6 +217,7 @@ function ManageDrawer({
               <h2 className="text-lg font-semibold text-navy">{item.subject}</h2>
               <SeverityBadge severity={item.severity} />
               <StatusBadge status={item.status} />
+              <span className="text-xs capitalize text-slate-400">{item.country}</span>
             </div>
             <p className="mt-1 truncate text-sm text-slate-500">
               {item.reporter_name} · {item.reporter_email} · {formatDateTime(item.created_at)}
@@ -280,7 +276,7 @@ function ManageDrawer({
                 id="resolution-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="What was done, or what the member should do next."
+                placeholder="What was decided or done."
                 className="mt-2 h-24 w-full resize-none rounded-lg border border-slate-200 p-3 text-sm text-navy outline-none transition-colors placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
             </div>
@@ -294,32 +290,14 @@ function ManageDrawer({
         </div>
 
         {!done && (
-          <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-5 sm:grid-cols-3">
+          <div className="border-t border-slate-100 p-5">
             <button
               type="button"
-              onClick={() => act('start')}
-              disabled={busy !== null || item.status === 'in_progress'}
-              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-navy transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={resolve}
+              disabled={busy}
+              className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-white transition-colors hover:bg-[#009200] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy === 'start' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <PlayCircle className="h-4 w-4" />}
-              In progress
-            </button>
-            <button
-              type="button"
-              onClick={() => act('escalate')}
-              disabled={busy !== null}
-              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#fdb022] bg-[#fffaeb] text-sm font-medium text-[#b54708] transition-colors hover:bg-[#fef0c7] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {busy === 'escalate' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <ArrowUpCircle className="h-4 w-4" />}
-              Escalate
-            </button>
-            <button
-              type="button"
-              onClick={() => act('resolve')}
-              disabled={busy !== null}
-              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-white transition-colors hover:bg-[#009200] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {busy === 'resolve' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <CheckCircle2 className="h-4 w-4" />}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <CheckCircle2 className="h-4 w-4" />}
               Resolve
             </button>
           </div>

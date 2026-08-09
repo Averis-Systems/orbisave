@@ -49,8 +49,7 @@ class MemberFeedbackViewSet(mixins.CreateModelMixin,
         return Response(FeedbackSerializer(feedback).data, status=status.HTTP_201_CREATED)
 
 
-class AdminFeedbackViewSet(mixins.ListModelMixin,
-                           mixins.RetrieveModelMixin,
+class AdminFeedbackViewSet(mixins.RetrieveModelMixin,
                            viewsets.GenericViewSet):
     """Admin-facing queue, role-scoped:
 
@@ -62,6 +61,9 @@ class AdminFeedbackViewSet(mixins.ListModelMixin,
     """
     permission_classes = [IsPlatformAdmin]
     serializer_class = FeedbackSerializer
+    # list() returns the flat {count, total_pages, results} shape the shared
+    # admin table (useServerTable) consumes, not the StandardPagination envelope.
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
@@ -76,6 +78,23 @@ class AdminFeedbackViewSet(mixins.ListModelMixin,
         if self.request.query_params.get('escalated') in ('1', 'true', 'True'):
             qs = qs.filter(status='escalated')
         return qs
+
+    def list(self, request, *args, **kwargs):
+        from django.db.models import Q
+        from common.pagination import paginate_admin_queryset, apply_admin_ordering
+
+        qs = self.get_queryset()
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(
+                Q(subject__icontains=search)
+                | Q(reporter__full_name__icontains=search)
+                | Q(reporter__email__icontains=search)
+            )
+        qs = apply_admin_ordering(request, qs, allowed={'created_at', 'status', 'severity'})
+        page_items, meta = paginate_admin_queryset(request, qs)
+        rows = FeedbackSerializer(page_items, many=True, context={'request': request}).data
+        return Response({**meta, 'results': rows})
 
     @action(detail=True, methods=['post'])
     def resolve(self, request, pk=None):

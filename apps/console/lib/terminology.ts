@@ -20,6 +20,7 @@ export const consoleCopy = {
     auditLogs: "Audit Logs",
     apiHealth: "API health",
     partnerships: "Partnerships",
+    feedback: "Feedback",
     // Providers & Config is an expandable parent. Its children are the three
     // configuration surfaces that actually exist as routes today; nothing here
     // points at a page that has not been built.
