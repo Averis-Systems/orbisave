@@ -291,3 +291,43 @@ class ProviderStatementLine(BaseModel):
             models.Index(fields=['reference']),
             models.Index(fields=['matched_status']),
         ]
+
+
+class RevenueSweep(BaseModel):
+    """A settlement of accrued platform revenue to the separate company account.
+
+    Model A: one main custody account holds the rotation/savings/loaning pool;
+    the platform's cut (booked to the `company_revenue` ledger stream on each
+    disbursement) is periodically swept out to a separate company/`fee` account.
+    This row tracks each such sweep so accrued-vs-swept revenue is reconcilable.
+
+    The physical bank transfer is effected once the live provider internal-transfer
+    API is wired; until then a sweep is recorded 'pending' for the treasury to
+    action, or 'blocked' if no company account is configured. It never touches the
+    per-group ledgers, the fee was already accounted there.
+    """
+    STATUS = [
+        ('pending', 'Pending transfer'),
+        ('completed', 'Completed'),
+        ('blocked', 'Blocked (no company account)'),
+        ('failed', 'Failed'),
+    ]
+    country = models.CharField(max_length=10)
+    currency = models.CharField(max_length=5)
+    amount = models.DecimalField(max_digits=16, decimal_places=2)
+    source_account_ref = models.CharField(max_length=100, blank=True)   # main custody account
+    target_account_ref = models.CharField(max_length=100, blank=True)   # company / fee account
+    status = models.CharField(max_length=15, choices=STATUS, default='pending')
+    provider_reference = models.CharField(max_length=255, null=True, blank=True)
+    note = models.TextField(blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'payment_revenue_sweep'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['country', 'currency', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.country} {self.currency} {self.amount} [{self.status}]"

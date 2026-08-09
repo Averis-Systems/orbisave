@@ -332,6 +332,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': timedelta(hours=24),
         'options': {'expires': 7200},
     },
+    # Daily sweep of accrued platform revenue to the separate company account
+    'sweep-platform-revenue': {
+        'task': 'apps.payments.tasks.sweep_platform_revenue',
+        'schedule': timedelta(hours=24),
+        'options': {'expires': 7200},
+    },
     # Full hash-chain/sequence/balance sweep, any violation is a P0 incident
     'verify-ledger-integrity': {
         'task': 'apps.ledger.tasks.verify_all_ledger_streams',

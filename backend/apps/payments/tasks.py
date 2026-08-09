@@ -275,3 +275,23 @@ def models_q_any_reference(candidates):
             | Q(provider_transaction_id=candidate)
         )
     return query
+
+
+@shared_task
+def sweep_platform_revenue():
+    """
+    Sweep each active country's accrued platform cut (the `company_revenue`
+    ledger stream) out to its separate company (`fee`) bank account. Idempotent,
+    counted against pending+completed sweeps so a re-run never double-records.
+    Scheduled daily; safe to run ad hoc.
+    """
+    from apps.payments.settlement import sweep_country_revenue
+
+    recorded = 0
+    for country in ('kenya', 'rwanda', 'ghana'):
+        try:
+            recorded += len(sweep_country_revenue(country))
+        except Exception as exc:  # never let one country stop the others
+            logger.error('revenue_sweep_country_failed', country=country, error=str(exc))
+    logger.info('revenue_sweep_run_complete', recorded=recorded)
+    return f"revenue sweeps recorded: {recorded}"
