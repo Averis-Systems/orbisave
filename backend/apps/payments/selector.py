@@ -83,13 +83,17 @@ def _instantiate_provider(record) -> PaymentProvider:
     from apps.payments.providers.jenga import JengaProvider
     from apps.payments.providers.mock import MockProvider
     from apps.payments.providers.momo import MTNMoMoProvider
+    from apps.payments.providers.absa import AbsaProvider
 
     mapping = {
         'jenga_ke': JengaProvider,
         'jenga_rw': JengaProvider,
+        # Absa Bank Kenya via the Absa API Marketplace / Absa Access. Config-driven
+        # (endpoints/field-map/webhook secret from the onboarding pack) and
+        # fail-closed in live until configured. See docs/absa_onboarding.md.
+        'absa_ke': AbsaProvider,
         'mtn_momo': MTNMoMoProvider,   # Rwanda + Ghana mobile-money rail
         'mock': MockProvider,
-        # 'bk_rw': BankOfKigaliProvider,   # trust-account rail, see docs/rwanda_ghana_rails_onboarding.md
         # 'ecobank_gh': EcobankProvider,   # trust-account rail, see docs/rwanda_ghana_rails_onboarding.md
     }
 
